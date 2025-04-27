@@ -323,7 +323,7 @@ async def process_rename(client: Client, message: Message):
             path = metadata_file_path
 
         # In your process_rename function, modify the metadata command:
-metadata_command = [
+        metadata_command = [
     ffmpeg_cmd,
     '-i', path,
     '-map', '0',
@@ -336,7 +336,7 @@ metadata_command = [
     '-c', 'copy',
     '-loglevel', 'error',
     metadata_file_path
-]
+                          ]
 
         process = await asyncio.create_subprocess_exec(
             *metadata_command,
