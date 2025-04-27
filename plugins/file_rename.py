@@ -85,7 +85,7 @@ async def convert_ass_subtitles(input_path, output_path):
         raise Exception(f"Subtitle conversion failed: {error_message}")
 
 async def convert_to_mkv(input_path, output_path):
-    """Convert any video file to MKV format"""
+    """Convert any video file to MKV format with subtitle conversion"""
     ffmpeg_cmd = shutil.which('ffmpeg')
     if ffmpeg_cmd is None:
         raise Exception("FFmpeg not found")
@@ -94,7 +94,9 @@ async def convert_to_mkv(input_path, output_path):
         ffmpeg_cmd,
         '-i', input_path,
         '-map', '0',
-        '-c', 'copy',
+        '-c:v', 'copy',
+        '-c:a', 'copy',
+        '-c:s', 'srt',  # Convert subtitles to SRT format
         '-loglevel', 'error',
         output_path
     ]
