@@ -85,20 +85,47 @@ async def convert_ass_subtitles(input_path, output_path):
         raise Exception(f"Subtitle conversion failed: {error_message}")
 
 async def convert_to_mkv(input_path, output_path):
-    """Convert any video file to MKV format, skipping problematic subtitles"""
+    """Convert any video file to MKV format with proper subtitle handling"""
     ffmpeg_cmd = shutil.which('ffmpeg')
     if ffmpeg_cmd is None:
         raise Exception("FFmpeg not found")
-    
-    command = [
+
+    # First detect problematic streams
+    check_command = [
         ffmpeg_cmd,
         '-i', input_path,
-        '-map', '0',          # Include all streams
-        '-map', '-0:s',       # Exclude all subtitle streams
-        '-c', 'copy',         # Copy all streams without re-encoding
-        '-loglevel', 'error',
-        output_path
+        '-c', 'copy',
+        '-f', 'null',
+        '-'
     ]
+    
+    process = await asyncio.create_subprocess_exec(
+        *check_command,
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.PIPE
+    )
+    _, stderr = await process.communicate()
+    
+    # Build conversion command based on check results
+    if b'Subtitle codec' in stderr:
+        command = [
+            ffmpeg_cmd,
+            '-i', input_path,
+            '-map', '0',
+            '-map', '-0:s',    # Exclude all subtitles
+            '-c', 'copy',
+            '-loglevel', 'error',
+            output_path
+        ]
+    else:
+        command = [
+            ffmpeg_cmd,
+            '-i', input_path,
+            '-map', '0',
+            '-c', 'copy',
+            '-loglevel', 'error',
+            output_path
+        ]
     
     process = await asyncio.create_subprocess_exec(
         *command,
