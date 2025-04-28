@@ -1,15 +1,4 @@
 nsfw_keywords = {
-    "general": [
-        ""
-    ],
-    "hentai": [
-        ""
-    ],
-    "abbreviations": [
-        "
-    ],
-    "offensive_slang": [
-        ""]
 }
 
 exception_keywords = ["nxivm", "classroom", "assassination", "geass"]
