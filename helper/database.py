@@ -1,6 +1,7 @@
 import motor.motor_asyncio
 import datetime
 import logging
+from typing import Optional  # Add this import at the top
 from config import Config
 from .utils import send_log
 
@@ -289,7 +290,7 @@ class Database:
         except Exception as e:
             logging.error(f"Error checking global thumb status for user {id}: {e}")
             return False
-
+            
     # Watermark Methods
     async def set_watermark_text(self, id, watermark: Optional[str]):
         try:
