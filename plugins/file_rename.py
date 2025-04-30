@@ -487,16 +487,16 @@ async def process_rename(client: Client, message: Message):
                                 
                     except Exception as e:
                         await upload_msg.edit(f"⚠️ Thumbnail Download Error: {e}")
-                ph_path = None
+                        ph_path = None
 
-        caption = (
-            c_caption.format(
-                filename=renamed_file_name,
-                filesize=humanbytes(message.document.file_size),
-                duration=convert(0),
-            )
-            if c_caption
-            else f"**{renamed_file_name}**"
+                caption = (
+                    c_caption.format(
+                    filename=renamed_file_name,
+                    filesize=humanbytes(message.document.file_size),
+                    duration=convert(0),
+                )
+                if c_caption
+                else f"**{renamed_file_name}**"
         )
 
         # Upload file
