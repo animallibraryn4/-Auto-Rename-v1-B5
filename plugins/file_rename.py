@@ -57,26 +57,35 @@ def standardize_quality_name(quality):
     return quality.capitalize()
 
 async def add_watermark(input_path: str, output_path: str, watermark_text: str) -> bool:
-    """Add text watermark to video using FFmpeg"""
+    """Optimized watermark function"""
     ffmpeg_cmd = shutil.which('ffmpeg')
     if ffmpeg_cmd is None:
         raise Exception("FFmpeg not found")
     
-    # Watermark filter configuration
+    # Simplified filter chain
     watermark_filter = (
-        f"drawtext=text='{watermark_text}':fontcolor=white:fontsize=24:"
-        f"box=1:boxcolor=black@0.5:boxborderw=5:"
-        f"x=10:y=10"
+        f"drawtext=text='{watermark_text}':"
+        "fontcolor=white:fontsize=24:"
+        "box=1:boxcolor=black@0.5:"
+        "boxborderw=5:x=10:y=10,"
+        "format=yuv420p"  # Ensures compatibility
     )
     
     command = [
         ffmpeg_cmd,
         '-i', input_path,
         '-vf', watermark_filter,
-        '-codec:a', 'copy',
+        '-c:v', 'libx264',  # Faster encoding preset
+        '-preset', 'ultrafast',
+        '-crf', '23',       # Balanced quality/speed
+        '-c:a', 'copy',     # Don't re-encode audio
+        '-movflags', '+faststart',
+        '-y',               # Overwrite without asking
         '-loglevel', 'error',
         output_path
     ]
+    
+    # [Rest of the function remains same]
     
     try:
         process = await asyncio.create_subprocess_exec(
