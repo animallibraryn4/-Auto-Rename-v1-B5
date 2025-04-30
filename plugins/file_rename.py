@@ -336,19 +336,19 @@ async def process_rename(client: Client, message: Message):
             path = metadata_file_path
 
         # Handle metadata - Preserves all audio and subtitle tracks
-metadata_command = [
-    ffmpeg_cmd,
-    '-i', path,
-    '-map', '0',  # Keep all streams from input
-    '-c', 'copy',  # Copy all streams without re-encoding
-    '-metadata', f'title={await codeflixbots.get_title(user_id)}',
-    '-metadata', f'artist={await codeflixbots.get_artist(user_id)}',
-    '-metadata', f'author={await codeflixbots.get_author(user_id)}',
-    '-metadata:s:v', f'title={await codeflixbots.get_video(user_id)}',
-    '-disposition:a', '0',  # Mark first audio as default
-    '-metadata:s:a:0', f'title={await codeflixbots.get_audio(user_id)}',
-    '-metadata:s:s:0', f'title={await codeflixbots.get_subtitle(user_id)}',
-    '-loglevel', 'error',
+        metadata_command = [
+        ffmpeg_cmd,
+        '-i', path,
+        '-map', '0',  # Keep all streams from input
+        '-c', 'copy',  # Copy all streams without re-encoding
+        '-metadata', f'title={await codeflixbots.get_title(user_id)}',
+        '-metadata', f'artist={await codeflixbots.get_artist(user_id)}',
+        '-metadata', f'author={await codeflixbots.get_author(user_id)}',
+        '-metadata:s:v', f'title={await codeflixbots.get_video(user_id)}',
+        '-disposition:a', '0',  # Mark first audio as default
+        '-metadata:s:a:0', f'title={await codeflixbots.get_audio(user_id)}',
+        '-metadata:s:s:0', f'title={await codeflixbots.get_subtitle(user_id)}',
+        '-loglevel', 'error',
     metadata_file_path if not is_mp4_with_ass else final_output
 ]
 
