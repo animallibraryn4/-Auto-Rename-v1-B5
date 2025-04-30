@@ -56,6 +56,43 @@ def standardize_quality_name(quality):
         return quality.lower()
     return quality.capitalize()
 
+async def add_watermark(input_path: str, output_path: str, watermark_text: str) -> bool:
+    """Add text watermark to video using FFmpeg"""
+    ffmpeg_cmd = shutil.which('ffmpeg')
+    if ffmpeg_cmd is None:
+        raise Exception("FFmpeg not found")
+    
+    # Watermark filter configuration
+    watermark_filter = (
+        f"drawtext=text='{watermark_text}':fontcolor=white:fontsize=24:"
+        f"box=1:boxcolor=black@0.5:boxborderw=5:"
+        f"x=10:y=10"
+    )
+    
+    command = [
+        ffmpeg_cmd,
+        '-i', input_path,
+        '-vf', watermark_filter,
+        '-codec:a', 'copy',
+        '-loglevel', 'error',
+        output_path
+    ]
+    
+    try:
+        process = await asyncio.create_subprocess_exec(
+            *command,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE
+        )
+        stdout, stderr = await process.communicate()
+        
+        if process.returncode != 0:
+            error_message = stderr.decode()
+            raise Exception(f"Watermarking failed: {error_message}")
+        return True
+    except Exception as e:
+        raise Exception(f"Watermarking error: {str(e)}")
+
 async def convert_ass_subtitles(input_path, output_path):
     """Convert ASS subtitles to mov_text format"""
     ffmpeg_cmd = shutil.which('ffmpeg')
@@ -154,6 +191,7 @@ async def process_rename(client: Client, message: Message):
     user_id = message.from_user.id
     format_template = await codeflixbots.get_format_template(user_id)
     media_preference = await codeflixbots.get_media_preference(user_id)
+    watermark_text = await codeflixbots.get_watermark_text(user_id)  # Get watermark text
 
     if not format_template:
         return await message.reply_text("Please Set An Auto Rename Format First Using /autorename")
@@ -218,8 +256,10 @@ async def process_rename(client: Client, message: Message):
     renamed_file_name = f"{format_template}{file_extension}"
     renamed_file_path = f"downloads/{renamed_file_name}"
     metadata_file_path = f"Metadata/{renamed_file_name}"
+    watermarked_path = f"Watermarked/{renamed_file_name}"  # Path for watermarked files
     os.makedirs(os.path.dirname(renamed_file_path), exist_ok=True)
     os.makedirs(os.path.dirname(metadata_file_path), exist_ok=True)
+    os.makedirs(os.path.dirname(watermarked_path), exist_ok=True)
 
     # Download file
     download_msg = await message.reply_text("**__Downloading...__**")
@@ -255,6 +295,7 @@ async def process_rename(client: Client, message: Message):
                 os.rename(temp_mkv_path, path)
                 renamed_file_name = f"{format_template}.mkv"
                 metadata_file_path = f"Metadata/{renamed_file_name}"
+                watermarked_path = f"Watermarked/{renamed_file_name}"
             except Exception as e:
                 await download_msg.edit(f"**MKV Conversion Error:** {e}")
                 return
@@ -324,7 +365,19 @@ async def process_rename(client: Client, message: Message):
         if is_mp4_with_ass:
             os.replace(final_output, metadata_file_path)
         path = metadata_file_path
-        
+
+        # Apply watermark if it's a video file and watermark text exists
+        if watermark_text and (media_type in ["video", "document"] and 
+                             (path.lower().endswith('.mp4') or path.lower().endswith('.mkv'))):
+            try:
+                await download_msg.edit("**__Adding Watermark...__**")
+                await add_watermark(path, watermarked_path, watermark_text)
+                os.remove(path)  # Remove original
+                os.rename(watermarked_path, path)  # Replace with watermarked version
+            except Exception as e:
+                await download_msg.edit(f"⚠️ Watermark Error: {e}")
+                # Continue with original file if watermarking fails
+
         # Prepare for upload
         upload_msg = await download_msg.edit("**__Uploading...__**")
         c_caption = await codeflixbots.get_caption(message.chat.id)
@@ -465,6 +518,8 @@ async def process_rename(client: Client, message: Message):
             os.remove(renamed_file_path)
         if os.path.exists(metadata_file_path):
             os.remove(metadata_file_path)
+        if os.path.exists(watermarked_path):
+            os.remove(watermarked_path)
         if ph_path and os.path.exists(ph_path):
             os.remove(ph_path)
         del renaming_operations[file_id]
