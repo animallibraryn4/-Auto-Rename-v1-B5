@@ -1,4 +1,5 @@
 from pyrogram import Client, filters 
+from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from helper.database import codeflixbots
 
 @Client.on_message(filters.private & filters.command('set_caption'))
@@ -77,7 +78,7 @@ async def view_watermark(client, message):
             "**Preview Position:** Top-Left Corner\n"
             "**Appearance:** White text with semi-transparent black background",
             reply_markup=InlineKeyboardMarkup([
-                [InlineKeyboardButton("✏️ Edit Watermark", callback_data="edit_watermark"),
+                [InlineKeyboardButton("✏️ Edit Watermark", callback_data="edit_watermark")],
                 [InlineKeyboardButton("🗑️ Remove Watermark", callback_data="remove_watermark")]
             ])
         )
