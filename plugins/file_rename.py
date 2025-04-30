@@ -486,10 +486,10 @@ async def process_rename(client: Client, message: Message):
                                 img.save(ph_path, "JPEG", quality=95)
                                 
                     except Exception as e:
-                        await upload_msg.edit(f"⚠️ Thumbnail Process Error: {e}")
-                        ph_path = None
+                        await upload_msg.edit(f"⚠️ Thumbnail Download Error: {e}")
+                ph_path = None
 
-caption = (
+        caption = (
             c_caption.format(
                 filename=renamed_file_name,
                 filesize=humanbytes(message.document.file_size),
