@@ -498,7 +498,6 @@ async def process_rename(client: Client, message: Message):
                 if c_caption
                 else f"**{renamed_file_name}**"
         )
-
         # Upload file
         try:
             if media_type == "document":
