@@ -56,8 +56,85 @@ def standardize_quality_name(quality):
         return quality.lower()
     return quality.capitalize()
 
+async def get_video_duration(input_path: str) -> int:
+    """Get video duration in seconds using FFprobe"""
+    ffprobe_cmd = shutil.which('ffprobe')
+    if ffprobe_cmd is None:
+        raise Exception("FFprobe not found")
+    
+    command = [
+        ffprobe_cmd,
+        '-v', 'error',
+        '-show_entries', 'format=duration',
+        '-of', 'default=noprint_wrappers=1:nokey=1',
+        input_path
+    ]
+    
+    try:
+        process = await asyncio.create_subprocess_exec(
+            *command,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE
+        )
+        stdout, stderr = await process.communicate()
+        
+        if process.returncode == 0:
+            return int(float(stdout.decode().strip()))
+        raise Exception(stderr.decode())
+    except Exception as e:
+        raise Exception(f"Duration detection failed: {str(e)}")
+
+async def add_watermark(input_path: str, output_path: str, watermark_text: str) -> bool:
+    """Add text watermark to first 5 minutes of video while preserving all streams"""
+    ffmpeg_cmd = shutil.which('ffmpeg')
+    if ffmpeg_cmd is None:
+        raise Exception("FFmpeg not found")
+    
+    try:
+        duration = await get_video_duration(input_path)
+        watermark_duration = min(300, duration)  # 5 minutes or full duration if shorter
+    except Exception:
+        watermark_duration = 300  # Fallback to 5 minutes
+
+    # Watermark filter configuration (only for first 5 minutes)
+    watermark_filter = (
+        f"drawtext=text='{watermark_text}':fontcolor=white:fontsize=24:"
+        f"box=1:boxcolor=black@0.5:boxborderw=5:"
+        f"x=10:y=10:enable='lt(t,{watermark_duration})'"
+    )
+    
+    command = [
+        ffmpeg_cmd,
+        '-i', input_path,
+        '-vf', watermark_filter,
+        '-c:v', 'libx264',      # Re-encode video to apply watermark
+        '-preset', 'fast',      # Faster encoding with good quality
+        '-crf', '18',           # Good quality range
+        '-c:a', 'copy',         # Copy all audio streams
+        '-c:s', 'copy',         # Copy all subtitle streams
+        '-map', '0',           # Include all streams from input
+        '-map_metadata', '0',   # Preserve metadata
+        '-loglevel', 'error',
+        output_path
+    ]
+    
+    try:
+        process = await asyncio.create_subprocess_exec(
+            *command,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE
+        )
+        stdout, stderr = await process.communicate()
+        
+        if process.returncode != 0:
+            error_message = stderr.decode()
+            raise Exception(f"Watermarking failed: {error_message}")
+        return True
+    except Exception as e:
+        raise Exception(f"Watermarking error: {str(e)}")
+
 async def convert_ass_subtitles(input_path, output_path):
-    """Convert ASS subtitles to mov_text format"""
+    """Convert ASS subtitles to mov_text format while preserving other streams"""
     ffmpeg_cmd = shutil.which('ffmpeg')
     if ffmpeg_cmd is None:
         raise Exception("FFmpeg not found")
@@ -65,10 +142,10 @@ async def convert_ass_subtitles(input_path, output_path):
     command = [
         ffmpeg_cmd,
         '-i', input_path,
-        '-c:v', 'copy',
-        '-c:a', 'copy',
-        '-c:s', 'mov_text',
-        '-map', '0',
+        '-c:v', 'copy',         # Copy video stream
+        '-c:a', 'copy',         # Copy all audio streams
+        '-c:s', 'mov_text',     # Convert subtitles to mov_text
+        '-map', '0',            # Include all streams
         '-loglevel', 'error',
         output_path
     ]
@@ -85,7 +162,7 @@ async def convert_ass_subtitles(input_path, output_path):
         raise Exception(f"Subtitle conversion failed: {error_message}")
 
 async def convert_to_mkv(input_path, output_path):
-    """Convert any video file to MKV format"""
+    """Convert any video file to MKV format while preserving all streams"""
     ffmpeg_cmd = shutil.which('ffmpeg')
     if ffmpeg_cmd is None:
         raise Exception("FFmpeg not found")
@@ -93,8 +170,8 @@ async def convert_to_mkv(input_path, output_path):
     command = [
         ffmpeg_cmd,
         '-i', input_path,
-        '-map', '0',
-        '-c', 'copy',
+        '-map', '0',            # Include all streams
+        '-c', 'copy',           # Copy all streams without re-encoding
         '-loglevel', 'error',
         output_path
     ]
@@ -150,10 +227,12 @@ def extract_volume_chapter(filename):
 
 async def process_rename(client: Client, message: Message):
     ph_path = None
+    watermarked_path = None
     
     user_id = message.from_user.id
     format_template = await codeflixbots.get_format_template(user_id)
     media_preference = await codeflixbots.get_media_preference(user_id)
+    watermark_text = await codeflixbots.get_watermark_text(user_id)
 
     if not format_template:
         return await message.reply_text("Please Set An Auto Rename Format First Using /autorename")
@@ -218,8 +297,10 @@ async def process_rename(client: Client, message: Message):
     renamed_file_name = f"{format_template}{file_extension}"
     renamed_file_path = f"downloads/{renamed_file_name}"
     metadata_file_path = f"Metadata/{renamed_file_name}"
+    watermarked_path = f"Watermarked/{renamed_file_name}"
     os.makedirs(os.path.dirname(renamed_file_path), exist_ok=True)
     os.makedirs(os.path.dirname(metadata_file_path), exist_ok=True)
+    os.makedirs(os.path.dirname(watermarked_path), exist_ok=True)
 
     # Download file
     download_msg = await message.reply_text("**__Downloading...__**")
@@ -255,6 +336,7 @@ async def process_rename(client: Client, message: Message):
                 os.rename(temp_mkv_path, path)
                 renamed_file_name = f"{format_template}.mkv"
                 metadata_file_path = f"Metadata/{renamed_file_name}"
+                watermarked_path = f"Watermarked/{renamed_file_name}"
             except Exception as e:
                 await download_msg.edit(f"**MKV Conversion Error:** {e}")
                 return
@@ -303,8 +385,8 @@ async def process_rename(client: Client, message: Message):
             '-metadata:s:v', f'title={await codeflixbots.get_video(user_id)}',
             '-metadata:s:a', f'title={await codeflixbots.get_audio(user_id)}',
             '-metadata:s:s', f'title={await codeflixbots.get_subtitle(user_id)}',
-            '-map', '0',
-            '-c', 'copy',
+            '-map', '0',            # Include all streams
+            '-c', 'copy',           # Copy all streams
             '-loglevel', 'error',
             metadata_file_path if not is_mp4_with_ass else final_output
         ]
@@ -324,7 +406,19 @@ async def process_rename(client: Client, message: Message):
         if is_mp4_with_ass:
             os.replace(final_output, metadata_file_path)
         path = metadata_file_path
-        
+
+        # Apply watermark if it's a video file and watermark text exists
+        if watermark_text and (media_type in ["video", "document"] and 
+                             (path.lower().endswith('.mp4') or path.lower().endswith('.mkv'))):
+            try:
+                await download_msg.edit("**__Adding Watermark (first 5 minutes only)...__**")
+                await add_watermark(path, watermarked_path, watermark_text)
+                os.remove(path)  # Remove original
+                os.rename(watermarked_path, path)  # Replace with watermarked version
+            except Exception as e:
+                await download_msg.edit(f"⚠️ Watermark Error: {e}")
+                # Continue with original file if watermarking fails
+
         # Prepare for upload
         upload_msg = await download_msg.edit("**__Uploading...__**")
         c_caption = await codeflixbots.get_caption(message.chat.id)
@@ -394,11 +488,8 @@ async def process_rename(client: Client, message: Message):
                     except Exception as e:
                         await upload_msg.edit(f"⚠️ Thumbnail Process Error: {e}")
                         ph_path = None
-            except Exception as e:
-                await upload_msg.edit(f"⚠️ Thumbnail Download Error: {e}")
-                ph_path = None
 
-        caption = (
+caption = (
             c_caption.format(
                 filename=renamed_file_name,
                 filesize=humanbytes(message.document.file_size),
@@ -465,6 +556,8 @@ async def process_rename(client: Client, message: Message):
             os.remove(renamed_file_path)
         if os.path.exists(metadata_file_path):
             os.remove(metadata_file_path)
+        if watermarked_path and os.path.exists(watermarked_path):
+            os.remove(watermarked_path)
         if ph_path and os.path.exists(ph_path):
             os.remove(ph_path)
         del renaming_operations[file_id]
