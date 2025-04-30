@@ -27,15 +27,15 @@ class Database:
             format_template=None,
             thumbnails={},
             temp_quality=None,
-            use_global_thumb=False,  # New field for global thumbnail toggle
-            global_thumb=None,       # Stores the global thumbnail file_id
+            use_global_thumb=False,
+            global_thumb=None,
+            watermark_text=None,  # New field for watermark text
             ban_status=dict(
                 is_banned=False,
                 ban_duration=0,
                 banned_on=datetime.date.max.isoformat(),
                 ban_reason=''
             ),
-            # Preserving all existing metadata fields
             title='Encoded by @Animelibraryn4',
             author='@Animelibraryn4',
             artist='@Animelibraryn4',
@@ -289,6 +289,25 @@ class Database:
         except Exception as e:
             logging.error(f"Error checking global thumb status for user {id}: {e}")
             return False
+
+    # Watermark Methods
+    async def set_watermark_text(self, id, watermark: Optional[str]):
+        try:
+            await self.col.update_one(
+                {"_id": int(id)},
+                {"$set": {"watermark_text": watermark}},
+                upsert=True
+            )
+        except Exception as e:
+            logging.error(f"Error setting watermark text for user {id}: {e}")
+
+    async def get_watermark_text(self, id):
+        try:
+            user = await self.col.find_one({"_id": int(id)})
+            return user.get("watermark_text") if user else None
+        except Exception as e:
+            logging.error(f"Error getting watermark text for user {id}: {e}")
+            return None
 
 # Initialize database connection
 codeflixbots = Database(Config.DB_URL, Config.DB_NAME)
