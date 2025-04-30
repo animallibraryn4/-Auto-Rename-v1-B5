@@ -350,7 +350,7 @@ metadata_command = [
     '-metadata:s:s:0', f'title={await codeflixbots.get_subtitle(user_id)}',
     '-loglevel', 'error',
     metadata_file_path if not is_mp4_with_ass else final_output
-                   ]
+]
 
         process = await asyncio.create_subprocess_exec(
             *metadata_command,
