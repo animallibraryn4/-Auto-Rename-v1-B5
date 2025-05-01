@@ -108,8 +108,9 @@ async def add_watermark(input_path: str, output_path: str, watermark_text: str) 
         '-i', input_path,
         '-vf', watermark_filter,
         '-c:v', 'libx264',      # Re-encode video to apply watermark
-        '-preset', 'fast',      # Faster encoding with good quality
-        '-crf', '18',           # Good quality range
+        '-preset', 'ultrafast',      # Faster encoding with good quality
+        '-crf', '25',
+        '-tune', 'fastdecode',  # Good quality range
         '-c:a', 'copy',         # Copy all audio streams
         '-c:s', 'copy',         # Copy all subtitle streams
         '-map', '0',            # Include all streams from input
