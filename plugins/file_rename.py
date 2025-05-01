@@ -92,9 +92,9 @@ async def add_watermark(input_path: str, output_path: str, watermark_text: str) 
     
     try:
         duration = await get_video_duration(input_path)
-        watermark_duration = min(300, duration)  # 5 minutes or full duration if shorter
+        watermark_duration = min(10, duration)  # 5 minutes or full duration if shorter
     except Exception:
-        watermark_duration = 300  # Fallback to 5 minutes
+        watermark_duration = 10  # Fallback to 5 minutes
 
     # Watermark filter configuration (only for first 5 minutes)
     watermark_filter = (
