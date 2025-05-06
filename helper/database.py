@@ -29,6 +29,7 @@ class Database:
             temp_quality=None,
             use_global_thumb=False,  # New field for global thumbnail toggle
             global_thumb=None,       # Stores the global thumbnail file_id
+            split_large_files=False, # New field for large file splitting
             ban_status=dict(
                 is_banned=False,
                 ban_duration=0,
@@ -290,25 +291,26 @@ class Database:
             logging.error(f"Error checking global thumb status for user {id}: {e}")
             return False
 
+    # Large File Splitting Methods
     async def set_split_large_files(self, id, status):
-    """Enable/disable large file splitting for user"""
-    try:
-        await self.col.update_one(
-            {"_id": int(id)},
-            {"$set": {"split_large_files": bool(status)}},
-            upsert=True
-        )
-    except Exception as e:
-        logger.error(f"Error setting split_large_files for user {id}: {e}")
+        """Enable/disable large file splitting for user"""
+        try:
+            await self.col.update_one(
+                {"_id": int(id)},
+                {"$set": {"split_large_files": bool(status)}},
+                upsert=True
+            )
+        except Exception as e:
+            logging.error(f"Error setting split_large_files for user {id}: {e}")
 
     async def get_split_large_files(self, id):
-    """Check if large file splitting is enabled for user"""
-    try:
-        user = await self.col.find_one({"_id": int(id)})
-        return user.get("split_large_files", False) if user else False
-    except Exception as e:
-        logger.error(f"Error getting split_large_files for user {id}: {e}")
-        return False
-     
+        """Check if large file splitting is enabled for user"""
+        try:
+            user = await self.col.find_one({"_id": int(id)})
+            return user.get("split_large_files", False) if user else False
+        except Exception as e:
+            logging.error(f"Error getting split_large_files for user {id}: {e}")
+            return False
+
 # Initialize database connection
 codeflixbots = Database(Config.DB_URL, Config.DB_NAME)
