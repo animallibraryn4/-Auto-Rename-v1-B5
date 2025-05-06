@@ -301,7 +301,7 @@ class Database:
     except Exception as e:
         logger.error(f"Error setting split_large_files for user {id}: {e}")
 
-async def get_split_large_files(self, id):
+    async def get_split_large_files(self, id):
     """Check if large file splitting is enabled for user"""
     try:
         user = await self.col.find_one({"_id": int(id)})
