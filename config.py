@@ -5,13 +5,13 @@ id_pattern = re.compile(r'^.\d+$')
 
 class Config(object):
     # pyro client config
-    API_ID    = os.environ.get("API_ID", "22299340")
-    API_HASH  = os.environ.get("API_HASH", "09b09f3e2ff1306da4a19888f614d937")
-    BOT_TOKEN = os.environ.get("BOT_TOKEN", "7765824536:AAGWAmdf2iqGraIeTRuf8UySvcS9OdiqKk4") 
+    API_ID    = os.environ.get("API_ID", "")
+    API_HASH  = os.environ.get("API_HASH", "")
+    BOT_TOKEN = os.environ.get("BOT_TOKEN", "") 
 
     # database config
     DB_NAME = os.environ.get("DB_NAME","codeflix")     
-    DB_URL  = os.environ.get("DB_URL","mongodb+srv://dewoceg734:Xwvd4n5#85jZQAy@cluster0.as6bejk.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0")
+    DB_URL  = os.environ.get("DB_URL","")
     PORT = os.environ.get("PORT", "9090")
  
     # other configs
@@ -52,11 +52,11 @@ class Txt(object):
 ➲ S[SE.NUM] - ᴛᴏ ʀᴇᴘʟᴀᴄᴇ ꜱᴇᴀꜱᴏɴ ɴᴜᴍʙᴇʀ  
 ➲ [QUALITY] - ᴛᴏ ʀᴇᴘʟᴀᴄᴇ ǫᴜᴀʟɪᴛʏ
 
-<b>‣ ꜰᴏʀ ᴇx:- </b> <code>  /autorename [S[SE.NUM]EP[EP.NUM]] Pokemon [QUALITY] [Dual Audio] @animelibraryn4 | @onlyfans_n4</code>
+<b>‣ ꜰᴏʀ ᴇx:- </b> <code>  /autorename [S[SE.NUM]-E[EP.NUM]] Pokemon [[QUALITY]] [Dual Audio] @Animelibraryn4 | @onlyfans_n4</code>
 
 <b>‣ /Autorename: ʀᴇɴᴀᴍᴇ ʏᴏᴜʀ ᴍᴇᴅɪᴀ ꜰɪʟᴇs ʙʏ ɪɴᴄʟᴜᴅɪɴɢ 'ᴇᴘɪꜱᴏᴅᴇ', 'ꜱᴇᴀꜱᴏɴ' ᴀɴᴅ 'ǫᴜᴀʟɪᴛʏ' ᴠᴀʀɪᴀʙʟᴇꜱ ɪɴ ʏᴏᴜʀ ᴛᴇxᴛ, ᴛᴏ ᴇxᴛʀᴀᴄᴛ ᴇᴘɪꜱᴏᴅᴇ, ꜱᴇᴀꜱᴏɴ ᴀɴᴅ ǫᴜᴀʟɪᴛʏ ᴘʀᴇꜱᴇɴᴛ ɪɴ ᴛʜᴇ ᴏʀɪɢɪɴᴀʟ ꜰɪʟᴇɴᴀᴍᴇ. """
     
-    ABOUT_TXT = f"""<b>❍ ᴍʏ ɴᴀᴍᴇ : <a href="https://t.me/codeflix_bots">ᴀᴜᴛᴏ ʀᴇɴᴀᴍᴇ</a>
+    ABOUT_TXT = f"""<b>❍ ᴍʏ ɴᴀᴍᴇ : <a href="https://t.me/animelibraryn4">ᴀᴜᴛᴏ ʀᴇɴᴀᴍᴇ</a>
 ❍ ᴅᴇᴠᴇʟᴏᴩᴇʀ : <a href="https://t.me/animelibraryn4">ᴀɴɪᴍᴇ ʟɪʙʀᴀʀʏ ɴ4</a>
 ❍ ɢɪᴛʜᴜʙ : <a href="https://t.me/animelibraryn4">ᴀɴɪᴍᴇ ʟɪʙʀᴀʀʏ ɴ4</a>
 ❍ ʟᴀɴɢᴜᴀɢᴇ : <a href="https://www.python.org/">ᴘʏᴛʜᴏɴ</a>
