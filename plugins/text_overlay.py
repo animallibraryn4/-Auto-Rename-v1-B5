@@ -1,9 +1,10 @@
+
 from pyrogram import Client, filters
 from pyrogram.types import Message
 from helper.database import codeflixbots
-from config import Txt
+from config import Config, Txt
 
-@Client.on_message(filters.private & filters.command("settext"))
+@Client.on_message(filters.private & filters.command("settext") & filters.user(Config.ADMIN))
 async def set_custom_text(client, message):
     if len(message.command) == 1:
         return await message.reply_text(
@@ -15,7 +16,7 @@ async def set_custom_text(client, message):
     await codeflixbots.set_custom_text(message.from_user.id, text)
     await message.reply_text("✅ Custom text saved successfully!")
 
-@Client.on_message(filters.private & filters.command("settexttime"))
+@Client.on_message(filters.private & filters.command("settexttime") & filters.user(Config.ADMIN))
 async def set_text_timing(client, message):
     if len(message.command) < 3:
         return await message.reply_text(
@@ -41,18 +42,12 @@ async def view_custom_text(client, message):
     
     if text:
         response = (
-            f"**Your current settings:**\n\n"
+            f"**Current text overlay settings (Admin Only):**\n\n"
             f"📝 Text: `{text}`\n"
             f"⏱ Interval: Every `{interval}` seconds\n"
-            f"⏳ Duration: `{duration}` seconds\n\n"
-            f"Use /settext to change the text\n"
-            f"Use /settexttime to change timing"
+            f"⏳ Duration: `{duration}` seconds"
         )
     else:
-        response = (
-            "❌ No custom text set!\n\n"
-            "Use /settext to add your text\n"
-            "Use /settexttime to set display timing"
-        )
+        response = "❌ No custom text overlay is currently set by admin"
     
     await message.reply_text(response)
