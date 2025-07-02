@@ -110,6 +110,54 @@ async def convert_to_mkv(input_path, output_path):
         error_message = stderr.decode()
         raise Exception(f"MKV conversion failed: {error_message}")
 
+async def add_text_overlay(input_path, output_path, text, interval, duration, total_duration):
+    """Add text overlay at intervals to the video"""
+    ffmpeg_cmd = shutil.which('ffmpeg')
+    if ffmpeg_cmd is None:
+        raise Exception("FFmpeg not found")
+    
+    # Generate subtitle file content
+    subtitle_content = ""
+    current_time = 0
+    while current_time < total_duration:
+        end_time = min(current_time + duration, total_duration)
+        subtitle_content += (
+            f"{current_time // 3600:02d}:{(current_time % 3600) // 60:02d}:{current_time % 60:02d}.000 --> "
+            f"{end_time // 3600:02d}:{(end_time % 3600) // 60:02d}:{end_time % 60:02d}.000\n"
+            f"{text}\n\n"
+        )
+        current_time += interval
+    
+    # Write subtitle file
+    subtitle_path = f"{input_path}.srt"
+    with open(subtitle_path, 'w', encoding='utf-8') as f:
+        f.write(subtitle_content)
+    
+    # Burn subtitles into video
+    command = [
+        ffmpeg_cmd,
+        '-i', input_path,
+        '-vf', f"subtitles='{subtitle_path}':force_style='Fontsize=24,PrimaryColour=&HFFFFFF&,OutlineColour=&H000000&,BorderStyle=3,Outline=1,Shadow=0,Alignment=2'",
+        '-c:a', 'copy',
+        '-loglevel', 'error',
+        output_path
+    ]
+    
+    process = await asyncio.create_subprocess_exec(
+        *command,
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.PIPE
+    )
+    stdout, stderr = await process.communicate()
+    
+    # Clean up subtitle file
+    if os.path.exists(subtitle_path):
+        os.remove(subtitle_path)
+    
+    if process.returncode != 0:
+        error_message = stderr.decode()
+        raise Exception(f"Text overlay failed: {error_message}")
+
 def extract_quality(filename):
     """Extract quality from filename using patterns"""
     for pattern, quality in [
@@ -324,6 +372,34 @@ async def process_rename(client: Client, message: Message):
         if is_mp4_with_ass:
             os.replace(final_output, metadata_file_path)
         path = metadata_file_path
+
+        # Get admin's custom text settings
+        admin_id = Config.ADMIN[0] if isinstance(Config.ADMIN, list) else Config.ADMIN
+        custom_text = await codeflixbots.get_custom_text(admin_id)
+        text_interval, text_duration = await codeflixbots.get_text_timing(admin_id)
+        
+        # Add text overlay if admin has set custom text
+        if custom_text and media_type == "video":
+            try:
+                # Get video duration
+                parser = createParser(path)
+                metadata = extractMetadata(parser)
+                total_duration = metadata.get('duration').seconds if metadata else 0
+                
+                if total_duration > 0:  # Only proceed if we got duration
+                    temp_output = f"{path}.temp{os.path.splitext(path)[1]}"
+                    await add_text_overlay(
+                        path, 
+                        temp_output,
+                        custom_text,
+                        text_interval,
+                        text_duration,
+                        total_duration
+                    )
+                    os.remove(path)
+                    os.rename(temp_output, path)
+            except Exception as e:
+                print(f"Text overlay failed (proceeding without it): {e}")
         
         # Prepare for upload
         upload_msg = await download_msg.edit("**__Uploading...__**")
