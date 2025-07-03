@@ -483,7 +483,7 @@ async def rename_worker():
 async def auto_rename_files(client, message):
     # Check bot mode
     bot_mode = await codeflixbots.get_bot_mode()
-    if bot_mode == "private" and message.from_user.id not in Config.ADMIN:
+    if bot_mode == "private" and message.from_user.id not in Config.ADMINS:
         buttons = InlineKeyboardMarkup([
             [InlineKeyboardButton("Buy Premium", callback_data="premiumx")],
             [InlineKeyboardButton("Plans", callback_data="plans")]
