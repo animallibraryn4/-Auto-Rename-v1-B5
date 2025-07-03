@@ -13,6 +13,22 @@ ADMIN_USER_ID = Config.ADMIN
 # Flag to indicate if the bot is restarting
 is_restarting = False
 
+def check_bot_mode(func):
+    async def wrapper(client, message):
+        bot_mode = await codeflixbots.get_bot_mode()
+        if bot_mode == "private" and message.from_user.id not in Config.ADMIN:
+            buttons = InlineKeyboardMarkup([
+                [InlineKeyboardButton("Buy Premium", callback_data="premiumx")],
+                [InlineKeyboardButton("Plans", callback_data="plans")]
+            ])
+            return await message.reply_text(
+                "⚠️ Bot is currently in private mode. Only admins can use it.\n\n"
+                "Contact admin for access or check premium plans:",
+                reply_markup=buttons
+            )
+        return await func(client, message)
+    return wrapper
+
 @Client.on_message(filters.private & filters.command("restart") & filters.user(ADMIN_USER_ID))
 async def restart_bot(b, m):
     global is_restarting
@@ -27,8 +43,8 @@ async def restart_bot(b, m):
         # Restart the bot process
         os.execl(sys.executable, sys.executable, *sys.argv)
 
-
 @Client.on_message(filters.private & filters.command("tutorial"))
+@check_bot_mode
 async def tutorial(bot: Client, message: Message):
     user_id = message.from_user.id
     format_template = await codeflixbots.get_format_template(user_id)
@@ -40,7 +56,6 @@ async def tutorial(bot: Client, message: Message):
              InlineKeyboardButton(" ᴛᴜᴛᴏʀɪᴀʟ", url="https://t.me/Animelibraryn4")]
         ])
     )
-
 
 @Client.on_message(filters.command(["stats", "status"]) & filters.user(Config.ADMIN))
 async def get_stats(bot, message):
@@ -76,7 +91,25 @@ async def broadcast_handler(bot: Client, m: Message):
            await sts_msg.edit(f"Broadcast In Progress: \n\nTotal Users {total_users} \nCompleted : {done} / {total_users}\nSuccess : {success}\nFailed : {failed}")
     completed_in = datetime.timedelta(seconds=int(time.time() - start_time))
     await sts_msg.edit(f"Bʀᴏᴀᴅᴄᴀꜱᴛ Cᴏᴍᴩʟᴇᴛᴇᴅ: \nCᴏᴍᴩʟᴇᴛᴇᴅ Iɴ `{completed_in}`.\n\nTotal Users {total_users}\nCompleted: {done} / {total_users}\nSuccess: {success}\nFailed: {failed}")
-           
+
+@Client.on_message(filters.private & filters.command("botmode") & filters.user(ADMIN_USER_ID))
+async def set_bot_mode(client, message):
+    if len(message.command) < 2:
+        current_mode = await codeflixbots.get_bot_mode()
+        return await message.reply_text(f"Current bot mode: {current_mode}\n\nUsage: /botmode <public|private>")
+    
+    mode = message.text.split()[1].lower()
+    if mode not in ["public", "private"]:
+        return await message.reply_text("Invalid mode. Use 'public' or 'private'")
+    
+    await codeflixbots.set_bot_mode(mode)
+    await message.reply_text(f"Bot mode set to: {mode}")
+    
+    if mode == "private":
+        await client.send_message(Config.LOG_CHANNEL, f"⚠️ Bot switched to PRIVATE mode by admin {message.from_user.mention}")
+    else:
+        await client.send_message(Config.LOG_CHANNEL, f"✅ Bot switched to PUBLIC mode by admin {message.from_user.mention}")
+
 async def send_msg(user_id, message):
     try:
         await message.copy(chat_id=int(user_id))
