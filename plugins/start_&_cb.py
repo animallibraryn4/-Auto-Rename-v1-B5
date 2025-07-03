@@ -7,8 +7,44 @@ from helper.database import codeflixbots
 from config import *
 from config import Config
 
+def check_bot_mode(func):
+    async def wrapper(client, message):
+        bot_mode = await codeflixbots.get_bot_mode()
+        if bot_mode == "private" and message.from_user.id not in Config.ADMINS:
+            buttons = InlineKeyboardMarkup([
+                [InlineKeyboardButton("Buy Premium", callback_data="premiumx")],
+                [InlineKeyboardButton("Plans", callback_data="plans")]
+            ])
+            return await message.reply_text(
+                "⚠️ Bot is currently in private mode. Only admins can use it.\n\n"
+                "Contact admin for access or check premium plans:",
+                reply_markup=buttons
+            )
+        return await func(client, message)
+    return wrapper
+
+# Admin command to set bot mode
+@Client.on_message(filters.private & filters.command("botmode") & filters.user(ADMINS))
+async def set_bot_mode(client, message):
+    if len(message.command) < 2:
+        current_mode = await codeflixbots.get_bot_mode()
+        return await message.reply_text(f"Current bot mode: {current_mode}\n\nUsage: /botmode <public|private>")
+    
+    mode = message.text.split()[1].lower()
+    if mode not in ["public", "private"]:
+        return await message.reply_text("Invalid mode. Use 'public' or 'private'")
+    
+    await codeflixbots.set_bot_mode(mode)
+    await message.reply_text(f"Bot mode set to: {mode}")
+    
+    if mode == "private":
+        await client.send_message(Config.LOG_CHANNEL, f"⚠️ Bot switched to PRIVATE mode by admin {message.from_user.mention}")
+    else:
+        await client.send_message(Config.LOG_CHANNEL, f"✅ Bot switched to PUBLIC mode by admin {message.from_user.mention}")
+
 # Start Command Handler
 @Client.on_message(filters.private & filters.command("start"))
+@check_bot_mode
 async def start(client, message: Message):
     user = message.from_user
     await codeflixbots.add_user(client, message)
@@ -58,6 +94,7 @@ async def start(client, message: Message):
 
 # Callback Query Handler
 @Client.on_callback_query()
+@check_bot_mode
 async def cb_handler(client, query: CallbackQuery):
     data = query.data
     user_id = query.from_user.id
@@ -96,8 +133,8 @@ async def cb_handler(client, query: CallbackQuery):
         )
 
     elif data == "meta":
-        await query.message.edit_text(  # Change edit_caption to edit_text
-            text=Txt.SEND_METADATA,  # Changed from caption to text
+        await query.message.edit_text(
+            text=Txt.SEND_METADATA,
             reply_markup=InlineKeyboardMarkup([
                 [InlineKeyboardButton("ᴄʟᴏsᴇ", callback_data="close"), InlineKeyboardButton("ʙᴀᴄᴋ", callback_data="help")]
             ])
@@ -174,6 +211,7 @@ async def cb_handler(client, query: CallbackQuery):
 
 # Donation Command Handler
 @Client.on_message(filters.command("donate"))
+@check_bot_mode
 async def donation(client, message):
     buttons = InlineKeyboardMarkup([
         [InlineKeyboardButton(text="ʙᴀᴄᴋ", callback_data="help"), InlineKeyboardButton(text="ᴏᴡɴᴇʀ", url='https://t.me/Tanjiro_kamado_n4_bot')]
@@ -185,6 +223,7 @@ async def donation(client, message):
 
 # Premium Command Handler
 @Client.on_message(filters.command("premium"))
+@check_bot_mode
 async def getpremium(bot, message):
     buttons = InlineKeyboardMarkup([
         [InlineKeyboardButton("ᴏᴡɴᴇʀ", url="https://t.me/Anime_library_n4"), InlineKeyboardButton("ᴄʟᴏsᴇ", callback_data="close")]
@@ -196,6 +235,7 @@ async def getpremium(bot, message):
 
 # Plan Command Handler
 @Client.on_message(filters.command("plan"))
+@check_bot_mode
 async def premium(bot, message):
     buttons = InlineKeyboardMarkup([
         [InlineKeyboardButton("sᴇɴᴅ ss", url="https://t.me/Anime_library_n4"), InlineKeyboardButton("ᴄʟᴏsᴇ", callback_data="close")]
@@ -207,6 +247,7 @@ async def premium(bot, message):
 
 # Bought Command Handler
 @Client.on_message(filters.command("bought") & filters.private)
+@check_bot_mode
 async def bought(client, message):
     msg = await message.reply('Wait im checking...')
     replied = message.reply_to_message
@@ -225,6 +266,7 @@ async def bought(client, message):
         await msg.edit_text('<b>Your screenshot has been sent to Admins</b>')
 
 @Client.on_message(filters.private & filters.command("help"))
+@check_bot_mode
 async def help_command(client, message):
     # Await get_me to get the bot's user object
     bot = await client.get_me()
