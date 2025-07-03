@@ -328,6 +328,14 @@ class Database:
         except Exception as e:
             logging.error(f"Error getting text timing for user {id}: {e}")
             return 600, 30
+   
+    async def get_bot_mode():
+    # Returns current bot mode ('public' or 'private')
+            return await db.bot_settings.find_one({"_id": "mode"}) or {"mode": "public"}
 
+    async def set_bot_mode(mode: str):
+    # Sets bot mode ('public' or 'private')
+            await db.bot_settings.update_one({"_id": "mode"}, {"$set": {"mode": mode}}, upsert=True)
+     
 # Initialize database connection
 codeflixbots = Database(Config.DB_URL, Config.DB_NAME)
