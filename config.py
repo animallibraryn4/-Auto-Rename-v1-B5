@@ -21,7 +21,7 @@ class Config(object):
     FORCE_SUB_CHANNELS = os.environ.get('FORCE_SUB_CHANNELS', 'animelibraryn4').split(',')
     LOG_CHANNEL = int(os.environ.get("LOG_CHANNEL", "-1002263636517"))
     DUMP_CHANNEL = int(os.environ.get("DUMP_CHANNEL", "-1002263636517"))
-    ADMINS = [5380609667]  # Replace with your actual admin user IDs
+    ADMINS = [int(admin) if id_pattern.search(admin) else admin for admin in os.environ.get('ADMINS', '5380609667').split()]
     # web response configuration     
     WEBHOOK = bool(os.environ.get("WEBHOOK", "True"))
     
