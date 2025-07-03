@@ -17,12 +17,10 @@ class Config(object):
     # other configs
     BOT_UPTIME  = time.time()
     START_PIC   = os.environ.get("START_PIC", "https://images8.alphacoders.com/138/1384114.png")
-    ADMIN       = [int(admin) if id_pattern.search(admin) else admin for admin in os.environ.get('ADMIN', '5380609667').split()]
+    ADMINS      = [int(admin) if id_pattern.search(admin) else admin for admin in os.environ.get('ADMINS', '5380609667').split()]
     FORCE_SUB_CHANNELS = os.environ.get('FORCE_SUB_CHANNELS', 'animelibraryn4').split(',')
     LOG_CHANNEL = int(os.environ.get("LOG_CHANNEL", "-1002263636517"))
     DUMP_CHANNEL = int(os.environ.get("DUMP_CHANNEL", "-1002263636517"))
-    ADMINS = [int(admin) if id_pattern.search(admin) else admin for admin in os.environ.get('ADMINS', '5380609667').split()]
-    # web response configuration     
     WEBHOOK = bool(os.environ.get("WEBHOOK", "True"))
     
     # Season Extraction Configuration (New)
