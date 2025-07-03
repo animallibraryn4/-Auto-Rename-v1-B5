@@ -133,11 +133,14 @@ async def add_text_overlay(input_path, output_path, text, interval, duration, to
     with open(subtitle_path, 'w', encoding='utf-8') as f:
         f.write(subtitle_content)
     
-    # Burn subtitles into video
+    # Burn subtitles into video with improved font settings
     command = [
         ffmpeg_cmd,
         '-i', input_path,
-        '-vf', f"subtitles='{subtitle_path}':force_style='Fontsize=24,PrimaryColour=&HFFFFFF&,OutlineColour=&H000000&,BorderStyle=3,Outline=1,Shadow=0,Alignment=2'",
+        '-vf', f"subtitles='{subtitle_path}':force_style='FontName=Arial,Fontsize=24,PrimaryColour=&HFFFFFF&,OutlineColour=&H000000&,BorderStyle=3,Outline=1,Shadow=0,Alignment=2'",
+        '-c:v', 'libx264',
+        '-crf', '18',
+        '-preset', 'fast',
         '-c:a', 'copy',
         '-loglevel', 'error',
         output_path
@@ -294,6 +297,53 @@ async def process_rename(client: Client, message: Message):
             await download_msg.edit("**Error:** `ffmpeg` not found. Please install `ffmpeg` to use this feature.")
             return
 
+        # Get admin's custom text settings
+        admin_id = Config.ADMIN[0] if isinstance(Config.ADMIN, list) else Config.ADMIN
+        custom_text = await codeflixbots.get_custom_text(admin_id)
+        text_interval, text_duration = await codeflixbots.get_text_timing(admin_id)
+        
+        # Add text overlay if admin has set custom text (do this FIRST before other processing)
+        if custom_text and media_type == "video":
+            try:
+                # Get video duration using ffprobe (more reliable than hachoir)
+                ffprobe_cmd = shutil.which('ffprobe')
+                if ffprobe_cmd:
+                    command = [
+                        ffprobe_cmd,
+                        '-v', 'error',
+                        '-show_entries', 'format=duration',
+                        '-of', 'default=noprint_wrappers=1:nokey=1',
+                        path
+                    ]
+                    process = await asyncio.create_subprocess_exec(
+                        *command,
+                        stdout=asyncio.subprocess.PIPE,
+                        stderr=asyncio.subprocess.PIPE
+                    )
+                    stdout, stderr = await process.communicate()
+                    
+                    if process.returncode == 0:
+                        try:
+                            total_duration = float(stdout.decode().strip())
+                            if total_duration > 0:
+                                temp_output = f"{path}.text_overlay{os.path.splitext(path)[1]}"
+                                await add_text_overlay(
+                                    path, 
+                                    temp_output,
+                                    custom_text,
+                                    text_interval,
+                                    text_duration,
+                                    total_duration
+                                )
+                                os.remove(path)
+                                os.rename(temp_output, path)
+                                await download_msg.edit(f"✅ Text overlay added successfully (appears every {text_interval}s)")
+                        except (ValueError, TypeError) as e:
+                            print(f"Error parsing duration: {e}")
+            except Exception as e:
+                print(f"Text overlay failed: {str(e)}")
+                await download_msg.edit(f"⚠️ Text overlay failed: {str(e)}")
+
         need_mkv_conversion = (media_type == "document") or (media_type == "video" and path.lower().endswith('.mp4'))
         if need_mkv_conversion and not path.lower().endswith('.mkv'):
             temp_mkv_path = f"{path}.temp.mkv"
@@ -372,34 +422,6 @@ async def process_rename(client: Client, message: Message):
         if is_mp4_with_ass:
             os.replace(final_output, metadata_file_path)
         path = metadata_file_path
-
-        # Get admin's custom text settings
-        admin_id = Config.ADMIN[0] if isinstance(Config.ADMIN, list) else Config.ADMIN
-        custom_text = await codeflixbots.get_custom_text(admin_id)
-        text_interval, text_duration = await codeflixbots.get_text_timing(admin_id)
-        
-        # Add text overlay if admin has set custom text
-        if custom_text and media_type == "video":
-            try:
-                # Get video duration
-                parser = createParser(path)
-                metadata = extractMetadata(parser)
-                total_duration = metadata.get('duration').seconds if metadata else 0
-                
-                if total_duration > 0:  # Only proceed if we got duration
-                    temp_output = f"{path}.temp{os.path.splitext(path)[1]}"
-                    await add_text_overlay(
-                        path, 
-                        temp_output,
-                        custom_text,
-                        text_interval,
-                        text_duration,
-                        total_duration
-                    )
-                    os.remove(path)
-                    os.rename(temp_output, path)
-            except Exception as e:
-                print(f"Text overlay failed (proceeding without it): {e}")
         
         # Prepare for upload
         upload_msg = await download_msg.edit("**__Uploading...__**")
