@@ -7,7 +7,7 @@ from datetime import datetime
 from PIL import Image
 from pyrogram import Client, filters
 from pyrogram.errors import FloodWait
-from pyrogram.types import InputMediaDocument, Message
+from pyrogram.types import InputMediaDocument, Message, InlineKeyboardMarkup, InlineKeyboardButton
 from hachoir.metadata import extractMetadata
 from hachoir.parser import createParser
 from plugins.antinsfw import check_anti_nsfw
@@ -481,6 +481,19 @@ async def rename_worker():
 
 @Client.on_message(filters.private & (filters.document | filters.video | filters.audio))
 async def auto_rename_files(client, message):
+    # Check bot mode
+    bot_mode = await codeflixbots.get_bot_mode()
+    if bot_mode == "private" and message.from_user.id not in Config.ADMINS:
+        buttons = InlineKeyboardMarkup([
+            [InlineKeyboardButton("Buy Premium", callback_data="premiumx")],
+            [InlineKeyboardButton("Plans", callback_data="plans")]
+        ])
+        return await message.reply_text(
+            "⚠️ Bot is currently in private mode. Only admins can use it.\n\n"
+            "Contact admin for access or check premium plans:",
+            reply_markup=buttons
+        )
+    
     await rename_queue.put((client, message))
 
 asyncio.create_task(rename_worker())
