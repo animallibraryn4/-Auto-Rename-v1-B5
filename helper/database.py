@@ -15,6 +15,7 @@ class Database:
             raise e
         self.codeflixbots = self._client[database_name]
         self.col = self.codeflixbots.user
+        self.bot_settings = self.codeflixbots.bot_settings
 
     def new_user(self, id):
         return dict(
@@ -27,25 +28,22 @@ class Database:
             format_template=None,
             thumbnails={},
             temp_quality=None,
-            use_global_thumb=False,
-            global_thumb=None,
+            use_global_thumb=False,  # New field for global thumbnail toggle
+            global_thumb=None,       # Stores the global thumbnail file_id
             ban_status=dict(
                 is_banned=False,
                 ban_duration=0,
                 banned_on=datetime.date.max.isoformat(),
                 ban_reason=''
             ),
+            # Preserving all existing metadata fields
             title='Encoded by @Animelibraryn4',
             author='@Animelibraryn4',
             artist='@Animelibraryn4',
             audio='By @Animelibraryn4',
             subtitle='By @Animelibraryn4',
             video='Encoded By @Animelibraryn4',
-            media_type=None,
-            # New fields for text overlay
-            custom_text=None,
-            text_interval=600,
-            text_duration=30
+            media_type=None
         )
 
     async def add_user(self, b, m):
@@ -197,6 +195,7 @@ class Database:
     async def set_video(self, user_id, video):
         await self.col.update_one({'_id': int(user_id)}, {'$set': {'video': video}})
 
+    # Quality Thumbnail Methods
     async def set_quality_thumbnail(self, id, quality, file_id):
         try:
             await self.col.update_one(
@@ -227,6 +226,7 @@ class Database:
             logging.error(f"Error getting all thumbnails for user {id}: {e}")
             return {}
 
+    # Temporary quality storage methods
     async def set_temp_quality(self, id, quality):
         try:
             await self.col.update_one(
@@ -254,6 +254,7 @@ class Database:
         except Exception as e:
             logging.error(f"Error clearing temp quality for user {id}: {e}")
 
+    # Global Thumbnail Methods
     async def set_global_thumb(self, id, file_id):
         try:
             await self.col.update_one(
@@ -290,52 +291,38 @@ class Database:
             logging.error(f"Error checking global thumb status for user {id}: {e}")
             return False
 
-    # New methods for text overlay feature
-    async def set_custom_text(self, id, text):
+    # Bot Mode Methods (Public/Private)
+    async def get_bot_mode(self):
+        """Get current bot mode (public/private)"""
         try:
-            await self.col.update_one(
-                {"_id": int(id)},
-                {"$set": {"custom_text": text}},
+            result = await self.bot_settings.find_one({"_id": "bot_mode"})
+            return result.get("mode", "public") if result else "public"
+        except Exception as e:
+            logging.error(f"Error getting bot mode: {e}")
+            return "public"
+
+    async def set_bot_mode(self, mode: str):
+        """Set bot mode (public/private)"""
+        try:
+            if mode not in ["public", "private"]:
+                raise ValueError("Invalid mode. Must be 'public' or 'private'")
+            await self.bot_settings.update_one(
+                {"_id": "bot_mode"},
+                {"$set": {"mode": mode}},
                 upsert=True
             )
         except Exception as e:
-            logging.error(f"Error setting custom text for user {id}: {e}")
+            logging.error(f"Error setting bot mode: {e}")
+            raise e
 
-    async def get_custom_text(self, id):
+    async def is_bot_private(self):
+        """Check if bot is in private mode"""
         try:
-            user = await self.col.find_one({"_id": int(id)})
-            return user.get("custom_text") if user else None
+            mode = await self.get_bot_mode()
+            return mode == "private"
         except Exception as e:
-            logging.error(f"Error getting custom text for user {id}: {e}")
-            return None
+            logging.error(f"Error checking bot mode: {e}")
+            return False
 
-    async def set_text_timing(self, id, interval, duration):
-        try:
-            await self.col.update_one(
-                {"_id": int(id)},
-                {"$set": {"text_interval": interval, "text_duration": duration}},
-                upsert=True
-            )
-        except Exception as e:
-            logging.error(f"Error setting text timing for user {id}: {e}")
-
-    async def get_text_timing(self, id):
-        try:
-            user = await self.col.find_one({"_id": int(id)})
-            if user:
-                return user.get("text_interval", 600), user.get("text_duration", 30)
-            return 600, 30
-        except Exception as e:
-            logging.error(f"Error getting text timing for user {id}: {e}")
-            return 600, 30
-   
-    async def get_bot_mode():
-    # Returns current bot mode ('public' or 'private')
-            return await db.bot_settings.find_one({"_id": "mode"}) or {"mode": "public"}
-
-    async def set_bot_mode(mode: str):
-    # Sets bot mode ('public' or 'private')
-            await db.bot_settings.update_one({"_id": "mode"}, {"$set": {"mode": mode}}, upsert=True)
-     
 # Initialize database connection
 codeflixbots = Database(Config.DB_URL, Config.DB_NAME)
