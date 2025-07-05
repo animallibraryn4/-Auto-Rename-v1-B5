@@ -50,7 +50,7 @@ class Txt(object):
 ➲ S[SE.NUM] - ᴛᴏ ʀᴇᴘʟᴀᴄᴇ ꜱᴇᴀꜱᴏɴ ɴᴜᴍʙᴇʀ  
 ➲ [QUALITY] - ᴛᴏ ʀᴇᴘʟᴀᴄᴇ ǫᴜᴀʟɪᴛʏ
 
-<b>‣ ꜰᴏʀ ᴇx:- </b> <code>  /autorename [S[SE.NUM]-E[EP.NUM]] Pokemon [[QUALITY]] [Dual Audio] @Animelibraryn4 | @onlyfans_n4</code>
+<b>‣ ꜰᴏʀ ᴇx:- </b> <code>  /autorename [S[SE.NUM]-E[EP.NUM]] Pokemon [[QUALITY]] [Dual] @Animelibraryn4 | @onlyfans_n4</code>
 
 <b>‣ /Autorename: ʀᴇɴᴀᴍᴇ ʏᴏᴜʀ ᴍᴇᴅɪᴀ ꜰɪʟᴇs ʙʏ ɪɴᴄʟᴜᴅɪɴɢ 'ᴇᴘɪꜱᴏᴅᴇ', 'ꜱᴇᴀꜱᴏɴ' ᴀɴᴅ 'ǫᴜᴀʟɪᴛʏ' ᴠᴀʀɪᴀʙʟᴇꜱ ɪɴ ʏᴏᴜʀ ᴛᴇxᴛ, ᴛᴏ ᴇxᴛʀᴀᴄᴛ ᴇᴘɪꜱᴏᴅᴇ, ꜱᴇᴀꜱᴏɴ ᴀɴᴅ ǫᴜᴀʟɪᴛʏ ᴘʀᴇꜱᴇɴᴛ ɪɴ ᴛʜᴇ ᴏʀɪɢɪɴᴀʟ ꜰɪʟᴇɴᴀᴍᴇ. """
     
