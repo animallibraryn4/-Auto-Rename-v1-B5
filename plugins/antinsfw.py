@@ -1,6 +1,5 @@
 nsfw_keywords = {
     "general": [
-        ""
     ]
 }
 
