@@ -241,3 +241,24 @@ async def help_command(client, message):
             [InlineKeyboardButton('ʜᴏᴍᴇ', callback_data='home')]
         ])
     )
+
+# Merge Help Command Handler
+@Client.on_message(filters.command(["merge_help", "audio_help"]))
+async def merge_help(client, message):
+    help_text = """
+📚 Audio-Video Merge Help:
+
+1. Start a session:
+   /audio <number> - Start merge for <number> episodes
+   Example: /audio 15
+
+2. During session:
+   /merge_status - Check progress
+   /cancel_merge - Cancel current session
+
+3. File requirements:
+   - First send all audio files in order (E1 to En)
+   - Then send video files (480p, 720p, 1080p for each episode)
+   - Files must be numbered correctly
+"""
+    await message.reply(help_text)
