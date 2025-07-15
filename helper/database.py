@@ -290,5 +290,73 @@ class Database:
             logging.error(f"Error checking global thumb status for user {id}: {e}")
             return False
 
+    # Merge Session Methods
+    async def start_merge_session(self, user_id, total_episodes):
+        try:
+            await self.col.update_one(
+                {"_id": user_id},
+                {"$set": {
+                    "merge_session": {
+                        "state": "awaiting_audio",
+                        "total_episodes": total_episodes,
+                        "audios_received": 0,
+                        "audios": [],
+                        "videos_480p": [],
+                        "videos_720p": [],
+                        "videos_1080p": []
+                    }
+                }}
+            )
+        except Exception as e:
+            logging.error(f"Error starting merge session for user {user_id}: {e}")
+
+    async def add_merge_audio(self, user_id, file_id):
+        try:
+            await self.col.update_one(
+                {"_id": user_id},
+                {
+                    "$push": {"merge_session.audios": file_id},
+                    "$inc": {"merge_session.audios_received": 1}
+                }
+            )
+        except Exception as e:
+            logging.error(f"Error adding merge audio for user {user_id}: {e}")
+
+    async def add_merge_video(self, user_id, file_id, resolution):
+        try:
+            field = f"merge_session.videos_{resolution}p"
+            await self.col.update_one(
+                {"_id": user_id},
+                {"$push": {field: file_id}}
+            )
+        except Exception as e:
+            logging.error(f"Error adding merge video for user {user_id}: {e}")
+
+    async def get_merge_session(self, user_id):
+        try:
+            user = await self.col.find_one({"_id": user_id})
+            return user.get("merge_session")
+        except Exception as e:
+            logging.error(f"Error getting merge session for user {user_id}: {e}")
+            return None
+
+    async def clear_merge_session(self, user_id):
+        try:
+            await self.col.update_one(
+                {"_id": user_id},
+                {"$unset": {"merge_session": ""}}
+            )
+        except Exception as e:
+            logging.error(f"Error clearing merge session for user {user_id}: {e}")
+
+    async def update_merge_state(self, user_id, state):
+        try:
+            await self.col.update_one(
+                {"_id": user_id},
+                {"$set": {"merge_session.state": state}}
+            )
+        except Exception as e:
+            logging.error(f"Error updating merge state for user {user_id}: {e}")
+
 # Initialize database connection
 codeflixbots = Database(Config.DB_URL, Config.DB_NAME)
