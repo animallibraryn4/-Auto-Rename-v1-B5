@@ -2,11 +2,12 @@ from pyrogram import Client, filters
 from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from config import ADMIN
 
-# Memory store for each admin user
-user_data = {}
-
+# 🔐 Custom filter to check if user is admin
 def is_admin():
     return filters.user(ADMIN)
+
+# Memory to track each admin's request
+user_data = {}
 
 @Client.on_message(filters.command("postlink") & is_admin())
 async def postlink_handler(client, message):
@@ -14,7 +15,6 @@ async def postlink_handler(client, message):
         return await message.reply("❌ Use: `/postlink https://t.me/channel/1234`")
 
     try:
-        # Extract channel username and message ID
         link = message.command[1]
         parts = link.split("/")
         if "t.me" not in link or len(parts) < 5:
@@ -24,13 +24,13 @@ async def postlink_handler(client, message):
         message_id = int(parts[4])
         user_id = message.from_user.id
 
-        # Store in memory
         user_data[user_id] = {
             "chat": chat_username,
             "message_id": message_id
         }
 
-        await message.reply("✅ Post link saved! Now send `/oldlink <link>`")
+        await message.reply("✅ Post link saved. Now send `/oldlink <old_url>`")
+
     except Exception as e:
         await message.reply(f"❌ Error: `{e}`")
 
@@ -45,7 +45,7 @@ async def oldlink_handler(client, message):
         return await message.reply("⚠️ First send `/postlink`")
 
     user_data[user_id]["old_link"] = message.command[1]
-    await message.reply("✅ Old link saved! Now send `/newlink <link>`")
+    await message.reply("✅ Old link saved. Now send `/newlink <new_url>`")
 
 
 @Client.on_message(filters.command("newlink") & is_admin())
@@ -63,10 +63,7 @@ async def newlink_handler(client, message):
     old_link = user_data[user_id]["old_link"]
 
     try:
-        # Fetch original message
         msg = await client.get_messages(chat_id=chat, message_ids=message_id)
-
-        # Replace button links
         keyboard = msg.reply_markup.inline_keyboard
         new_keyboard = []
 
@@ -86,8 +83,6 @@ async def newlink_handler(client, message):
         )
 
         await message.reply("✅ Link replaced successfully!")
-
-        # Clear user data
         user_data.pop(user_id)
 
     except Exception as e:
