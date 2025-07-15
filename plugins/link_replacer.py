@@ -1,19 +1,32 @@
 from pyrogram import Client, filters, types
 from pyrogram.errors import RPCError, MessageIdInvalid, MessageNotModified
 from config import Config
-from typing import Dict, Optional
+from typing import Dict
 import re
 
 # User-wise memory for storing links
 user_links: Dict[int, Dict[str, str]] = {}
 
 def is_valid_telegram_link(link: str) -> bool:
-    """Check if the link is a valid Telegram channel link (public or private)"""
-    return bool(re.match(r'^t\.me/(?:c/\d+|[\w]+)/\d+$', link))
+    """Check if the link is a valid Telegram link (channel post or invite)"""
+    patterns = [
+        r'^t\.me/(?:c/\d+|[\w]+)/\d+$',  # Standard channel links
+        r'^t\.me/\+[\w-]+$',             # Invite links
+        r'^https?://t\.me/\+[\w-]+$',    # HTTPS invite links
+        r'^https?://t\.me/(?:c/\d+|[\w]+)/\d+$'  # HTTPS standard links
+    ]
+    return any(re.match(pattern, link.strip()) for pattern in patterns)
+
+def normalize_link(link: str) -> str:
+    """Normalize links to t.me format"""
+    link = link.strip()
+    if link.startswith(('http://', 'https://')):
+        link = link.split('//')[1]  # Remove protocol
+    return link.replace('www.', '').lower()
 
 @Client.on_message(filters.command("postlink") & filters.user(Config.ADMIN))
 async def post_link_command(client: Client, message: types.Message):
-    """Initialize link replacement process by registering a message"""
+    """Initialize link replacement process"""
     if not message.reply_to_message:
         return await message.reply("⚠️ Please reply to the target message with buttons.")
     
@@ -28,26 +41,33 @@ async def post_link_command(client: Client, message: types.Message):
     }
     
     await message.reply("✅ Message registered. Now use:\n"
-                      "/oldlink [current_url]\n"
-                      "/newlink [replacement_url]")
+                       "/oldlink [current_url]\n"
+                       "/newlink [replacement_url]")
 
 @Client.on_message(filters.command("oldlink") & filters.user(Config.ADMIN))
 async def old_link_command(client: Client, message: types.Message):
     """Set the URL pattern to be replaced"""
     if len(message.command) < 2:
         return await message.reply("⚠️ Please provide the URL to replace.\n"
-                                "Example: /oldlink t.me/c/123456789/123")
+                                 "Examples:\n"
+                                 "/oldlink t.me/c/123456789/123\n"
+                                 "/oldlink t.me/+invite123\n"
+                                 "/oldlink https://t.me/+invite123")
     
     user_id = message.from_user.id
     if user_id not in user_links:
         return await message.reply("⚠️ Please use /postlink first.")
     
-    old_link = message.text.split(maxsplit=1)[1].strip()
+    old_link = message.text.split(maxsplit=1)[1]
     if not is_valid_telegram_link(old_link):
-        return await message.reply("⚠️ Invalid Telegram link format.")
+        return await message.reply("⚠️ Invalid Telegram link format. Supported formats:\n"
+                                 "- t.me/c/123456789/123\n"
+                                 "- t.me/channelname/123\n"
+                                 "- t.me/+invite_code\n"
+                                 "- https:// versions of above")
     
-    user_links[user_id]["old_link"] = old_link
-    await message.reply(f"🔗 Old link set: {old_link}\n"
+    user_links[user_id]["old_link"] = normalize_link(old_link)
+    await message.reply(f"🔗 Old link set: {user_links[user_id]['old_link']}\n"
                        "Now use /newlink [replacement_url]")
 
 @Client.on_message(filters.command("newlink") & filters.user(Config.ADMIN))
@@ -55,7 +75,10 @@ async def new_link_command(client: Client, message: types.Message):
     """Set the new URL and perform the replacement"""
     if len(message.command) < 2:
         return await message.reply("⚠️ Please provide the new URL.\n"
-                                "Example: /newlink t.me/c/987654321/456")
+                                 "Examples:\n"
+                                 "/newlink t.me/c/987654321/456\n"
+                                 "/newlink t.me/+newinvite456\n"
+                                 "/newlink https://t.me/+newinvite456")
     
     user_id = message.from_user.id
     if user_id not in user_links:
@@ -64,24 +87,36 @@ async def new_link_command(client: Client, message: types.Message):
     if "old_link" not in user_links[user_id]:
         return await message.reply("⚠️ Please set the old link with /oldlink first.")
     
-    new_link = message.text.split(maxsplit=1)[1].strip()
+    new_link = message.text.split(maxsplit=1)[1]
     if not is_valid_telegram_link(new_link):
         return await message.reply("⚠️ Invalid Telegram link format.")
+    
+    normalized_new = normalize_link(new_link)
+    normalized_old = user_links[user_id]["old_link"]
     
     # Create new keyboard with replaced URLs
     new_keyboard = []
     replacements = 0
-    old_link = user_links[user_id]["old_link"]
     
     for row in user_links[user_id]["buttons"]:
         new_row = []
         for button in row:
-            if hasattr(button, "url") and old_link in button.url:
-                new_url = button.url.replace(old_link, new_link)
-                new_row.append(button.__class__(text=button.text, url=new_url))
-                replacements += 1
-            else:
-                new_row.append(button)
+            if hasattr(button, "url"):
+                normalized_button_url = normalize_link(button.url)
+                if normalized_old in normalized_button_url:
+                    # Preserve original URL structure (http/https/www)
+                    if button.url.startswith('http'):
+                        new_url = button.url.replace(
+                            normalize_link(button.url),
+                            normalized_new
+                        )
+                    else:
+                        new_url = normalized_new
+                    
+                    new_row.append(button.__class__(text=button.text, url=new_url))
+                    replacements += 1
+                    continue
+            new_row.append(button)
         new_keyboard.append(new_row)
     
     if replacements == 0:
@@ -100,9 +135,9 @@ async def new_link_command(client: Client, message: types.Message):
     except MessageNotModified:
         await message.reply("⚠️ The buttons already have this URL.")
     except RPCError as e:
-        await message.reply(f"⚠️ Error: {e.MESSAGE}")
+        await message.reply(f"⚠️ Error: {str(e)}")
     finally:
-        user_links.pop(user_id, None)  # Clean up
+        user_links.pop(user_id, None)
 
 @Client.on_message(filters.command("clearlinks") & filters.user(Config.ADMIN))
 async def clear_links_command(client: Client, message: types.Message):
