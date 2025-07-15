@@ -1,12 +1,17 @@
 from pyrogram import Client, filters
 from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
-from config import ADMIN
 
-# 🔐 Custom filter to check if user is admin
+# SAFE LOAD: Import ADMIN using try-except to avoid import error
+try:
+    from config import ADMIN
+except:
+    ADMIN = ["5380609667"]  # fallback or placeholder if import fails
+
+# 🔐 Filter for allowed admins
 def is_admin():
     return filters.user(ADMIN)
 
-# Memory to track each admin's request
+# 🧠 Memory per admin
 user_data = {}
 
 @Client.on_message(filters.command("postlink") & is_admin())
