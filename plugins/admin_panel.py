@@ -2,7 +2,7 @@ from config import Config, Txt
 from helper.database import codeflixbots
 from pyrogram.types import Message
 from pyrogram import Client, filters
-from pyrogram.errors import FloodWait, InputUserDeactivated, UserIsBlocked, PeerIdInvalid
+from pyrogram.errors import FloodWait, InputUserDeactivated, UserIsBlocked, PeerIdInvalid, ChatAdminRequired, ChannelPrivate, MessageIdInvalid
 import os, sys, time, asyncio, logging, datetime
 from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 
@@ -96,3 +96,51 @@ async def send_msg(user_id, message):
     except Exception as e:
         logger.error(f"{user_id} : {e}")
         return 500
+
+@Client.on_message(filters.private & filters.command("link") & filters.user(Config.ADMIN))
+async def get_channel_post_link(client, message):
+    # Check if the message is a reply to a forwarded channel post
+    if not message.reply_to_message or not message.reply_to_message.forward_from_chat:
+        return await message.reply_text("Please reply to a forwarded message from a channel where I'm admin.")
+    
+    try:
+        # Get the original channel and message ID
+        channel = message.reply_to_message.forward_from_chat
+        message_id = message.reply_to_message.forward_from_message_id
+        
+        # Check if bot is admin in the channel
+        chat_member = await client.get_chat_member(channel.id, "me")
+        if chat_member.status not in ["administrator", "creator"]:
+            return await message.reply_text("I'm not an admin in this channel.")
+        
+        # Get the original message
+        original_msg = await client.get_messages(channel.id, message_id)
+        
+        # Create new buttons (modify as needed)
+        new_buttons = [
+            [InlineKeyboardButton("Join Channel", url=f"https://t.me/{channel.username}")],
+            [InlineKeyboardButton("Download Now", url=f"https://t.me/{Config.BOT_USERNAME}?start=download_{message_id}")]
+        ]
+        
+        # Create the message text with link
+        msg_text = f"🔗 **Post Link:** https://t.me/{channel.username}/{message_id}\n\n"
+        if original_msg.caption:
+            msg_text += original_msg.caption
+        elif original_msg.text:
+            msg_text += original_msg.text
+            
+        # Send the modified message
+        await message.reply_text(
+            msg_text,
+            reply_markup=InlineKeyboardMarkup(new_buttons),
+            disable_web_page_preview=True
+        )
+        
+    except ChatAdminRequired:
+        await message.reply_text("I don't have admin rights in that channel.")
+    except ChannelPrivate:
+        await message.reply_text("I can't access that private channel.")
+    except MessageIdInvalid:
+        await message.reply_text("Invalid message ID. Maybe the message was deleted.")
+    except Exception as e:
+        await message.reply_text(f"An error occurred: {str(e)}")
