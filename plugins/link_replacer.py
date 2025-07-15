@@ -8,21 +8,24 @@ import re
 user_links: Dict[int, Dict[str, str]] = {}
 
 def is_valid_telegram_link(link: str) -> bool:
-    """Check if the link is a valid Telegram link (channel post or invite)"""
+    """Check if the link is a valid Telegram link"""
     patterns = [
-        r'^t\.me/(?:c/\d+|[\w]+)/\d+$',  # Standard channel links
-        r'^t\.me/\+[\w-]+$',             # Invite links
-        r'^https?://t\.me/\+[\w-]+$',    # HTTPS invite links
-        r'^https?://t\.me/(?:c/\d+|[\w]+)/\d+$'  # HTTPS standard links
+        r'^(?:https?://)?(?:www\.)?t\.me/(?:c/\d+|[\w]+)(?:/\d+)?$',  # Channel links
+        r'^(?:https?://)?(?:www\.)?t\.me/\+[\w-]+$',                  # Invite links
+        r'^(?:https?://)?(?:www\.)?t\.me/joinchat/[\w-]+$',           # Old joinchat links
+        r'^(?:https?://)?(?:www\.)?t\.me/\w+$'                        # Username links
     ]
-    return any(re.match(pattern, link.strip()) for pattern in patterns)
+    link = link.strip().lower()
+    return any(re.match(pattern, link) for pattern in patterns)
 
 def normalize_link(link: str) -> str:
-    """Normalize links to t.me format"""
-    link = link.strip()
+    """Normalize links to consistent format"""
+    link = link.strip().lower()
     if link.startswith(('http://', 'https://')):
-        link = link.split('//')[1]  # Remove protocol
-    return link.replace('www.', '').lower()
+        link = link.split('//')[1]
+    if link.startswith('www.'):
+        link = link[4:]
+    return link.replace('joinchat/', '+')
 
 @Client.on_message(filters.command("postlink") & filters.user(Config.ADMIN))
 async def post_link_command(client: Client, message: types.Message):
@@ -32,6 +35,16 @@ async def post_link_command(client: Client, message: types.Message):
     
     if not message.reply_to_message.reply_markup:
         return await message.reply("⚠️ The replied message has no inline buttons.")
+    
+    # Verify bot has permission to edit the message
+    try:
+        test_edit = await client.edit_message_reply_markup(
+            chat_id=message.reply_to_message.chat.id,
+            message_id=message.reply_to_message.id,
+            reply_markup=message.reply_to_message.reply_markup
+        )
+    except Exception as e:
+        return await message.reply(f"⚠️ Cannot edit this message: {str(e)}")
     
     user_id = message.from_user.id
     user_links[user_id] = {
@@ -49,10 +62,13 @@ async def old_link_command(client: Client, message: types.Message):
     """Set the URL pattern to be replaced"""
     if len(message.command) < 2:
         return await message.reply("⚠️ Please provide the URL to replace.\n"
-                                 "Examples:\n"
-                                 "/oldlink t.me/c/123456789/123\n"
-                                 "/oldlink t.me/+invite123\n"
-                                 "/oldlink https://t.me/+invite123")
+                                 "Supported formats:\n"
+                                 "- t.me/channelname\n"
+                                 "- t.me/channelname/123\n"
+                                 "- t.me/c/123456789\n"
+                                 "- t.me/+invitecode\n"
+                                 "- t.me/joinchat/invitecode\n"
+                                 "- https:// versions of above")
     
     user_id = message.from_user.id
     if user_id not in user_links:
@@ -60,11 +76,7 @@ async def old_link_command(client: Client, message: types.Message):
     
     old_link = message.text.split(maxsplit=1)[1]
     if not is_valid_telegram_link(old_link):
-        return await message.reply("⚠️ Invalid Telegram link format. Supported formats:\n"
-                                 "- t.me/c/123456789/123\n"
-                                 "- t.me/channelname/123\n"
-                                 "- t.me/+invite_code\n"
-                                 "- https:// versions of above")
+        return await message.reply("⚠️ Invalid Telegram link format.")
     
     user_links[user_id]["old_link"] = normalize_link(old_link)
     await message.reply(f"🔗 Old link set: {user_links[user_id]['old_link']}\n"
@@ -75,10 +87,7 @@ async def new_link_command(client: Client, message: types.Message):
     """Set the new URL and perform the replacement"""
     if len(message.command) < 2:
         return await message.reply("⚠️ Please provide the new URL.\n"
-                                 "Examples:\n"
-                                 "/newlink t.me/c/987654321/456\n"
-                                 "/newlink t.me/+newinvite456\n"
-                                 "/newlink https://t.me/+newinvite456")
+                                 "Example: /newlink https://t.me/animelibraryn4")
     
     user_id = message.from_user.id
     if user_id not in user_links:
@@ -104,14 +113,14 @@ async def new_link_command(client: Client, message: types.Message):
             if hasattr(button, "url"):
                 normalized_button_url = normalize_link(button.url)
                 if normalized_old in normalized_button_url:
-                    # Preserve original URL structure (http/https/www)
+                    # Preserve original URL structure
                     if button.url.startswith('http'):
                         new_url = button.url.replace(
                             normalize_link(button.url),
                             normalized_new
                         )
                     else:
-                        new_url = normalized_new
+                        new_url = f"https://t.me/{normalized_new}" if '+' not in normalized_new else f"https://t.me/{normalized_new}"
                     
                     new_row.append(button.__class__(text=button.text, url=new_url))
                     replacements += 1
@@ -131,7 +140,7 @@ async def new_link_command(client: Client, message: types.Message):
         )
         await message.reply(f"✅ Successfully replaced {replacements} link(s)!")
     except MessageIdInvalid:
-        await message.reply("⚠️ Failed to edit: Invalid message (maybe deleted or I don't have permission)")
+        await message.reply("⚠️ Failed to edit: Message doesn't exist or I lost permission")
     except MessageNotModified:
         await message.reply("⚠️ The buttons already have this URL.")
     except RPCError as e:
