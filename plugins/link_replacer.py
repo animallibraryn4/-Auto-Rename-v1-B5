@@ -25,13 +25,18 @@ async def postlink_handler(client, message):
         if "t.me" not in link or len(parts) < 5:
             return await message.reply("⚠️ Invalid link format!")
 
-        chat_username = parts[3]
-        message_id = int(parts[4])
         user_id = message.from_user.id
 
+        if parts[3] == "c":  # Private channel format
+            chat_id = int("-100" + parts[4])
+            msg_id = int(parts[5])
+        else:  # Public channel
+            chat_id = parts[3]
+            msg_id = int(parts[4])
+
         user_data[user_id] = {
-            "chat": chat_username,
-            "message_id": message_id
+            "chat": chat_id,
+            "message_id": msg_id
         }
 
         await message.reply("✅ Post link saved. Now send `/oldlink <old_url>`")
