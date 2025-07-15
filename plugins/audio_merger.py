@@ -125,7 +125,7 @@ async def handle_merge_files(client, message):
         total_videos_received = (
             len(session.get('videos_480p', [])) +
             len(session.get('videos_720p', [])) +
-            len(session.get('videos_1080p', []))
+            len(session.get('videos_1080p', [])))
         
         total_needed = session['total_episodes'] * 3
         
