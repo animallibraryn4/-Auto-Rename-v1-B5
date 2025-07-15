@@ -3,7 +3,7 @@ from pyrogram import Client, filters
 from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 
 # Replace with your Telegram user ID to restrict access (or remove this filter)
-ALLOWED_USER_ID = 123456789  # 🔄 Replace this with your user ID
+ALLOWED_USER_ID = 22299340  # 🔄 Replace this with your user ID
 
 @Client.on_message(filters.command("link") & filters.user(ALLOWED_USER_ID))
 async def replace_button(client, message):
