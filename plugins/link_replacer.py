@@ -1,8 +1,14 @@
 from pyrogram import Client, filters, types
 from pyrogram.errors import RPCError, MessageIdInvalid, MessageNotModified
 from config import Config
-from typing import Dict
+from typing import Dict, Optional
 import re
+import time
+import logging
+
+# Set up logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 # User-wise memory for storing links
 user_links: Dict[int, Dict[str, str]] = {}
@@ -10,10 +16,10 @@ user_links: Dict[int, Dict[str, str]] = {}
 def is_valid_telegram_link(link: str) -> bool:
     """Check if the link is a valid Telegram link"""
     patterns = [
-        r'^(?:https?://)?(?:www\.)?t\.me/(?:c/\d+|[\w]+)(?:/\d+)?$',  # Channel links
-        r'^(?:https?://)?(?:www\.)?t\.me/\+[\w-]+$',                  # Invite links
-        r'^(?:https?://)?(?:www\.)?t\.me/joinchat/[\w-]+$',           # Old joinchat links
-        r'^(?:https?://)?(?:www\.)?t\.me/\w+$'                        # Username links
+        r'^(?:https?://)?(?:www\.)?t\.me/(?:c/\d+|[\w]+)(?:/\d+)?$',
+        r'^(?:https?://)?(?:www\.)?t\.me/\+[\w-]+$',
+        r'^(?:https?://)?(?:www\.)?t\.me/joinchat/[\w-]+$',
+        r'^(?:https?://)?(?:www\.)?t\.me/\w+$'
     ]
     link = link.strip().lower()
     return any(re.match(pattern, link) for pattern in patterns)
@@ -27,30 +33,55 @@ def normalize_link(link: str) -> str:
         link = link[4:]
     return link.replace('joinchat/', '+')
 
+async def can_edit_message(client: Client, chat_id: int, message_id: int) -> bool:
+    """Check if we can edit this message"""
+    try:
+        # First check if message exists
+        msg = await client.get_messages(chat_id, message_ids=message_id)
+        if not msg:
+            return False
+            
+        # Check message age
+        message_age = time.time() - msg.date.timestamp()
+        if message_age > 172800:  # 48 hours
+            return False
+            
+        # Try a dummy edit
+        await client.edit_message_reply_markup(
+            chat_id=chat_id,
+            message_id=message_id,
+            reply_markup=msg.reply_markup
+        )
+        return True
+    except Exception as e:
+        logger.error(f"Can't edit message: {e}")
+        return False
+
 @Client.on_message(filters.command("postlink") & filters.user(Config.ADMIN))
 async def post_link_command(client: Client, message: types.Message):
     """Initialize link replacement process"""
     if not message.reply_to_message:
         return await message.reply("⚠️ Please reply to the target message with buttons.")
     
-    if not message.reply_to_message.reply_markup:
+    target_msg = message.reply_to_message
+    
+    if not target_msg.reply_markup:
         return await message.reply("⚠️ The replied message has no inline buttons.")
     
-    # Verify bot has permission to edit the message
-    try:
-        test_edit = await client.edit_message_reply_markup(
-            chat_id=message.reply_to_message.chat.id,
-            message_id=message.reply_to_message.id,
-            reply_markup=message.reply_to_message.reply_markup
-        )
-    except Exception as e:
-        return await message.reply(f"⚠️ Cannot edit this message: {str(e)}")
+    # Verify edit permissions
+    if not await can_edit_message(client, target_msg.chat.id, target_msg.id):
+        return await message.reply("""⚠️ Cannot edit this message. Possible reasons:
+1. Message doesn't exist
+2. I don't have edit permissions
+3. Message is too old (>48 hours)
+4. Message is in a private chat where I'm not admin""")
     
     user_id = message.from_user.id
     user_links[user_id] = {
-        "chat_id": message.reply_to_message.chat.id,
-        "message_id": message.reply_to_message.id,
-        "buttons": message.reply_to_message.reply_markup.inline_keyboard
+        "chat_id": target_msg.chat.id,
+        "message_id": target_msg.id,
+        "buttons": target_msg.reply_markup.inline_keyboard,
+        "original_markup": target_msg.reply_markup  # Store original markup
     }
     
     await message.reply("✅ Message registered. Now use:\n"
@@ -61,14 +92,7 @@ async def post_link_command(client: Client, message: types.Message):
 async def old_link_command(client: Client, message: types.Message):
     """Set the URL pattern to be replaced"""
     if len(message.command) < 2:
-        return await message.reply("⚠️ Please provide the URL to replace.\n"
-                                 "Supported formats:\n"
-                                 "- t.me/channelname\n"
-                                 "- t.me/channelname/123\n"
-                                 "- t.me/c/123456789\n"
-                                 "- t.me/+invitecode\n"
-                                 "- t.me/joinchat/invitecode\n"
-                                 "- https:// versions of above")
+        return await message.reply("⚠️ Please provide the URL to replace.")
     
     user_id = message.from_user.id
     if user_id not in user_links:
@@ -86,8 +110,7 @@ async def old_link_command(client: Client, message: types.Message):
 async def new_link_command(client: Client, message: types.Message):
     """Set the new URL and perform the replacement"""
     if len(message.command) < 2:
-        return await message.reply("⚠️ Please provide the new URL.\n"
-                                 "Example: /newlink https://t.me/animelibraryn4")
+        return await message.reply("⚠️ Please provide the new URL.")
     
     user_id = message.from_user.id
     if user_id not in user_links:
@@ -100,14 +123,16 @@ async def new_link_command(client: Client, message: types.Message):
     if not is_valid_telegram_link(new_link):
         return await message.reply("⚠️ Invalid Telegram link format.")
     
+    # Get stored data
+    data = user_links[user_id]
+    normalized_old = data["old_link"]
     normalized_new = normalize_link(new_link)
-    normalized_old = user_links[user_id]["old_link"]
     
     # Create new keyboard with replaced URLs
     new_keyboard = []
     replacements = 0
     
-    for row in user_links[user_id]["buttons"]:
+    for row in data["buttons"]:
         new_row = []
         for button in row:
             if hasattr(button, "url"):
@@ -116,13 +141,20 @@ async def new_link_command(client: Client, message: types.Message):
                     # Preserve original URL structure
                     if button.url.startswith('http'):
                         new_url = button.url.replace(
-                            normalize_link(button.url),
+                            normalized_old,
                             normalized_new
                         )
                     else:
-                        new_url = f"https://t.me/{normalized_new}" if '+' not in normalized_new else f"https://t.me/{normalized_new}"
+                        prefix = "https://t.me/"
+                        if '+' in normalized_new:  # For invite links
+                            new_url = f"{prefix}{normalized_new}"
+                        else:
+                            new_url = f"{prefix}{normalized_new}"
                     
-                    new_row.append(button.__class__(text=button.text, url=new_url))
+                    new_row.append(types.InlineKeyboardButton(
+                        text=button.text,
+                        url=new_url
+                    ))
                     replacements += 1
                     continue
             new_row.append(button)
@@ -133,16 +165,31 @@ async def new_link_command(client: Client, message: types.Message):
     
     # Attempt to edit the message
     try:
+        # First try with the new keyboard
         await client.edit_message_reply_markup(
-            chat_id=user_links[user_id]["chat_id"],
-            message_id=user_links[user_id]["message_id"],
+            chat_id=data["chat_id"],
+            message_id=data["message_id"],
             reply_markup=types.InlineKeyboardMarkup(new_keyboard)
         )
         await message.reply(f"✅ Successfully replaced {replacements} link(s)!")
-    except MessageIdInvalid:
-        await message.reply("⚠️ Failed to edit: Message doesn't exist or I lost permission")
     except MessageNotModified:
         await message.reply("⚠️ The buttons already have this URL.")
+    except MessageIdInvalid:
+        # Fallback: Try to send as new message if edit fails
+        try:
+            original_msg = await client.get_messages(
+                chat_id=data["chat_id"],
+                message_ids=data["message_id"]
+            )
+            if original_msg:
+                await client.send_message(
+                    chat_id=data["chat_id"],
+                    text=f"Updated version of message ({original_msg.text or original_msg.caption or ''})",
+                    reply_markup=types.InlineKeyboardMarkup(new_keyboard)
+                )
+                await message.reply("⚠️ Couldn't edit original message. Sent as new message instead.")
+        except Exception as e:
+            await message.reply(f"⚠️ Failed completely: {str(e)}")
     except RPCError as e:
         await message.reply(f"⚠️ Error: {str(e)}")
     finally:
