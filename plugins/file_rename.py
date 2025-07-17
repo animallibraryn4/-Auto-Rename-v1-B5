@@ -110,6 +110,55 @@ async def convert_to_mkv(input_path, output_path):
         error_message = stderr.decode()
         raise Exception(f"MKV conversion failed: {error_message}")
 
+async def add_subtitle_to_video(input_path, output_path, subtitle_text, duration):
+    """Add subtitle text to video at start and every 8 minutes"""
+    ffmpeg_cmd = shutil.which('ffmpeg')
+    if ffmpeg_cmd is None:
+        raise Exception("FFmpeg not found")
+    
+    # Calculate all times we need to show the subtitle (start + every 8 minutes)
+    times = [0]  # Start at 0 seconds
+    
+    # Add every 8 minutes until the end of video
+    interval = 8 * 60  # 8 minutes in seconds
+    max_time = duration - 10  # Don't go beyond video duration
+    
+    current_time = interval
+    while current_time < max_time:
+        times.append(current_time)
+        current_time += interval
+    
+    # Prepare the drawtext filter
+    drawtext_filters = []
+    for i, time in enumerate(times):
+        drawtext_filters.append(
+            f"drawtext=text='{subtitle_text}':fontsize=24:fontcolor=white:box=1:boxcolor=black@0.5:"
+            f"boxborderw=5:x=(w-text_w)/2:y=h-th-50:enable='between(t,{time},{time+10})'"
+        )
+    
+    # Combine all filters
+    filter_complex = ",".join(drawtext_filters)
+    
+    command = [
+        ffmpeg_cmd,
+        '-i', input_path,
+        '-vf', filter_complex,
+        '-c:a', 'copy',
+        '-y',  # Overwrite output file if exists
+        output_path
+    ]
+    
+    process = await asyncio.create_subprocess_exec(
+        *command,
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.PIPE
+    )
+    stdout, stderr = await process.communicate()
+    
+    if process.returncode != 0:
+        error_message = stderr.decode()
+        raise Exception(f"Subtitle addition failed: {error_message}")
+
 def extract_quality(filename):
     """Extract quality from filename using patterns"""
     for pattern, quality in [
@@ -324,6 +373,32 @@ async def process_rename(client: Client, message: Message):
         if is_mp4_with_ass:
             os.replace(final_output, metadata_file_path)
         path = metadata_file_path
+        
+        # Handle subtitle insertion if enabled
+        if (media_type == "video" or (media_type == "document" and path.lower().endswith(('.mp4', '.mkv')))):
+            subtitle_enabled = await codeflixbots.get_metadata(user_id)  # Using metadata as flag for subtitle
+            subtitle_text = await codeflixbots.get_subtitle(user_id)
+            
+            if subtitle_enabled and subtitle_text:
+                try:
+                    # Get video duration
+                    probe = await asyncio.create_subprocess_exec(
+                        'ffprobe', '-v', 'error', '-show_entries', 'format=duration',
+                        '-of', 'default=noprint_wrappers=1:nokey=1', path,
+                        stdout=asyncio.subprocess.PIPE,
+                        stderr=asyncio.subprocess.PIPE
+                    )
+                    stdout, stderr = await probe.communicate()
+                    duration = float(stdout.decode().strip())
+                    
+                    # Create temp path for subtitle processing
+                    sub_temp_path = f"{path}_subtemp.mp4"
+                    await add_subtitle_to_video(path, sub_temp_path, subtitle_text, duration)
+                    
+                    # Replace original with subtitled version
+                    os.replace(sub_temp_path, path)
+                except Exception as e:
+                    await upload_msg.edit(f"⚠️ Subtitle processing error: {e}. Continuing without subtitles.")
         
         # Prepare for upload
         upload_msg = await download_msg.edit("**__Uploading...__**")
