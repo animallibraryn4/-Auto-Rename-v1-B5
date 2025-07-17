@@ -42,7 +42,9 @@ class Database:
             audio='By @Animelibraryn4',
             subtitle='By @Animelibraryn4',
             video='Encoded By @Animelibraryn4',
-            media_type=None
+            media_type=None,
+            subtitle_text=None,      # New field for subtitle text
+            subtitle_enabled=False  # New field for subtitle status
         )
 
     async def add_user(self, b, m):
@@ -288,6 +290,43 @@ class Database:
             return user.get("use_global_thumb", False) if user else False
         except Exception as e:
             logging.error(f"Error checking global thumb status for user {id}: {e}")
+            return False
+
+    # Subtitle Text Methods
+    async def set_subtitle_text(self, id, text):
+        try:
+            await self.col.update_one(
+                {"_id": int(id)},
+                {"$set": {"subtitle_text": text}},
+                upsert=True
+            )
+        except Exception as e:
+            logging.error(f"Error setting subtitle text for user {id}: {e}")
+
+    async def get_subtitle_text(self, id):
+        try:
+            user = await self.col.find_one({"_id": int(id)})
+            return user.get("subtitle_text") if user else None
+        except Exception as e:
+            logging.error(f"Error getting subtitle text for user {id}: {e}")
+            return None
+
+    async def set_subtitle_status(self, id, status: bool):
+        try:
+            await self.col.update_one(
+                {"_id": int(id)},
+                {"$set": {"subtitle_enabled": status}},
+                upsert=True
+            )
+        except Exception as e:
+            logging.error(f"Error setting subtitle status for user {id}: {e}")
+
+    async def get_subtitle_status(self, id):
+        try:
+            user = await self.col.find_one({"_id": int(id)})
+            return user.get("subtitle_enabled", False) if user else False
+        except Exception as e:
+            logging.error(f"Error getting subtitle status for user {id}: {e}")
             return False
 
 # Initialize database connection
