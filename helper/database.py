@@ -1,13 +1,20 @@
 import motor.motor_asyncio
 import datetime
 import logging
+import asyncio
 from config import Config
 from .utils import send_log
 
 class Database:
     def __init__(self, uri, database_name):
         try:
-            self._client = motor.motor_asyncio.AsyncIOMotorClient(uri)
+            self._client = motor.motor_asyncio.AsyncIOMotorClient(
+                uri,
+                maxPoolSize=100,
+                minPoolSize=10,
+                retryWrites=True,
+                w="majority"
+            )
             self._client.server_info()
             logging.info("Successfully connected to MongoDB")
         except Exception as e:
@@ -15,6 +22,15 @@ class Database:
             raise e
         self.codeflixbots = self._client[database_name]
         self.col = self.codeflixbots.user
+        asyncio.create_task(self.create_indexes())
+
+    async def create_indexes(self):
+        try:
+            await self.col.create_index("_id")
+            await self.col.create_index("subtitle_enabled")
+            logging.info("Database indexes created")
+        except Exception as e:
+            logging.error(f"Error creating indexes: {e}")
 
     def new_user(self, id):
         return dict(
@@ -27,15 +43,14 @@ class Database:
             format_template=None,
             thumbnails={},
             temp_quality=None,
-            use_global_thumb=False,  # New field for global thumbnail toggle
-            global_thumb=None,       # Stores the global thumbnail file_id
+            use_global_thumb=False,
+            global_thumb=None,
             ban_status=dict(
                 is_banned=False,
                 ban_duration=0,
                 banned_on=datetime.date.max.isoformat(),
                 ban_reason=''
             ),
-            # Preserving all existing metadata fields
             title='Encoded by @Animelibraryn4',
             author='@Animelibraryn4',
             artist='@Animelibraryn4',
@@ -43,8 +58,8 @@ class Database:
             subtitle='By @Animelibraryn4',
             video='Encoded By @Animelibraryn4',
             media_type=None,
-            subtitle_text=None,      # New field for subtitle text
-            subtitle_enabled=False  # New field for subtitle status
+            subtitle_text=None,
+            subtitle_enabled=False
         )
 
     async def add_user(self, b, m):
@@ -196,7 +211,6 @@ class Database:
     async def set_video(self, user_id, video):
         await self.col.update_one({'_id': int(user_id)}, {'$set': {'video': video}})
 
-    # Quality Thumbnail Methods
     async def set_quality_thumbnail(self, id, quality, file_id):
         try:
             await self.col.update_one(
@@ -227,7 +241,6 @@ class Database:
             logging.error(f"Error getting all thumbnails for user {id}: {e}")
             return {}
 
-    # Temporary quality storage methods
     async def set_temp_quality(self, id, quality):
         try:
             await self.col.update_one(
@@ -255,7 +268,6 @@ class Database:
         except Exception as e:
             logging.error(f"Error clearing temp quality for user {id}: {e}")
 
-    # Global Thumbnail Methods
     async def set_global_thumb(self, id, file_id):
         try:
             await self.col.update_one(
@@ -292,16 +304,22 @@ class Database:
             logging.error(f"Error checking global thumb status for user {id}: {e}")
             return False
 
-    # Subtitle Text Methods
     async def set_subtitle_text(self, id, text):
         try:
-            await self.col.update_one(
-                {"_id": int(id)},
-                {"$set": {"subtitle_text": text}},
-                upsert=True
-            )
+            if text is None:
+                await self.col.update_one(
+                    {"_id": int(id)},
+                    {"$unset": {"subtitle_text": ""}}
+                )
+            else:
+                await self.col.update_one(
+                    {"_id": int(id)},
+                    {"$set": {"subtitle_text": text}},
+                    upsert=True
+                )
         except Exception as e:
             logging.error(f"Error setting subtitle text for user {id}: {e}")
+            raise e
 
     async def get_subtitle_text(self, id):
         try:
@@ -313,13 +331,17 @@ class Database:
 
     async def set_subtitle_status(self, id, status: bool):
         try:
+            status = bool(status)
             await self.col.update_one(
                 {"_id": int(id)},
                 {"$set": {"subtitle_enabled": status}},
                 upsert=True
             )
+            if not status:
+                await self.set_subtitle_text(id, None)
         except Exception as e:
             logging.error(f"Error setting subtitle status for user {id}: {e}")
+            raise e
 
     async def get_subtitle_status(self, id):
         try:
@@ -329,5 +351,4 @@ class Database:
             logging.error(f"Error getting subtitle status for user {id}: {e}")
             return False
 
-# Initialize database connection
 codeflixbots = Database(Config.DB_URL, Config.DB_NAME)
