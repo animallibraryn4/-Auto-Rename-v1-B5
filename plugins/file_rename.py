@@ -401,17 +401,18 @@ async def process_rename(client: Client, message: Message):
         caption = (
             c_caption.format(
                 filename=renamed_file_name,
-                filesize=humanbytes(message.document.file_size),
+                filesize=humanbytes(message.document.file_size) if message.document else humanbytes(os.path.getsize(path)) ,
                 duration=convert(0),
             )
             if c_caption
             else f"**{renamed_file_name}**"
         )
 
-        # Upload file
+        # Upload file and forward to dump channel
         try:
+            sent_msg = None
             if media_type == "document":
-                await client.send_document(
+                sent_msg = await client.send_document(
                     message.chat.id,
                     document=path,
                     thumb=ph_path if ph_path else None,
@@ -420,7 +421,7 @@ async def process_rename(client: Client, message: Message):
                     progress_args=("Upload Started...", upload_msg, time.time()),
                 )
             elif media_type == "video":
-                await client.send_video(
+                sent_msg = await client.send_video(
                     message.chat.id,
                     video=path,
                     caption=caption,
@@ -430,7 +431,7 @@ async def process_rename(client: Client, message: Message):
                     progress_args=("Upload Started...", upload_msg, time.time()),
                 )
             elif media_type == "audio":
-                await client.send_audio(
+                sent_msg = await client.send_audio(
                     message.chat.id,
                     audio=path,
                     caption=caption,
@@ -440,7 +441,7 @@ async def process_rename(client: Client, message: Message):
                     progress_args=("Upload Started...", upload_msg, time.time()),
                 )
             elif is_pdf:
-                await client.send_document(
+                sent_msg = await client.send_document(
                     message.chat.id,
                     document=path,
                     thumb=ph_path if ph_path else None,
@@ -448,26 +449,88 @@ async def process_rename(client: Client, message: Message):
                     progress=progress_for_pyrogram,
                     progress_args=("Upload Started...", upload_msg, time.time()),
                 )
+
+            # After successful upload, forward/send to dump channel with metadata
+            if Config.DUMP_CHANNEL and sent_msg:
+                try:
+                    user_mention = message.from_user.mention if message.from_user else "Unknown"
+                    user_id_str = message.from_user.id if message.from_user else "Unknown"
+                    dump_caption = (
+                        f"📁 **Renamed File**\n"
+                        f"👤 **User:** {user_mention}\n"
+                        f"🆔 **ID:** `{user_id_str}`\n"
+                        f"📅 **Date:** {datetime.now().strftime('%d %B, %Y')}\n"
+                        f"⏰ **Time:** {datetime.now().strftime('%I:%M:%S %p')}"
+                    )
+
+                    if media_type == "document" or is_pdf:
+                        await client.send_document(
+                            Config.DUMP_CHANNEL,
+                            document=path,
+                            caption=dump_caption
+                        )
+                    elif media_type == "video":
+                        await client.send_video(
+                            Config.DUMP_CHANNEL,
+                            video=path,
+                            caption=dump_caption
+                        )
+                    elif media_type == "audio":
+                        await client.send_audio(
+                            Config.DUMP_CHANNEL,
+                            audio=path,
+                            caption=dump_caption
+                        )
+                except Exception as e:
+                    # Log but don't interrupt main flow
+                    print(f"Failed to forward to dump channel: {e}")
+
         except Exception as e:
-            os.remove(renamed_file_path)
+            # On upload error, remove temp files and report
+            if os.path.exists(renamed_file_path):
+                try:
+                    os.remove(renamed_file_path)
+                except Exception:
+                    pass
             if ph_path and os.path.exists(ph_path):
-                os.remove(ph_path)
+                try:
+                    os.remove(ph_path)
+                except Exception:
+                    pass
             return await upload_msg.edit(f"Error: {e}")
 
-        await download_msg.delete() 
+        # Cleanup after successful upload
+        await download_msg.delete()
         if os.path.exists(path):
-            os.remove(path)
+            try:
+                os.remove(path)
+            except Exception:
+                pass
         if ph_path and os.path.exists(ph_path):
-            os.remove(ph_path)
+            try:
+                os.remove(ph_path)
+            except Exception:
+                pass
 
     finally:
+        # Final cleanup (safeguard)
         if os.path.exists(renamed_file_path):
-            os.remove(renamed_file_path)
+            try:
+                os.remove(renamed_file_path)
+            except Exception:
+                pass
         if os.path.exists(metadata_file_path):
-            os.remove(metadata_file_path)
+            try:
+                os.remove(metadata_file_path)
+            except Exception:
+                pass
         if ph_path and os.path.exists(ph_path):
-            os.remove(ph_path)
-        del renaming_operations[file_id]
+            try:
+                os.remove(ph_path)
+            except Exception:
+                pass
+        if file_id in renaming_operations:
+            del renaming_operations[file_id]
         
 async def rename_worker():
     while True:
@@ -483,4 +546,11 @@ async def rename_worker():
 async def auto_rename_files(client, message):
     await rename_queue.put((client, message))
 
-asyncio.create_task(rename_worker())
+# Start the worker task when module is imported
+try:
+    asyncio.create_task(rename_worker())
+except RuntimeError:
+    # In some environments (like when the event loop isn't running yet),
+    # creating a task at import time can fail. Ignore in that case.
+    pass
+     
