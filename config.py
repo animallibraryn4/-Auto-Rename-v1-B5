@@ -20,7 +20,14 @@ class Config(object):
     ADMIN       = [int(admin) if id_pattern.search(admin) else admin for admin in os.environ.get('ADMIN', '5380609667').split()]
     FORCE_SUB_CHANNELS = os.environ.get('FORCE_SUB_CHANNELS', 'animelibraryn4').split(',')
     LOG_CHANNEL = int(os.environ.get("LOG_CHANNEL", "-1002263636517"))
+    class Config(object):
+    # ... (all your existing config) ...
     DUMP_CHANNEL = int(os.environ.get("DUMP_CHANNEL", "-1002263636517"))
+    
+    # --- ADD THESE DIAGNOSTIC LINES ---
+    print(f"[DEBUG] DUMP_CHANNEL value: {DUMP_CHANNEL}")
+    print(f"[DEBUG] DUMP_CHANNEL type: {type(DUMP_CHANNEL)}")
+    # ----------------------------------
     WEBHOOK = bool(os.environ.get("WEBHOOK", "True"))
     
     # Season Extraction Configuration (New)
