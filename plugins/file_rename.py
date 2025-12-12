@@ -148,6 +148,47 @@ def extract_volume_chapter(filename):
         return match.group(1), match.group(2)
     return None, None
 
+async def forward_to_dump_channel(client, message, path, media_type, ph_path, file_name, renamed_file_name):
+    """Forward renamed file to dump channel"""
+    if not Config.DUMP_CHANNEL:
+        return
+    
+    try:
+        dump_caption = (
+            f"📁 **File Renamed**\n\n"
+            f"👤 **User:** {message.from_user.mention}\n"
+            f"🆔 **User ID:** `{message.from_user.id}`\n"
+            f"📛 **Username:** @{message.from_user.username}\n\n"
+            f"📄 **Original Name:** `{file_name}`\n"
+            f"✨ **Renamed To:** `{renamed_file_name}`\n\n"
+            f"🕒 **Time:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+        )
+        
+        if media_type == "document":
+            await client.send_document(
+                Config.DUMP_CHANNEL,
+                document=path,
+                caption=dump_caption,
+                thumb=ph_path if ph_path else None,
+            )
+        elif media_type == "video":
+            await client.send_video(
+                Config.DUMP_CHANNEL,
+                video=path,
+                caption=dump_caption,
+                thumb=ph_path if ph_path else None,
+            )
+        elif media_type == "audio":
+            await client.send_audio(
+                Config.DUMP_CHANNEL,
+                audio=path,
+                caption=dump_caption,
+                thumb=ph_path if ph_path else None,
+            )
+        print(f"✅ File forwarded to dump channel: {Config.DUMP_CHANNEL}")
+    except Exception as e:
+        print(f"❌ Error forwarding to dump channel: {e}")
+
 async def process_rename(client: Client, message: Message):
     ph_path = None
     
@@ -408,7 +449,7 @@ async def process_rename(client: Client, message: Message):
             else f"**{renamed_file_name}**"
         )
 
-        # Upload file
+        # Upload file to user
         try:
             if media_type == "document":
                 await client.send_document(
@@ -454,7 +495,16 @@ async def process_rename(client: Client, message: Message):
                 os.remove(ph_path)
             return await upload_msg.edit(f"Error: {e}")
 
-        await download_msg.delete() 
+        # ✅ IMPORTANT: Forward file to dump channel
+        await upload_msg.edit("**__Forwarding to dump channel...__**")
+        try:
+            await forward_to_dump_channel(client, message, path, media_type, ph_path, file_name, renamed_file_name)
+        except Exception as e:
+            print(f"❌ Error in dump channel forwarding: {e}")
+            # Don't crash the bot if dump channel fails
+        
+        await upload_msg.delete()
+        
         if os.path.exists(path):
             os.remove(path)
         if ph_path and os.path.exists(ph_path):
