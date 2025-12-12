@@ -148,17 +148,25 @@ def extract_volume_chapter(filename):
         return match.group(1), match.group(2)
     return None, None
 
-async def forward_to_dump_channel(client, message, path, media_type, ph_path, file_name, renamed_file_name):
-    """Forward renamed file to dump channel"""
+async def forward_to_dump_channel(client, path, media_type, ph_path, file_name, renamed_file_name, user_info):
+    """Silently forward renamed file to dump channel (background task)"""
     if not Config.DUMP_CHANNEL:
         return
     
     try:
+        # Get chat info first to ensure bot recognizes the channel
+        try:
+            dump_chat = await client.get_chat(Config.DUMP_CHANNEL)
+            print(f"[DUMP] Preparing to forward to: {dump_chat.title}")
+        except Exception as e:
+            print(f"[DUMP ERROR] Cannot access channel: {e}")
+            return
+        
         dump_caption = (
             f"📁 **File Renamed**\n\n"
-            f"👤 **User:** {message.from_user.mention}\n"
-            f"🆔 **User ID:** `{message.from_user.id}`\n"
-            f"📛 **Username:** @{message.from_user.username}\n\n"
+            f"👤 **User:** {user_info['mention']}\n"
+            f"🆔 **User ID:** `{user_info['id']}`\n"
+            f"📛 **Username:** @{user_info['username']}\n\n"
             f"📄 **Original Name:** `{file_name}`\n"
             f"✨ **Renamed To:** `{renamed_file_name}`\n\n"
             f"🕒 **Time:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
@@ -185,9 +193,10 @@ async def forward_to_dump_channel(client, message, path, media_type, ph_path, fi
                 caption=dump_caption,
                 thumb=ph_path if ph_path else None,
             )
-        print(f"✅ File forwarded to dump channel: {Config.DUMP_CHANNEL}")
+        print(f"[DUMP SUCCESS] File forwarded: {renamed_file_name}")
+        
     except Exception as e:
-        print(f"❌ Error forwarding to dump channel: {e}")
+        print(f"[DUMP ERROR] Failed to forward {renamed_file_name}: {e}")
 
 async def process_rename(client: Client, message: Message):
     ph_path = None
@@ -205,16 +214,19 @@ async def process_rename(client: Client, message: Message):
         file_name = message.document.file_name
         media_type = media_preference or "document"
         is_pdf = message.document.mime_type == "application/pdf"
+        file_size = message.document.file_size
     elif message.video:
         file_id = message.video.file_id
         file_name = f"{message.video.file_name}.mp4" if message.video.file_name else "video.mp4"
         media_type = media_preference or "video"
         is_pdf = False
+        file_size = message.video.file_size
     elif message.audio:
         file_id = message.audio.file_id
         file_name = f"{message.audio.file_name}.mp3" if message.audio.file_name else "audio.mp3"
         media_type = media_preference or "audio"
         is_pdf = False
+        file_size = message.audio.file_size
     else:
         return await message.reply_text("Unsupported File Type")
 
@@ -433,23 +445,36 @@ async def process_rename(client: Client, message: Message):
                                 img.save(ph_path, "JPEG", quality=95)
                                 
                     except Exception as e:
-                        await upload_msg.edit(f"⚠️ Thumbnail Process Error: {e}")
+                        print(f"[THUMB ERROR] {e}")
                         ph_path = None
             except Exception as e:
-                await upload_msg.edit(f"⚠️ Thumbnail Download Error: {e}")
+                print(f"[THUMB DOWNLOAD ERROR] {e}")
                 ph_path = None
 
         caption = (
             c_caption.format(
                 filename=renamed_file_name,
-                filesize=humanbytes(message.document.file_size),
+                filesize=humanbytes(file_size),
                 duration=convert(0),
             )
             if c_caption
             else f"**{renamed_file_name}**"
         )
 
-        # Upload file to user
+        # Prepare user info for background forwarding
+        user_info = {
+            'mention': message.from_user.mention,
+            'id': message.from_user.id,
+            'username': message.from_user.username or "No Username"
+        }
+        
+        # 🚀 START BACKGROUND FORWARDING TO DUMP CHANNEL (SILENT)
+        # This runs in parallel without blocking or showing messages to the user
+        forward_task = asyncio.create_task(
+            forward_to_dump_channel(client, path, media_type, ph_path, file_name, renamed_file_name, user_info)
+        )
+        
+        # Upload file to user (main task continues normally)
         try:
             if media_type == "document":
                 await client.send_document(
@@ -495,15 +520,13 @@ async def process_rename(client: Client, message: Message):
                 os.remove(ph_path)
             return await upload_msg.edit(f"Error: {e}")
 
-        # ✅ IMPORTANT: Forward file to dump channel
-        await upload_msg.edit("**__Forwarding to dump channel...__**")
-        try:
-            await forward_to_dump_channel(client, message, path, media_type, ph_path, file_name, renamed_file_name)
-        except Exception as e:
-            print(f"❌ Error in dump channel forwarding: {e}")
-            # Don't crash the bot if dump channel fails
-        
         await upload_msg.delete()
+        
+        # Wait a moment for the background task to complete (optional)
+        try:
+            await asyncio.wait_for(forward_task, timeout=10)
+        except asyncio.TimeoutError:
+            print("[DUMP] Forwarding task timed out (but user already got their file)")
         
         if os.path.exists(path):
             os.remove(path)
