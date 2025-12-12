@@ -1,20 +1,27 @@
 import motor.motor_asyncio
 import datetime
 import logging
+import asyncio
+from datetime import datetime as dt
 from config import Config
-from .utils import send_log
+from .utils import send_log  # अगर कहीं और उपयोग हो तो रखें, वरना safe to remove
+from pytz import timezone
 
 class Database:
     def __init__(self, uri, database_name):
         try:
             self._client = motor.motor_asyncio.AsyncIOMotorClient(uri)
-            self._client.server_info()
-            logging.info("Successfully connected to MongoDB")
+            # Optional: server_info() will try to connect immediately; keep for early failure.
+            try:
+                self._client.server_info()
+                logging.info("Successfully connected to MongoDB")
+            except Exception as e:
+                logging.error(f"MongoDB connection test failed: {e}")
+            self.codeflixbots = self._client[database_name]
+            self.col = self.codeflixbots.user
         except Exception as e:
-            logging.error(f"Failed to connect to MongoDB: {e}")
-            raise e
-        self.codeflixbots = self._client[database_name]
-        self.col = self.codeflixbots.user
+            logging.error(f"Failed to initialize MongoDB client: {e}")
+            raise
 
     def new_user(self, id):
         return dict(
@@ -46,14 +53,62 @@ class Database:
         )
 
     async def add_user(self, b, m):
+        """
+        b: bot/client instance
+        m: message
+        """
         u = m.from_user
-        if not await self.is_user_exist(u.id):
-            user = self.new_user(u.id)
+        try:
+            if not await self.is_user_exist(u.id):
+                user = self.new_user(u.id)
+                try:
+                    await self.col.insert_one(user)
+                    # नया यूज़र डिटेल LOG_CHANNEL में भेजें
+                    await self.send_user_log(b, u)
+                except Exception as e:
+                    logging.error(f"Error adding user {u.id}: {e}")
+        except Exception as e:
+            logging.error(f"Error in add_user flow for {getattr(u, 'id', 'unknown')}: {e}")
+
+    async def send_user_log(self, bot, user):
+        """नए यूज़र का डिटेल LOG_CHANNEL पर भेजें"""
+        try:
+            if not getattr(Config, "LOG_CHANNEL", None):
+                return
+
+            curr = dt.now(timezone("Asia/Kolkata"))
+            date = curr.strftime('%d %B, %Y')
+            time_str = curr.strftime('%I:%M:%S %p')
+
+            # get bot info safely
             try:
-                await self.col.insert_one(user)
-                await send_log(b, u)
-            except Exception as e:
-                logging.error(f"Error adding user {u.id}: {e}")
+                bot_info = await bot.get_me()
+                bot_name = bot_info.first_name if getattr(bot_info, "first_name", None) else "Bot"
+                bot_id = bot_info.id if getattr(bot_info, "id", None) else "Unknown"
+            except Exception:
+                bot_name = "Bot"
+                bot_id = "Unknown"
+
+            username_display = f"@{user.username}" if getattr(user, "username", None) else "N/A"
+            first_name = getattr(user, "first_name", "Unknown")
+            user_id = getattr(user, "id", "Unknown")
+
+            log_message = (
+                f"» ɴᴀᴍᴇ - [{first_name}](tg://user?id={user_id})\n"
+                f"» ɪᴅ - `{user_id}`\n"
+                f"» ᴜsᴇʀɴᴀᴍᴇ - {username_display}\n"
+                f"» ᴛɪᴍᴇ - {time_str}\n"
+                f"» ᴅᴀᴛᴇ - {date}\n\n"
+                f"ʙʏ: [{bot_name}](tg://user?id={bot_id})"
+            )
+
+            await bot.send_message(
+                Config.LOG_CHANNEL,
+                log_message,
+                disable_web_page_preview=True
+            )
+        except Exception as e:
+            logging.error(f"Error sending user log: {e}")
 
     async def is_user_exist(self, id):
         try:
