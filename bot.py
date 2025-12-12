@@ -11,13 +11,14 @@ import pyromod
 from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 import os
 import time
-from plugins.ban_system import check_user_access  # नया इम्पोर्ट
 
 pyrogram.utils.MIN_CHANNEL_ID = -1001896877147
 
+# Setting SUPPORT_CHAT directly here
 SUPPORT_CHAT = int(os.environ.get("SUPPORT_CHAT", "-1001896877147"))
 
 class Bot(Client):
+
     def __init__(self):
         super().__init__(
             name="codeflixbots",
@@ -28,6 +29,7 @@ class Bot(Client):
             plugins={"root": "plugins"},
             sleep_threshold=15,
         )
+        # Initialize the bot's start time for uptime calculation
         self.start_time = time.time()
 
     async def start(self):
@@ -39,7 +41,7 @@ class Bot(Client):
         if Config.WEBHOOK:
             app = web.AppRunner(await web_server())
             await app.setup()       
-            await web.TCPSite(app, "8.8.8.8", 9090).start()     
+            await web.TCPSite(app, "0.0.0.0", 9090).start()     
         print(f"{me.first_name} Is Started.....✨️")
 
         # Calculate uptime using timedelta
