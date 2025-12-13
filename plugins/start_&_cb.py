@@ -91,10 +91,15 @@ async def cb_handler(client, query: CallbackQuery):
                 [InlineKeyboardButton("ᴀᴜᴛᴏ ʀᴇɴᴀᴍᴇ ғᴏʀᴍᴀᴛ", callback_data='file_names')],
                 [InlineKeyboardButton('ᴛʜᴜᴍʙɴᴀɪʟ', callback_data='thumbnail'), InlineKeyboardButton('ᴄᴀᴘᴛɪᴏɴ', callback_data='caption')],
                 [InlineKeyboardButton('ᴍᴇᴛᴀᴅᴀᴛᴀ', callback_data='meta'), InlineKeyboardButton('ᴅᴏɴᴀᴛᴇ', callback_data='donate')],
+                [InlineKeyboardButton('ᴍʏ sᴛᴀᴛs', callback_data='mystats')], # <-- ADDED BUTTON
                 [InlineKeyboardButton('ʜᴏᴍᴇ', callback_data='home')]
             ])
         )
 
+    elif data == "mystats": # <-- ADDED MYSTATS HANDLER
+        from plugins.ad_token_handler import show_user_stats
+        await show_user_stats(client, query)
+        
     elif data == "meta":
         await query.message.edit_text(  # Change edit_caption to edit_text
             text=Txt.SEND_METADATA,  # Changed from caption to text
@@ -238,6 +243,8 @@ async def help_command(client, message):
             [InlineKeyboardButton("ᴀᴜᴛᴏ ʀᴇɴᴀᴍᴇ ғᴏʀᴍᴀᴛ •", callback_data='file_names')],
             [InlineKeyboardButton('ᴛʜᴜᴍʙɴᴀɪʟ', callback_data='thumbnail'), InlineKeyboardButton('ᴄᴀᴘᴛɪᴏɴ', callback_data='caption')],
             [InlineKeyboardButton('ᴍᴇᴛᴀᴅᴀᴛᴀ', callback_data='meta'), InlineKeyboardButton('ᴅᴏɴᴀᴛᴇ', callback_data='donate')],
+            [InlineKeyboardButton('ᴍʏ sᴛᴀᴛs', callback_data='mystats')], # <-- ADDED BUTTON
             [InlineKeyboardButton('ʜᴏᴍᴇ', callback_data='home')]
         ])
     )
+    
