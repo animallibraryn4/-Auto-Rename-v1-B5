@@ -9,6 +9,7 @@ from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
+# NOTE: Config.ADMIN is already used in the filters below, but keeping this definition
 ADMIN_USER_ID = Config.ADMIN
 
 # Flag to indicate if the bot is restarting
@@ -100,9 +101,14 @@ async def send_msg(user_id, message):
 
 # ========== BAN COMMANDS ==========
 
-@Client.on_message(filters.private & filters.command("ban") & filters.user(Config.ADMIN))
+# Updated decorator (removed filters.user(Config.ADMIN))
+@Client.on_message(filters.private & filters.command("ban"))
 async def ban_user_command(client: Client, message: Message):
     """Ban a user by their ID"""
+    # Inline admin check added
+    if message.from_user.id not in Config.ADMIN:
+        return
+        
     if len(message.command) < 2:
         return await message.reply_text(
             "**Usage:** `/ban <user_id> [duration_in_days] [reason]`\n\n"
@@ -153,9 +159,14 @@ async def ban_user_command(client: Client, message: Message):
         logger.error(f"Error in ban command: {e}")
         await message.reply_text(f"❌ An error occurred: {str(e)}")
 
-@Client.on_message(filters.private & filters.command("unban") & filters.user(Config.ADMIN))
+# Updated decorator (removed filters.user(Config.ADMIN))
+@Client.on_message(filters.private & filters.command("unban"))
 async def unban_user_command(client: Client, message: Message):
     """Unban a user by their ID"""
+    # Inline admin check added
+    if message.from_user.id not in Config.ADMIN:
+        return
+        
     if len(message.command) < 2:
         return await message.reply_text(
             "**Usage:** `/unban <user_id>`\n\n"
@@ -201,9 +212,14 @@ async def unban_user_command(client: Client, message: Message):
         logger.error(f"Error in unban command: {e}")
         await message.reply_text(f"❌ An error occurred: {str(e)}")
 
-@Client.on_message(filters.private & filters.command("baninfo") & filters.user(Config.ADMIN))
+# Updated decorator (removed filters.user(Config.ADMIN))
+@Client.on_message(filters.private & filters.command("baninfo"))
 async def ban_info_command(client: Client, message: Message):
     """Check ban status of a user"""
+    # Inline admin check added
+    if message.from_user.id not in Config.ADMIN:
+        return
+        
     if len(message.command) < 2:
         return await message.reply_text(
             "**Usage:** `/baninfo <user_id>`\n\n"
@@ -249,3 +265,4 @@ async def ban_info_command(client: Client, message: Message):
     except Exception as e:
         logger.error(f"Error in baninfo command: {e}")
         await message.reply_text(f"❌ An error occurred: {str(e)}")
+            
