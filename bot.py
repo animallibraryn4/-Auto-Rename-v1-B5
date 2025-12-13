@@ -11,7 +11,8 @@ import pyromod
 from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 import os
 import time
-from plugins.ad_token_handler import
+
+from plugins.ad_token_handler import * # <-- ADDED IMPORT
 
 pyrogram.utils.MIN_CHANNEL_ID = -1001896877147
 
@@ -74,3 +75,4 @@ class Bot(Client):
                 print(f"Failed to send message in chat {chat_id}: {e}")
 
 Bot().run()
+
