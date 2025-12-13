@@ -1,3 +1,5 @@
+[file name]: start_&_cb.py
+[file content begin]
 import random
 import asyncio
 from pyrogram import Client, filters
@@ -7,9 +9,39 @@ from helper.database import codeflixbots
 from config import *
 from config import Config
 
+# ========== BAN CHECK DECORATOR ==========
+async def check_ban_wrapper(client, message):
+    """Check if user is banned before processing any command"""
+    user_id = message.from_user.id
+    
+    # Skip ban check for admins
+    if user_id in Config.ADMIN:
+        return False
+    
+    # Check if user is banned
+    is_banned = await codeflixbots.is_banned(user_id)
+    
+    if is_banned:
+        ban_info = await codeflixbots.get_ban_info(user_id)
+        ban_reason = ban_info.get('ban_reason', 'No reason provided') if ban_info else 'No reason provided'
+        
+        await message.reply_text(
+            "🚫 **You are banned and cannot use this bot.**\n\n"
+            f"**Reason:** {ban_reason}\n\n"
+            "If you want access, please contact @Anime_Library_N4 for permission."
+        )
+        return True  # Stop further processing
+    
+    return False  # Continue processing
+
 # Start Command Handler
 @Client.on_message(filters.private & filters.command("start"))
 async def start(client, message: Message):
+    # Check if user is banned
+    is_banned = await check_ban_wrapper(client, message)
+    if is_banned:
+        return
+    
     user = message.from_user
     await codeflixbots.add_user(client, message)
 
@@ -61,6 +93,13 @@ async def start(client, message: Message):
 async def cb_handler(client, query: CallbackQuery):
     data = query.data
     user_id = query.from_user.id
+
+    # Check if user is banned (skip for admins)
+    if user_id not in Config.ADMIN:
+        is_banned = await codeflixbots.is_banned(user_id)
+        if is_banned:
+            await query.answer("🚫 You are banned from using this bot!", show_alert=True)
+            return
 
     print(f"Callback data received: {data}")  # Debugging line
 
@@ -175,6 +214,11 @@ async def cb_handler(client, query: CallbackQuery):
 # Donation Command Handler
 @Client.on_message(filters.command("donate"))
 async def donation(client, message):
+    # Check if user is banned
+    is_banned = await check_ban_wrapper(client, message)
+    if is_banned:
+        return
+    
     buttons = InlineKeyboardMarkup([
         [InlineKeyboardButton(text="ʙᴀᴄᴋ", callback_data="help"), InlineKeyboardButton(text="ᴏᴡɴᴇʀ", url='https://t.me/Tanjiro_kamado_n4_bot')]
     ])
@@ -186,6 +230,11 @@ async def donation(client, message):
 # Premium Command Handler
 @Client.on_message(filters.command("premium"))
 async def getpremium(bot, message):
+    # Check if user is banned
+    is_banned = await check_ban_wrapper(bot, message)
+    if is_banned:
+        return
+    
     buttons = InlineKeyboardMarkup([
         [InlineKeyboardButton("ᴏᴡɴᴇʀ", url="https://t.me/Anime_library_n4"), InlineKeyboardButton("ᴄʟᴏsᴇ", callback_data="close")]
     ])
@@ -197,6 +246,11 @@ async def getpremium(bot, message):
 # Plan Command Handler
 @Client.on_message(filters.command("plan"))
 async def premium(bot, message):
+    # Check if user is banned
+    is_banned = await check_ban_wrapper(bot, message)
+    if is_banned:
+        return
+    
     buttons = InlineKeyboardMarkup([
         [InlineKeyboardButton("sᴇɴᴅ ss", url="https://t.me/Anime_library_n4"), InlineKeyboardButton("ᴄʟᴏsᴇ", callback_data="close")]
     ])
@@ -208,6 +262,11 @@ async def premium(bot, message):
 # Bought Command Handler
 @Client.on_message(filters.command("bought") & filters.private)
 async def bought(client, message):
+    # Check if user is banned
+    is_banned = await check_ban_wrapper(client, message)
+    if is_banned:
+        return
+    
     msg = await message.reply('Wait im checking...')
     replied = message.reply_to_message
 
@@ -226,6 +285,11 @@ async def bought(client, message):
 
 @Client.on_message(filters.private & filters.command("help"))
 async def help_command(client, message):
+    # Check if user is banned
+    is_banned = await check_ban_wrapper(client, message)
+    if is_banned:
+        return
+    
     # Await get_me to get the bot's user object
     bot = await client.get_me()
     mention = bot.mention
@@ -241,3 +305,4 @@ async def help_command(client, message):
             [InlineKeyboardButton('ʜᴏᴍᴇ', callback_data='home')]
         ])
     )
+[file content end]
