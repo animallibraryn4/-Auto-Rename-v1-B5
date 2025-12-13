@@ -42,45 +42,57 @@ class Database:
             audio='By @Animelibraryn4',
             subtitle='By @Animelibraryn4',
             video_title='By @Animelibraryn4',
-            # NEW FIELDS ADDED TO STORE USER INFO (For /start command updates)
-            username=None, 
-            name=None, 
-            last_name=None, 
-            mention=None
+            # FIXED: Consolidated user info fields to avoid conflicts
+            user_info=dict(
+                username=None,
+                first_name=None,
+                last_name=None,
+                mention=None
+            )
         )
 
     async def add_user(self, client, message):
         user = message.from_user
         user_id = user.id
         
-        # 1. Data to update on every /start (like username, name)
-        update_data = {
-            "username": user.username,
-            "name": user.first_name,
-            "last_name": user.last_name,
-            "mention": user.mention 
-        }
-        
-        # 2. Default data for first-time insertion
-        initial_data = self.new_user(user_id)
-        
-        # 3. Use update_one with upsert=True and $setOnInsert for atomic creation/update
         try:
-            # $set will update user details every time
-            # $setOnInsert will set all initial data (from new_user) only if a new document is created
-            result = await self.col.update_one(
-                {"_id": int(user_id)},
-                {"$set": update_data, "$setOnInsert": initial_data},
-                upsert=True
-            )
+            # Check if user exists
+            existing_user = await self.col.find_one({"_id": int(user_id)})
             
-            # Log and send message to log channel only if a new document was inserted
-            if result.upserted_id:
+            if existing_user:
+                # Update only user_info for existing users
+                update_data = {
+                    "user_info.username": user.username,
+                    "user_info.first_name": user.first_name,
+                    "user_info.last_name": user.last_name,
+                    "user_info.mention": user.mention
+                }
+                
+                # Remove None values to avoid overwriting with None
+                update_data = {k: v for k, v in update_data.items() if v is not None}
+                
+                if update_data:  # Only update if there's something to update
+                    await self.col.update_one(
+                        {"_id": int(user_id)},
+                        {"$set": update_data}
+                    )
+            else:
+                # Create new user with all fields
+                user_data = self.new_user(user_id)
+                user_data["user_info"] = {
+                    "username": user.username,
+                    "first_name": user.first_name,
+                    "last_name": user.last_name,
+                    "mention": user.mention
+                }
+                
+                await self.col.insert_one(user_data)
                 logging.info(f"New user added: {user_id}")
+                
+                # Send log only for new users
                 await send_log(client, user)
                 
         except Exception as e:
-            # We catch any remaining error (which should be rare now)
             logging.error(f"Error adding/updating user {user_id}: {e}", exc_info=True)
 
     async def get_format_template(self, id):
@@ -452,6 +464,69 @@ class Database:
             logging.error(f"Error unbanning user {id}: {e}")
             return False
 
+    # ADDITIONAL METHODS FOR ADMIN PANEL
+    async def total_users_count(self):
+        """Get total number of users."""
+        try:
+            count = await self.col.count_documents({})
+            return count
+        except Exception as e:
+            logging.error(f"Error counting users: {e}")
+            return 0
+
+    async def get_all_users(self):
+        """Get all users."""
+        try:
+            return self.col.find({})
+        except Exception as e:
+            logging.error(f"Error getting all users: {e}")
+            return []
+
+    async def delete_user(self, user_id):
+        """Delete a user from the database."""
+        try:
+            await self.col.delete_one({'_id': int(user_id)})
+            return True
+        except Exception as e:
+            logging.error(f"Error deleting user {user_id}: {e}")
+            return False
+
+    async def is_banned(self, id):
+        """Alias for is_user_banned for backward compatibility."""
+        return await self.is_user_banned(id)
+
+    async def get_user(self, id):
+        """Get complete user document."""
+        try:
+            user = await self.col.find_one({"_id": int(id)})
+            return user
+        except Exception as e:
+            logging.error(f"Error getting user {id}: {e}")
+            return None
+
+    async def update_user_info(self, id, username=None, first_name=None, last_name=None, mention=None):
+        """Update user information separately."""
+        try:
+            update_data = {}
+            if username is not None:
+                update_data["user_info.username"] = username
+            if first_name is not None:
+                update_data["user_info.first_name"] = first_name
+            if last_name is not None:
+                update_data["user_info.last_name"] = last_name
+            if mention is not None:
+                update_data["user_info.mention"] = mention
+            
+            if update_data:
+                await self.col.update_one(
+                    {"_id": int(id)},
+                    {"$set": update_data},
+                    upsert=True
+                )
+            return True
+        except Exception as e:
+            logging.error(f"Error updating user info for {id}: {e}")
+            return False
+
 # Initialize database connection
 codeflixbots = Database(Config.DB_URL, Config.DB_NAME)
-
