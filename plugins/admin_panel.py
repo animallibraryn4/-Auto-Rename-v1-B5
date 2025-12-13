@@ -1,3 +1,4 @@
+# Replace the admin_panel.py file with this updated version
 from config import Config, Txt
 from helper.database import codeflixbots
 from pyrogram.types import Message
@@ -96,3 +97,155 @@ async def send_msg(user_id, message):
     except Exception as e:
         logger.error(f"{user_id} : {e}")
         return 500
+
+# ========== BAN COMMANDS ==========
+
+@Client.on_message(filters.private & filters.command("ban") & filters.user(Config.ADMIN))
+async def ban_user_command(client: Client, message: Message):
+    """Ban a user by their ID"""
+    if len(message.command) < 2:
+        return await message.reply_text(
+            "**Usage:** `/ban <user_id> [duration_in_days] [reason]`\n\n"
+            "**Example:** `/ban 123456789 7 Spamming`\n"
+            "**Example:** `/ban 123456789` (permanent ban)"
+        )
+    
+    try:
+        # Parse command arguments
+        args = message.text.split(maxsplit=3)
+        user_id = int(args[1])
+        ban_duration = int(args[2]) if len(args) > 2 else 0  # 0 = permanent
+        ban_reason = args[3] if len(args) > 3 else "No reason provided"
+        
+        # Check if user exists
+        if not await codeflixbots.is_user_exist(user_id):
+            return await message.reply_text(f"❌ User with ID `{user_id}` not found in database.")
+        
+        # Ban the user
+        success = await codeflixbots.ban_user(user_id, ban_duration, ban_reason)
+        
+        if success:
+            duration_text = f"for {ban_duration} days" if ban_duration > 0 else "permanently"
+            await message.reply_text(
+                f"✅ **User Banned Successfully!**\n\n"
+                f"**User ID:** `{user_id}`\n"
+                f"**Duration:** {duration_text}\n"
+                f"**Reason:** {ban_reason}"
+            )
+            
+            # Try to notify the user if possible
+            try:
+                await client.send_message(
+                    user_id,
+                    f"🚫 **You have been banned from using this bot.**\n\n"
+                    f"**Reason:** {ban_reason}\n"
+                    f"**Duration:** {duration_text}\n\n"
+                    f"If you believe this is a mistake, contact @Anime_Library_N4"
+                )
+            except:
+                pass
+        else:
+            await message.reply_text("❌ Failed to ban user. Please check logs.")
+            
+    except ValueError:
+        await message.reply_text("❌ Invalid user ID. Please provide a numeric user ID.")
+    except Exception as e:
+        logger.error(f"Error in ban command: {e}")
+        await message.reply_text(f"❌ An error occurred: {str(e)}")
+
+@Client.on_message(filters.private & filters.command("unban") & filters.user(Config.ADMIN))
+async def unban_user_command(client: Client, message: Message):
+    """Unban a user by their ID"""
+    if len(message.command) < 2:
+        return await message.reply_text(
+            "**Usage:** `/unban <user_id>`\n\n"
+            "**Example:** `/unban 123456789`"
+        )
+    
+    try:
+        user_id = int(message.command[1])
+        
+        # Check if user exists
+        if not await codeflixbots.is_user_exist(user_id):
+            return await message.reply_text(f"❌ User with ID `{user_id}` not found in database.")
+        
+        # Check if user is actually banned
+        if not await codeflixbots.is_user_banned(user_id):
+            return await message.reply_text(f"ℹ️ User `{user_id}` is not currently banned.")
+        
+        # Unban the user
+        success = await codeflixbots.unban_user(user_id)
+        
+        if success:
+            await message.reply_text(
+                f"✅ **User Unbanned Successfully!**\n\n"
+                f"**User ID:** `{user_id}`\n"
+                f"User can now use the bot again."
+            )
+            
+            # Try to notify the user if possible
+            try:
+                await client.send_message(
+                    user_id,
+                    "✅ **Your ban has been lifted!**\n\n"
+                    "You can now use the bot again. Welcome back!"
+                )
+            except:
+                pass
+        else:
+            await message.reply_text("❌ Failed to unban user. Please check logs.")
+            
+    except ValueError:
+        await message.reply_text("❌ Invalid user ID. Please provide a numeric user ID.")
+    except Exception as e:
+        logger.error(f"Error in unban command: {e}")
+        await message.reply_text(f"❌ An error occurred: {str(e)}")
+
+@Client.on_message(filters.private & filters.command("baninfo") & filters.user(Config.ADMIN))
+async def ban_info_command(client: Client, message: Message):
+    """Check ban status of a user"""
+    if len(message.command) < 2:
+        return await message.reply_text(
+            "**Usage:** `/baninfo <user_id>`\n\n"
+            "**Example:** `/baninfo 123456789`"
+        )
+    
+    try:
+        user_id = int(message.command[1])
+        
+        # Check if user exists
+        if not await codeflixbots.is_user_exist(user_id):
+            return await message.reply_text(f"❌ User with ID `{user_id}` not found in database.")
+        
+        user = await codeflixbots.col.find_one({"_id": user_id})
+        
+        if user and "ban_status" in user:
+            ban_info = user["ban_status"]
+            is_banned = ban_info.get("is_banned", False)
+            
+            if is_banned:
+                ban_reason = ban_info.get("ban_reason", "No reason provided")
+                banned_on = ban_info.get("banned_on", "Unknown")
+                ban_duration = ban_info.get("ban_duration", 0)
+                
+                duration_text = f"{ban_duration} days" if ban_duration > 0 else "Permanent"
+                
+                response = (
+                    f"🚫 **User is Banned**\n\n"
+                    f"**User ID:** `{user_id}`\n"
+                    f"**Banned On:** {banned_on}\n"
+                    f"**Duration:** {duration_text}\n"
+                    f"**Reason:** {ban_reason}"
+                )
+            else:
+                response = f"✅ **User is Not Banned**\n\n**User ID:** `{user_id}`"
+        else:
+            response = f"ℹ️ **No Ban Info Found**\n\n**User ID:** `{user_id}`"
+        
+        await message.reply_text(response)
+        
+    except ValueError:
+        await message.reply_text("❌ Invalid user ID. Please provide a numeric user ID.")
+    except Exception as e:
+        logger.error(f"Error in baninfo command: {e}")
+        await message.reply_text(f"❌ An error occurred: {str(e)}")
