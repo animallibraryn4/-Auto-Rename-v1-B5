@@ -9,4 +9,4 @@ pytz
 humanize
 ffmpeg-python
 nest_asyncio
-# Remove pyromod from this list
+pymongo[srv]
