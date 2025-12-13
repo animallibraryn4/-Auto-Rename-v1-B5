@@ -1,4 +1,3 @@
-# Replace the metadata.py file with this updated version
 from helper.database import codeflixbots as db
 from pyrogram import Client, filters
 from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup, CallbackQuery
@@ -6,14 +5,6 @@ from config import Txt
 
 @Client.on_message(filters.command("metadata"))
 async def metadata(client, message):
-    # Check if user is banned
-    if await db.is_user_banned(message.from_user.id):
-        await message.reply_text(
-            "🚫 **You are banned and cannot use this bot.**\n\n"
-            "If you want access, request permission from @Anime_Library_N4."
-        )
-        return
-    
     user_id = message.from_user.id
 
     # Fetch user metadata from the database
@@ -55,12 +46,6 @@ async def metadata(client, message):
 @Client.on_callback_query(filters.regex(r"on_metadata|off_metadata|metainfo"))
 async def metadata_callback(client, query: CallbackQuery):
     user_id = query.from_user.id
-    
-    # Check if user is banned
-    if await db.is_user_banned(user_id):
-        await query.answer("🚫 You are banned from using this bot.", show_alert=True)
-        return
-    
     data = query.data
 
     if data == "on_metadata":
@@ -116,14 +101,6 @@ async def metadata_callback(client, query: CallbackQuery):
 
 @Client.on_message(filters.private & filters.command('settitle'))
 async def title(client, message):
-    # Check if user is banned
-    if await db.is_user_banned(message.from_user.id):
-        await message.reply_text(
-            "🚫 **You are banned and cannot use this bot.**\n\n"
-            "If you want access, request permission from @Anime_Library_N4."
-        )
-        return
-    
     if len(message.command) == 1:
         return await message.reply_text(
             "**Gɪᴠᴇ Tʜᴇ Tɪᴛʟᴇ\n\nExᴀᴍᴩʟᴇ:- /settitle Encoded By @Animelibraryn4**")
@@ -133,14 +110,6 @@ async def title(client, message):
 
 @Client.on_message(filters.private & filters.command('setauthor'))
 async def author(client, message):
-    # Check if user is banned
-    if await db.is_user_banned(message.from_user.id):
-        await message.reply_text(
-            "🚫 **You are banned and cannot use this bot.**\n\n"
-            "If you want access, request permission from @Anime_Library_N4."
-        )
-        return
-    
     if len(message.command) == 1:
         return await message.reply_text(
             "**Gɪᴠᴇ Tʜᴇ Aᴜᴛʜᴏʀ\n\nExᴀᴍᴩʟᴇ:- /setauthor @Animelibraryn4**")
@@ -150,14 +119,6 @@ async def author(client, message):
 
 @Client.on_message(filters.private & filters.command('setartist'))
 async def artist(client, message):
-    # Check if user is banned
-    if await db.is_user_banned(message.from_user.id):
-        await message.reply_text(
-            "🚫 **You are banned and cannot use this bot.**\n\n"
-            "If you want access, request permission from @Anime_Library_N4."
-        )
-        return
-    
     if len(message.command) == 1:
         return await message.reply_text(
             "**Gɪᴠᴇ Tʜᴇ Aʀᴛɪꜱᴛ\n\nExᴀᴍᴩʟᴇ:- /setartist @Animelibraryn4**")
@@ -167,14 +128,6 @@ async def artist(client, message):
 
 @Client.on_message(filters.private & filters.command('setaudio'))
 async def audio(client, message):
-    # Check if user is banned
-    if await db.is_user_banned(message.from_user.id):
-        await message.reply_text(
-            "🚫 **You are banned and cannot use this bot.**\n\n"
-            "If you want access, request permission from @Anime_Library_N4."
-        )
-        return
-    
     if len(message.command) == 1:
         return await message.reply_text(
             "**Gɪᴠᴇ Tʜᴇ Aᴜᴅɪᴏ Tɪᴛʟᴇ\n\nExᴀᴍᴩʟᴇ:- /setaudio @Animelibraryn4**")
@@ -184,14 +137,6 @@ async def audio(client, message):
 
 @Client.on_message(filters.private & filters.command('setsubtitle'))
 async def subtitle(client, message):
-    # Check if user is banned
-    if await db.is_user_banned(message.from_user.id):
-        await message.reply_text(
-            "🚫 **You are banned and cannot use this bot.**\n\n"
-            "If you want access, request permission from @Anime_Library_N4."
-        )
-        return
-    
     if len(message.command) == 1:
         return await message.reply_text(
             "**Gɪᴠᴇ Tʜᴇ Sᴜʙᴛɪᴛʟᴇ Tɪᴛʟᴇ\n\nExᴀᴍᴩʟᴇ:- /setsubtitle @Animelibraryn4**")
@@ -201,17 +146,10 @@ async def subtitle(client, message):
 
 @Client.on_message(filters.private & filters.command('setvideo'))
 async def video(client, message):
-    # Check if user is banned
-    if await db.is_user_banned(message.from_user.id):
-        await message.reply_text(
-            "🚫 **You are banned and cannot use this bot.**\n\n"
-            "If you want access, request permission from @Anime_Library_N4."
-        )
-        return
-    
     if len(message.command) == 1:
         return await message.reply_text(
             "**Gɪᴠᴇ Tʜᴇ Vɪᴅᴇᴏ Tɪᴛʟᴇ\n\nExᴀᴍᴩʟᴇ:- /setvideo Encoded by @Animelibraryn4**")
     video = message.text.split(" ", 1)[1]
     await db.set_video(message.from_user.id, video=video)
     await message.reply_text("**✅ Vɪᴅᴇᴏ Sᴀᴠᴇᴅ**")
+    
