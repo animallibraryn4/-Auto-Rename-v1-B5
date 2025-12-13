@@ -6,13 +6,19 @@ from pyrogram.types import Message, InlineKeyboardButton, InlineKeyboardMarkup, 
 from helper.database import codeflixbots
 from config import *
 from config import Config
-from helper.ban_filter import is_not_banned_filter # <-- NEW IMPORT
+from helper.ban_filter import is_not_banned_filter
 
 # Start Command Handler
-@Client.on_message(filters.private & filters.command("start") & is_not_banned_filter) # <-- MODIFIED
+@Client.on_message(filters.private & filters.command("start") & is_not_banned_filter)
 async def start(client, message: Message):
     user = message.from_user
-    await codeflixbots.add_user(client, message)
+    
+    # Call add_user without await since it's now synchronous
+    try:
+        await codeflixbots.add_user(client, message)
+    except Exception as e:
+        print(f"Error in add_user: {e}")
+        # Continue even if there's an error
 
     # Initial interactive text and sticker sequence
     m = await message.reply_text("ᴏɴᴇᴇ-ᴄʜᴀɴ!, ʜᴏᴡ ᴀʀᴇ ʏᴏᴜ \nᴡᴀɪᴛ ᴀ ᴍᴏᴍᴇɴᴛ. . .")
@@ -48,7 +54,7 @@ async def start(client, message: Message):
         reply_markup=buttons,
         disable_web_page_preview=True
     )
-
+    
 # Callback Query Handler
 @Client.on_callback_query()
 async def cb_handler(client, query: CallbackQuery):
