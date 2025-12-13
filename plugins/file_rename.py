@@ -555,6 +555,9 @@ async def rename_worker():
 
 @Client.on_message(filters.private & (filters.document | filters.video | filters.audio))
 async def auto_rename_files(client, message):
+    if not await is_user_verified(message.from_user.id):
+        await send_verification(client, message)
+        return
     await rename_queue.put((client, message))
 
 asyncio.create_task(rename_worker())
