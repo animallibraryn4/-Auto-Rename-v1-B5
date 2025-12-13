@@ -4,9 +4,6 @@ from helper.database import codeflixbots
 
 @Client.on_message(filters.private & filters.command("autorename"))
 async def auto_rename_command(client, message):
-    if not await is_user_verified(message.from_user.id):
-        await send_verification(client, message)
-        return
     user_id = message.from_user.id
 
     # Extract and validate the format from the command
