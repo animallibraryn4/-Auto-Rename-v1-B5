@@ -96,10 +96,14 @@ async def cb_handler(client, query: CallbackQuery):
     data = query.data
     user_id = query.from_user.id
 
-    # Check if user is banned before processing any callback
-    if await codeflixbots.is_user_banned(user_id):
-        await query.answer("🚫 You are banned from using this bot.", show_alert=True)
-        return
+    # Check if user is banned (skip for admins)
+    if user_id not in Config.ADMIN:
+        try:
+            if await codeflixbots.is_user_banned(user_id):
+                await query.answer("🚫 You are banned from using this bot.", show_alert=True)
+                return
+        except:
+            pass  # If error, continue
 
     print(f"Callback data received: {data}")  # Debugging line
 
@@ -319,4 +323,5 @@ async def help_command(client, message):
             [InlineKeyboardButton('ᴍᴇᴛᴀᴅᴀᴛᴀ', callback_data='meta'), InlineKeyboardButton('ᴅᴏɴᴀᴛᴇ', callback_data='donate')],
             [InlineKeyboardButton('ʜᴏᴍᴇ', callback_data='home')]
         ])
-)
+                 )
+    
