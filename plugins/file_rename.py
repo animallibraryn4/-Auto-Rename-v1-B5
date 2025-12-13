@@ -551,9 +551,17 @@ async def rename_worker():
             print(f"Error processing rename task: {e}")
         finally:
             rename_queue.task_done()
-
+# In file_rename.py, find the auto_rename_files function and update it:
 @Client.on_message(filters.private & (filters.document | filters.video | filters.audio))
 async def auto_rename_files(client, message):
+    # Check if user is banned
+    if await codeflixbots.is_user_banned(message.from_user.id):
+        await message.reply_text(
+            "🚫 **You are banned and cannot use this bot.**\n\n"
+            "If you want access, request permission from @Anime_Library_N4."
+        )
+        return
+    
     await rename_queue.put((client, message))
-
+    
 asyncio.create_task(rename_worker())
