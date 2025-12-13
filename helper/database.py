@@ -8,86 +8,64 @@ class Database:
     def __init__(self, uri, database_name):
         try:
             self._client = motor.motor_asyncio.AsyncIOMotorClient(uri)
-            # Ping the server to check connection
-            self._client.admin.command('ping') 
+            self._client.server_info()
             logging.info("Successfully connected to MongoDB")
         except Exception as e:
             logging.error(f"Failed to connect to MongoDB: {e}")
-            # Re-raise the exception to stop bot startup if DB connection fails
-            raise e 
+            raise e
         self.codeflixbots = self._client[database_name]
         self.col = self.codeflixbots.user
 
-    def new_user_data(self, id):
-        """Returns the dictionary structure for a new user, used for upsert."""
-        # Use datetime.date.max.isoformat() for a date far in the future
-        far_future_date = datetime.date.max.isoformat() 
-        
-        return {
-            "join_date": datetime.date.today().isoformat(),
-            "file_id": None,
-            "caption": None,
-            "metadata": True,
-            "metadata_code": "Telegram : @Animelibraryn4",
-            "format_template": None,
-            "thumbnails": {},
-            "temp_quality": None,
-            "use_global_thumb": False,  # New field for global thumbnail toggle
-            "global_thumb": None,       # Stores the global thumbnail file_id
-            "ban_status": {
-                "is_banned": False,
-                "ban_duration": 0,
-                "banned_on": far_future_date,
-                "ban_reason": ''
-            },
+    def new_user(self, id):
+        return dict(
+            _id=int(id),
+            join_date=datetime.date.today().isoformat(),
+            file_id=None,
+            caption=None,
+            metadata=True,
+            metadata_code="Telegram : @Animelibraryn4",
+            format_template=None,
+            thumbnails={},
+            temp_quality=None,
+            use_global_thumb=False,  # New field for global thumbnail toggle
+            global_thumb=None,       # Stores the global thumbnail file_id
+            ban_status=dict(
+                is_banned=False,
+                ban_duration=0,
+                banned_on=datetime.date.max.isoformat(),
+                ban_reason=''
+            ),
             # Preserving all existing metadata fields
-            "title": 'Encoded by @Animelibraryn4',
-            "author": '@Animelibraryn4',
-            "artist": '@Animelibraryn4',
-            "audio": 'By @Animelibraryn4',
-            "subtitle": 'By @Animelibraryn4',
-            "video": 'Encoded By @Animelibraryn4',
-            "media_type": None
-        }
+            title='Encoded by @Animelibraryn4',
+            author='@Animelibraryn4',
+            artist='@Animelibraryn4',
+            audio='By @Animelibraryn4',
+            subtitle='By @Animelibraryn4',
+            video='Encoded By @Animelibraryn4',
+            media_type=None
+        )
 
     async def add_user(self, b, m):
         u = m.from_user
-        user_id = int(u.id)
-        
-        # Use $setOnInsert to ensure the user is added safely without
-        # relying on a separate is_user_exist check, fixing DuplicateKeyError.
-        new_data = self.new_user_data(user_id)
-        
-        try:
-            result = await self.col.update_one(
-                {"_id": user_id},
-                {"$setOnInsert": new_data},
-                upsert=True
-            )
-            
-            # If the user was just inserted (matched_count == 0 and upserted_id is not None)
-            if result.matched_count == 0 and result.upserted_id is not None:
-                 await send_log(b, u)
-                 logging.info(f"New user {user_id} added successfully.")
-
-        except Exception as e:
-            logging.error(f"Error adding/checking user {user_id}: {e}")
+        if not await self.is_user_exist(u.id):
+            user = self.new_user(u.id)
+            try:
+                await self.col.insert_one(user)
+                await send_log(b, u)
+            except Exception as e:
+                logging.error(f"Error adding user {u.id}: {e}")
 
     async def is_user_exist(self, id):
         try:
-            # We don't need int() here if we ensured all _id are int during insertion
             user = await self.col.find_one({"_id": int(id)})
             return bool(user)
         except Exception as e:
-            # The previous log suggested 'Task ... attached to a different loop' errors here.
-            # While the motor client should prevent it, logging it helps trace it.
             logging.error(f"Error checking if user {id} exists: {e}")
             return False
 
     async def total_users_count(self):
         try:
-            # Use estimated_document_count for faster count if exact count isn't critical
-            count = await self.col.estimated_document_count() 
+            count = await self.col.count_documents({})
             return count
         except Exception as e:
             logging.error(f"Error counting users: {e}")
@@ -109,7 +87,7 @@ class Database:
 
     async def set_thumbnail(self, id, file_id):
         try:
-            await self.col.update_one({"_id": int(id)}, {"$set": {"file_id": file_id}}, upsert=True)
+            await self.col.update_one({"_id": int(id)}, {"$set": {"file_id": file_id}})
         except Exception as e:
             logging.error(f"Error setting thumbnail for user {id}: {e}")
 
@@ -123,7 +101,7 @@ class Database:
 
     async def set_caption(self, id, caption):
         try:
-            await self.col.update_one({"_id": int(id)}, {"$set": {"caption": caption}}, upsert=True)
+            await self.col.update_one({"_id": int(id)}, {"$set": {"caption": caption}})
         except Exception as e:
             logging.error(f"Error setting caption for user {id}: {e}")
 
@@ -138,7 +116,7 @@ class Database:
     async def set_format_template(self, id, format_template):
         try:
             await self.col.update_one(
-                {"_id": int(id)}, {"$set": {"format_template": format_template}}, upsert=True
+                {"_id": int(id)}, {"$set": {"format_template": format_template}}
             )
         except Exception as e:
             logging.error(f"Error setting format template for user {id}: {e}")
@@ -154,7 +132,7 @@ class Database:
     async def set_media_preference(self, id, media_type):
         try:
             await self.col.update_one(
-                {"_id": int(id)}, {"$set": {"media_type": media_type}}, upsert=True
+                {"_id": int(id)}, {"$set": {"media_type": media_type}}
             )
         except Exception as e:
             logging.error(f"Error setting media preference for user {id}: {e}")
@@ -172,49 +150,49 @@ class Database:
         return user.get('metadata', "Off")
 
     async def set_metadata(self, user_id, metadata):
-        await self.col.update_one({'_id': int(user_id)}, {'$set': {'metadata': metadata}}, upsert=True)
+        await self.col.update_one({'_id': int(user_id)}, {'$set': {'metadata': metadata}})
 
     async def get_title(self, user_id):
         user = await self.col.find_one({'_id': int(user_id)})
         return user.get('title', 'Encoded by @Animelibraryn4')
 
     async def set_title(self, user_id, title):
-        await self.col.update_one({'_id': int(user_id)}, {'$set': {'title': title}}, upsert=True)
+        await self.col.update_one({'_id': int(user_id)}, {'$set': {'title': title}})
 
     async def get_author(self, user_id):
         user = await self.col.find_one({'_id': int(user_id)})
         return user.get('author', '@Animelibraryn4')
 
     async def set_author(self, user_id, author):
-        await self.col.update_one({'_id': int(user_id)}, {'$set': {'author': author}}, upsert=True)
+        await self.col.update_one({'_id': int(user_id)}, {'$set': {'author': author}})
 
     async def get_artist(self, user_id):
         user = await self.col.find_one({'_id': int(user_id)})
         return user.get('artist', '@Animelibraryn4')
 
     async def set_artist(self, user_id, artist):
-        await self.col.update_one({'_id': int(user_id)}, {'$set': {'artist': artist}}, upsert=True)
+        await self.col.update_one({'_id': int(user_id)}, {'$set': {'artist': artist}})
 
     async def get_audio(self, user_id):
         user = await self.col.find_one({'_id': int(user_id)})
         return user.get('audio', 'By @Animelibraryn4')
 
     async def set_audio(self, user_id, audio):
-        await self.col.update_one({'_id': int(user_id)}, {'$set': {'audio': audio}}, upsert=True)
+        await self.col.update_one({'_id': int(user_id)}, {'$set': {'audio': audio}})
 
     async def get_subtitle(self, user_id):
         user = await self.col.find_one({'_id': int(user_id)})
         return user.get('subtitle', "By @Animelibraryn4")
 
     async def set_subtitle(self, user_id, subtitle):
-        await self.col.update_one({'_id': int(user_id)}, {'$set': {'subtitle': subtitle}}, upsert=True)
+        await self.col.update_one({'_id': int(user_id)}, {'$set': {'subtitle': subtitle}})
 
     async def get_video(self, user_id):
         user = await self.col.find_one({'_id': int(user_id)})
         return user.get('video', 'Encoded By @Animelibraryn4')
 
     async def set_video(self, user_id, video):
-        await self.col.update_one({'_id': int(user_id)}, {'$set': {'video': video}}, upsert=True)
+        await self.col.update_one({'_id': int(user_id)}, {'$set': {'video': video}})
 
     # Quality Thumbnail Methods
     async def set_quality_thumbnail(self, id, quality, file_id):
@@ -312,20 +290,28 @@ class Database:
             logging.error(f"Error checking global thumb status for user {id}: {e}")
             return False
 
-    # Ban/Unban Methods
-    async def ban_user(self, id, ban_duration=0, ban_reason=''):
-        """Ban a user"""
+    # Ban Management Methods
+    async def is_banned(self, id):
+        """Check if a user is currently banned."""
         try:
-            ban_status = dict(
-                is_banned=True,
-                ban_duration=ban_duration,
-                banned_on=datetime.date.today().isoformat(),
-                ban_reason=ban_reason
-            )
-            # Added upsert=True to ensure we can ban a user not yet in the database
+            user = await self.col.find_one({"_id": int(id)})
+            if user and user.get('ban_status'):
+                return user['ban_status']['is_banned']
+            return False
+        except Exception as e:
+            logging.error(f"Error checking ban status for user {id}: {e}")
+            return False
+
+    async def ban_user(self, id, reason=""):
+        """Ban a user."""
+        try:
             await self.col.update_one(
                 {"_id": int(id)},
-                {"$set": {"ban_status": ban_status}},
+                {"$set": {
+                    "ban_status.is_banned": True,
+                    "ban_status.banned_on": datetime.date.today().isoformat(),
+                    "ban_status.ban_reason": reason
+                }},
                 upsert=True
             )
             return True
@@ -334,37 +320,20 @@ class Database:
             return False
 
     async def unban_user(self, id):
-        """Unban a user"""
+        """Unban a user."""
         try:
-            ban_status = dict(
-                is_banned=False,
-                ban_duration=0,
-                banned_on=datetime.date.max.isoformat(),
-                ban_reason=''
-            )
-            # Added upsert=True to handle unbanning a user not yet in the database
             await self.col.update_one(
                 {"_id": int(id)},
-                {"$set": {"ban_status": ban_status}},
-                upsert=True
+                {"$set": {
+                    "ban_status.is_banned": False,
+                    "ban_status.banned_on": datetime.date.max.isoformat(),
+                    "ban_status.ban_reason": ''
+                }}
             )
             return True
         except Exception as e:
             logging.error(f"Error unbanning user {id}: {e}")
             return False
 
-    async def is_user_banned(self, id):
-        """Check if user is banned (simplified version)"""
-        try:
-            user = await self.col.find_one({"_id": int(id)})
-            if user and "ban_status" in user:
-                # Check for expiration if you implement time-based bans
-                return user["ban_status"].get("is_banned", False)
-            return False
-        except Exception as e:
-            logging.error(f"Error checking ban status for user {id}: {e}")
-            return False
-
 # Initialize database connection
 codeflixbots = Database(Config.DB_URL, Config.DB_NAME)
-    
