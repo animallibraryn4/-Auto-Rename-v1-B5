@@ -9,33 +9,50 @@ from config import *
 from config import Config
 
 # Start Command Handler
+# Replace the start function in start_&_cb.py with this simpler version:
+
+# Start Command Handler
 @Client.on_message(filters.private & filters.command("start"))
 async def start(client, message: Message):
     user = message.from_user
     
-    # Check if user is banned FIRST
-    if await codeflixbots.is_user_banned(user.id):
-        await message.reply_text(
-            "🚫 **You are banned and cannot use this bot.**\n\n"
-            "If you want access, request permission from @Anime_Library_N4."
-        )
-        return
+    try:
+        # Check if user is banned FIRST (with error handling)
+        if await codeflixbots.is_user_banned(user.id):
+            await message.reply_text(
+                "🚫 **You are banned and cannot use this bot.**\n\n"
+                "If you want access, request permission from @Anime_Library_N4."
+            )
+            return
+    except Exception as e:
+        print(f"Error checking ban status: {e}")
+        # Continue if there's an error checking ban status
     
-    await codeflixbots.add_user(client, message)
+    # Try to add user (ignore errors if user already exists)
+    try:
+        await codeflixbots.add_user(client, message)
+    except:
+        pass  # User might already exist
 
     # Initial interactive text and sticker sequence
-    m = await message.reply_text("ᴏɴᴇᴇ-ᴄʜᴀɴ!, ʜᴏᴡ ᴀʀᴇ ʏᴏᴜ \nᴡᴀɪᴛ ᴀ ᴍᴏᴍᴇɴᴛ. . .")
-    await asyncio.sleep(0.4)
-    await m.edit_text("🎊")
-    await asyncio.sleep(0.5)
-    await m.edit_text("⚡")
-    await asyncio.sleep(0.5)
-    await m.edit_text("ꜱᴛᴀʀᴛɪɴɢ...")
-    await asyncio.sleep(0.4)
-    await m.delete()
+    try:
+        m = await message.reply_text("ᴏɴᴇᴇ-ᴄʜᴀɴ!, ʜᴏᴡ ᴀʀᴇ ʏᴏᴜ \nᴡᴀɪᴛ ᴀ ᴍᴏᴍᴇɴᴛ. . .")
+        await asyncio.sleep(0.4)
+        await m.edit_text("🎊")
+        await asyncio.sleep(0.5)
+        await m.edit_text("⚡")
+        await asyncio.sleep(0.5)
+        await m.edit_text("ꜱᴛᴀʀᴛɪɴɢ...")
+        await asyncio.sleep(0.4)
+        await m.delete()
+    except:
+        pass
 
     # Send sticker after the text sequence
-    await message.reply_sticker("CAACAgUAAxkBAAECroBmQKMAAQ-Gw4nibWoj_pJou2vP1a4AAlQIAAIzDxlVkNBkTEb1Lc4eBA")
+    try:
+        await message.reply_sticker("CAACAgUAAxkBAAECroBmQKMAAQ-Gw4nibWoj_pJou2vP1a4AAlQIAAIzDxlVkNBkTEb1Lc4eBA")
+    except:
+        pass
 
     # Define buttons for the start message
     buttons = InlineKeyboardMarkup([
@@ -52,19 +69,26 @@ async def start(client, message: Message):
     ])
 
     # Send start message with or without picture
-    if Config.START_PIC:
-        await message.reply_photo(
-            Config.START_PIC,
-            caption=Txt.START_TXT.format(user.mention),
-            reply_markup=buttons
-        )
-    else:
+    try:
+        if Config.START_PIC:
+            await message.reply_photo(
+                Config.START_PIC,
+                caption=Txt.START_TXT.format(user.mention),
+                reply_markup=buttons
+            )
+        else:
+            await message.reply_text(
+                text=Txt.START_TXT.format(user.mention),
+                reply_markup=buttons,
+                disable_web_page_preview=True
+            )
+    except Exception as e:
+        print(f"Error sending start message: {e}")
         await message.reply_text(
             text=Txt.START_TXT.format(user.mention),
             reply_markup=buttons,
             disable_web_page_preview=True
         )
-
 
 # Callback Query Handler
 @Client.on_callback_query()
