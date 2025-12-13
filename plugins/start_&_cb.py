@@ -1,4 +1,3 @@
-# Replace the start_&_cb.py file with this updated version
 import random
 import asyncio
 from pyrogram import Client, filters
@@ -7,52 +6,27 @@ from pyrogram.types import Message, InlineKeyboardButton, InlineKeyboardMarkup, 
 from helper.database import codeflixbots
 from config import *
 from config import Config
+from helper.ban_filter import is_not_banned_filter # <-- NEW IMPORT
 
 # Start Command Handler
-# Replace the start function in start_&_cb.py with this simpler version:
-
-# Start Command Handler
-@Client.on_message(filters.private & filters.command("start"))
+@Client.on_message(filters.private & filters.command("start") & is_not_banned_filter) # <-- MODIFIED
 async def start(client, message: Message):
     user = message.from_user
-    
-    try:
-        # Check if user is banned FIRST (with error handling)
-        if await codeflixbots.is_user_banned(user.id):
-            await message.reply_text(
-                "🚫 **You are banned and cannot use this bot.**\n\n"
-                "If you want access, request permission from @Anime_Library_N4."
-            )
-            return
-    except Exception as e:
-        print(f"Error checking ban status: {e}")
-        # Continue if there's an error checking ban status
-    
-    # Try to add user (ignore errors if user already exists)
-    try:
-        await codeflixbots.add_user(client, message)
-    except:
-        pass  # User might already exist
+    await codeflixbots.add_user(client, message)
 
     # Initial interactive text and sticker sequence
-    try:
-        m = await message.reply_text("ᴏɴᴇᴇ-ᴄʜᴀɴ!, ʜᴏᴡ ᴀʀᴇ ʏᴏᴜ \nᴡᴀɪᴛ ᴀ ᴍᴏᴍᴇɴᴛ. . .")
-        await asyncio.sleep(0.4)
-        await m.edit_text("🎊")
-        await asyncio.sleep(0.5)
-        await m.edit_text("⚡")
-        await asyncio.sleep(0.5)
-        await m.edit_text("ꜱᴛᴀʀᴛɪɴɢ...")
-        await asyncio.sleep(0.4)
-        await m.delete()
-    except:
-        pass
+    m = await message.reply_text("ᴏɴᴇᴇ-ᴄʜᴀɴ!, ʜᴏᴡ ᴀʀᴇ ʏᴏᴜ \nᴡᴀɪᴛ ᴀ ᴍᴏᴍᴇɴᴛ. . .")
+    await asyncio.sleep(0.4)
+    await m.edit_text("🎊")
+    await asyncio.sleep(0.5)
+    await m.edit_text("⚡")
+    await asyncio.sleep(0.5)
+    await m.edit_text("ꜱᴛᴀʀᴛɪɴɢ...")
+    await asyncio.sleep(0.4)
+    await m.delete()
 
     # Send sticker after the text sequence
-    try:
-        await message.reply_sticker("CAACAgUAAxkBAAECroBmQKMAAQ-Gw4nibWoj_pJou2vP1a4AAlQIAAIzDxlVkNBkTEb1Lc4eBA")
-    except:
-        pass
+    await message.reply_sticker("CAACAgUAAxkBAAECroBmQKMAAQ-Gw4nibWoj_pJou2vP1a4AAlQIAAIzDxlVkNBkTEb1Lc4eBA")
 
     # Define buttons for the start message
     buttons = InlineKeyboardMarkup([
@@ -60,234 +34,133 @@ async def start(client, message: Message):
             InlineKeyboardButton("ᴍʏ ᴀʟʟ ᴄᴏᴍᴍᴀɴᴅs", callback_data='help')
         ],
         [
-            InlineKeyboardButton('ᴜᴘᴅᴀᴛᴇs', url='https://t.me/Animelibraryn4')
-        ],
-        [
-            InlineKeyboardButton('ᴀʙᴏᴜᴛ', callback_data='about'),
-            InlineKeyboardButton('sᴏᴜʀᴄᴇ', callback_data='source')
+            InlineKeyboardButton('ᴜᴘᴅᴀᴛᴇs', url='https://t.me/animelibraryn4'),
+            InlineKeyboardButton('sᴜᴘᴘᴏʀᴛ', url='https://t.me/Anime_Library_N4_Support')
         ]
     ])
 
-    # Send start message with or without picture
-    try:
-        if Config.START_PIC:
-            await message.reply_photo(
-                Config.START_PIC,
-                caption=Txt.START_TXT.format(user.mention),
-                reply_markup=buttons
-            )
-        else:
-            await message.reply_text(
-                text=Txt.START_TXT.format(user.mention),
-                reply_markup=buttons,
-                disable_web_page_preview=True
-            )
-    except Exception as e:
-        print(f"Error sending start message: {e}")
-        await message.reply_text(
-            text=Txt.START_TXT.format(user.mention),
-            reply_markup=buttons,
-            disable_web_page_preview=True
-        )
+    # Final start message with buttons
+    await message.reply_text(
+        Txt.START_TXT.format(
+            user=user.mention, 
+            bot_mention=client.mention
+        ),
+        reply_markup=buttons,
+        disable_web_page_preview=True
+    )
 
 # Callback Query Handler
 @Client.on_callback_query()
 async def cb_handler(client, query: CallbackQuery):
     data = query.data
     user_id = query.from_user.id
+    message = query.message
+    
+    # Callback queries are generally safe from the ban filter as they follow a message.
 
-    # Check if user is banned (skip for admins)
-    if user_id not in Config.ADMIN:
-        try:
-            if await codeflixbots.is_user_banned(user_id):
-                await query.answer("🚫 You are banned from using this bot.", show_alert=True)
-                return
-        except:
-            pass  # If error, continue
-
-    print(f"Callback data received: {data}")  # Debugging line
-
-    if data == "home":
-        await query.message.edit_text(
-            text=Txt.START_TXT.format(query.from_user.mention),
-            disable_web_page_preview=True,
-            reply_markup=InlineKeyboardMarkup([
-                [InlineKeyboardButton("ᴍʏ ᴀʟʟ ᴄᴏᴍᴍᴀɴᴅs", callback_data='help')],
-                [InlineKeyboardButton('ᴜᴘᴅᴀᴛᴇs', url='https://t.me/Animelibraryn4')],
-                [InlineKeyboardButton('ᴀʙᴏᴜᴛ', callback_data='about'), InlineKeyboardButton('sᴏᴜʀᴄᴇ', callback_data='source')]
-            ])
-        )
-    elif data == "caption":
-        await query.message.edit_text(
-            text=Txt.CAPTION_TXT,
-            disable_web_page_preview=True,
-            reply_markup=InlineKeyboardMarkup([
-                [InlineKeyboardButton("ʙᴀᴄᴋ", callback_data="help")]
-            ])
+    if data == "start":
+        # Delete the previous message and send the start message again
+        await message.delete()
+        user = query.from_user
+        buttons = InlineKeyboardMarkup([
+            [
+                InlineKeyboardButton("ᴍʏ ᴀʟʟ ᴄᴏᴍᴍᴀɴᴅs", callback_data='help')
+            ],
+            [
+                InlineKeyboardButton('ᴜᴘᴅᴀᴛᴇs', url='https://t.me/animelibraryn4'),
+                InlineKeyboardButton('sᴜᴘᴘᴏʀᴛ', url='https://t.me/Anime_Library_N4_Support')
+            ]
+        ])
+        await query.message.reply_text(
+            Txt.START_TXT.format(
+                user=user.mention, 
+                bot_mention=client.mention
+            ),
+            reply_markup=buttons,
+            disable_web_page_preview=True
         )
 
     elif data == "help":
-        await query.message.edit_text(
-            text=Txt.HELP_TXT.format(client.mention),
+        # Delete the previous message and send the help message
+        await message.delete()
+        bot = await client.get_me()
+        mention = bot.mention
+        await query.message.reply_text(
+            text=Txt.HELP_TXT.format(mention=mention),
             disable_web_page_preview=True,
             reply_markup=InlineKeyboardMarkup([
-                [InlineKeyboardButton("ᴀᴜᴛᴏ ʀᴇɴᴀᴍᴇ ғᴏʀᴍᴀᴛ", callback_data='file_names')],
+                [InlineKeyboardButton("ᴀᴜᴛᴏ ʀᴇɴᴀᴍᴇ ғᴏʀᴍᴀᴛ •", callback_data='file_names')],
                 [InlineKeyboardButton('ᴛʜᴜᴍʙɴᴀɪʟ', callback_data='thumbnail'), InlineKeyboardButton('ᴄᴀᴘᴛɪᴏɴ', callback_data='caption')],
-                [InlineKeyboardButton('ᴍᴇᴛᴀᴅᴀᴛᴀ', callback_data='meta'), InlineKeyboardButton('ᴅᴏɴᴀᴛᴇ', callback_data='donate')],
-                [InlineKeyboardButton('ʜᴏᴍᴇ', callback_data='home')]
+                [InlineKeyboardButton('ᴍᴇᴛᴀᴅᴀᴛᴀ', callback_data='metadata'), InlineKeyboardButton('sᴏᴜʀᴄᴇ', callback_data='source')],
+                [InlineKeyboardButton("⚡ ᴄʟᴏsᴇ", callback_data="close_data"), InlineKeyboardButton("⬅️ ʙᴀᴄᴋ", callback_data="start")]
             ])
         )
 
-    elif data == "meta":
-        await query.message.edit_text(  # Change edit_caption to edit_text
-            text=Txt.SEND_METADATA,  # Changed from caption to text
-            reply_markup=InlineKeyboardMarkup([
-                [InlineKeyboardButton("ᴄʟᴏsᴇ", callback_data="close"), InlineKeyboardButton("ʙᴀᴄᴋ", callback_data="help")]
-            ])
-        )
-    elif data == "donate":
-        await query.message.edit_text(
-            text=Txt.DONATE_TXT,
-            disable_web_page_preview=True,
-            reply_markup=InlineKeyboardMarkup([
-                [InlineKeyboardButton("ʙᴀᴄᴋ", callback_data="help"), InlineKeyboardButton("ᴏᴡɴᴇʀ", url='https://t.me/Anime_library_n4')]
-            ])
-        )
     elif data == "file_names":
+        # Send file name help text
         format_template = await codeflixbots.get_format_template(user_id)
         await query.message.edit_text(
             text=Txt.FILE_NAME_TXT.format(format_template=format_template),
             disable_web_page_preview=True,
             reply_markup=InlineKeyboardMarkup([
-                [InlineKeyboardButton("ᴄʟᴏsᴇ", callback_data="close"), InlineKeyboardButton("ʙᴀᴄᴋ", callback_data="help")]
+                [InlineKeyboardButton("⬅️ ʙᴀᴄᴋ", callback_data="help")]
             ])
         )
-    elif data == "thumbnail":
-        await query.message.edit_caption(
-            caption=Txt.THUMBNAIL_TXT,
-            reply_markup=InlineKeyboardMarkup([
-                [InlineKeyboardButton("ᴄʟᴏsᴇ", callback_data="close"), InlineKeyboardButton("ʙᴀᴄᴋ", callback_data="help")]
-            ])
-        )
-    elif data == "metadatax":
-        await query.message.edit_caption(
-            caption=Txt.SEND_METADATA,
-            reply_markup=InlineKeyboardMarkup([
-                [InlineKeyboardButton("ᴄʟᴏsᴇ", callback_data="close"), InlineKeyboardButton("ʙᴀᴄᴋ", callback_data="help")]
-            ])
-        )
-    elif data == "source":
-        await query.message.edit_caption(
-            caption=Txt.SOURCE_TXT,
-            reply_markup=InlineKeyboardMarkup([
-                [InlineKeyboardButton("ᴄʟᴏsᴇ", callback_data="close"), InlineKeyboardButton("ʙᴀᴄᴋ", callback_data="home")]
-            ])
-        )
-    elif data == "premiumx":
-        await query.message.edit_caption(
-            caption=Txt.PREMIUM_TXT,
-            reply_markup=InlineKeyboardMarkup([
-                [InlineKeyboardButton("ʙᴀᴄᴋ", callback_data="help"), InlineKeyboardButton("ʙᴜʏ ᴘʀᴇᴍɪᴜᴍ", url='https://t.me/Tanjiro_kamado_n4_bot')]
-            ])
-        )
-    elif data == "plans":
-        await query.message.edit_caption(
-            caption=Txt.PREPLANS_TXT,
-            reply_markup=InlineKeyboardMarkup([
-                [InlineKeyboardButton("ᴄʟᴏsᴇ", callback_data="close"), InlineKeyboardButton("ʙᴜʏ ᴘʀᴇᴍɪᴜᴍ", url='https://t.me/Tanjiro_kamado_n4_bot')]
-            ])
-        )
-    elif data == "about":
+
+    elif data == "metadata":
+        # Send metadata help text
         await query.message.edit_text(
-            text=Txt.ABOUT_TXT,
+            text=Txt.SEND_METADATA,
             disable_web_page_preview=True,
             reply_markup=InlineKeyboardMarkup([
-                [InlineKeyboardButton("ᴄᴏᴍᴍᴀɴᴅs", callback_data="help"), InlineKeyboardButton("ᴅᴇᴠᴇʟᴏᴘᴇʀ", url='https://t.me/Tanjiro_kamado_n4_bot')],
-                [InlineKeyboardButton("ʙᴀᴄᴋ", callback_data="home")]
+                [InlineKeyboardButton("⬅️ ʙᴀᴄᴋ", callback_data="help")]
             ])
         )
-    elif data == "close":
-        try:
-            await query.message.delete()
-            await query.message.reply_to_message.delete()
-            await query.message.continue_propagation()
-        except:
-            await query.message.delete()
-            await query.message.continue_propagation()
 
-# Donation Command Handler
-@Client.on_message(filters.command("donate"))
-async def donation(client, message):
-    # Check if user is banned
-    if await codeflixbots.is_user_banned(message.from_user.id):
-        await message.reply_text(
-            "🚫 **You are banned and cannot use this bot.**\n\n"
-            "If you want access, request permission from @Anime_Library_N4."
+    elif data == "caption":
+        # Send caption help text
+        caption = await codeflixbots.get_caption(user_id)
+        await query.message.edit_text(
+            text=Txt.CAPTION_TXT.format(caption=caption if caption else 'Not Set'),
+            disable_web_page_preview=True,
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("⬅️ ʙᴀᴄᴋ", callback_data="help")]
+            ])
         )
-        return
-    
-    buttons = InlineKeyboardMarkup([
-        [InlineKeyboardButton(text="ʙᴀᴄᴋ", callback_data="help"), InlineKeyboardButton(text="ᴏᴡɴᴇʀ", url='https://t.me/Tanjiro_kamado_n4_bot')]
-    ])
-    yt = await message.reply_photo(photo='https://graph.org/file/1919fe077848bd0783d4c.jpg', caption=Txt.DONATE_TXT, reply_markup=buttons)
-    await asyncio.sleep(300)
-    await yt.delete()
-    await message.delete()
 
-# Premium Command Handler
-@Client.on_message(filters.command("premium"))
-async def getpremium(bot, message):
-    # Check if user is banned
-    if await codeflixbots.is_user_banned(message.from_user.id):
-        await message.reply_text(
-            "🚫 **You are banned and cannot use this bot.**\n\n"
-            "If you want access, request permission from @Anime_Library_N4."
+    elif data == "thumbnail":
+        # Send thumbnail help text
+        await query.message.edit_text(
+            text=Txt.THUMBNAIL_TXT,
+            disable_web_page_preview=True,
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("⬅️ ʙᴀᴄᴋ", callback_data="help")]
+            ])
         )
-        return
-    
-    buttons = InlineKeyboardMarkup([
-        [InlineKeyboardButton("ᴏᴡɴᴇʀ", url="https://t.me/Anime_library_n4"), InlineKeyboardButton("ᴄʟᴏsᴇ", callback_data="close")]
-    ])
-    yt = await message.reply_photo(photo='https://graph.org/file/feebef43bbdf76e796b1b.jpg', caption=Txt.PREMIUM_TXT, reply_markup=buttons)
-    await asyncio.sleep(300)
-    await yt.delete()
-    await message.delete()
 
-# Plan Command Handler
-@Client.on_message(filters.command("plan"))
-async def premium(bot, message):
-    # Check if user is banned
-    if await codeflixbots.is_user_banned(message.from_user.id):
-        await message.reply_text(
-            "🚫 **You are banned and cannot use this bot.**\n\n"
-            "If you want access, request permission from @Anime_Library_N4."
+    elif data == "source":
+        # Send source info
+        await query.message.edit_text(
+            text=Txt.SOURCE_TXT,
+            disable_web_page_preview=True,
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("⬅️ ʙᴀᴄᴋ", callback_data="help")]
+            ])
         )
-        return
-    
-    buttons = InlineKeyboardMarkup([
-        [InlineKeyboardButton("sᴇɴᴅ ss", url="https://t.me/Anime_library_n4"), InlineKeyboardButton("ᴄʟᴏsᴇ", callback_data="close")]
-    ])
-    yt = await message.reply_photo(photo='https://graph.org/file/8b50e21db819f296661b7.jpg', caption=Txt.PREPLANS_TXT, reply_markup=buttons)
-    await asyncio.sleep(300)
-    await yt.delete()
-    await message.delete()
+
+    elif data == "close_data":
+        # Close the message
+        await message.delete()
+
 
 # Bought Command Handler
-@Client.on_message(filters.command("bought") & filters.private)
-async def bought(client, message):
-    # Check if user is banned
-    if await codeflixbots.is_user_banned(message.from_user.id):
-        await message.reply_text(
-            "🚫 **You are banned and cannot use this bot.**\n\n"
-            "If you want access, request permission from @Anime_Library_N4."
-        )
-        return
-    
-    msg = await message.reply('Wait im checking...')
+@Client.on_message(filters.private & filters.command("bought") & is_not_banned_filter) # <-- MODIFIED
+async def bought_command(client, message):
     replied = message.reply_to_message
+    LOG_CHANNEL = Config.LOG_CHANNEL
 
     if not replied:
-        await msg.edit("<b>Please reply with the screenshot of your payment for the premium purchase to proceed.\n\nFor example, first upload your screenshot, then reply to it using the '/bought' command</b>")
+        return await message.reply_text("<b>Reply to your screenshot, then reply to it using the '/bought' command</b>")
     elif replied.photo:
         await client.send_photo(
             chat_id=LOG_CHANNEL,
@@ -297,18 +170,11 @@ async def bought(client, message):
                 [InlineKeyboardButton("Close", callback_data="close_data")]
             ])
         )
-        await msg.edit_text('<b>Your screenshot has been sent to Admins</b>')
+        await message.reply_text('<b>Your screenshot has been sent to Admins</b>')
 
-@Client.on_message(filters.private & filters.command("help"))
+
+@Client.on_message(filters.private & filters.command("help") & is_not_banned_filter) # <-- MODIFIED
 async def help_command(client, message):
-    # Check if user is banned
-    if await codeflixbots.is_user_banned(message.from_user.id):
-        await message.reply_text(
-            "🚫 **You are banned and cannot use this bot.**\n\n"
-            "If you want access, request permission from @Anime_Library_N4."
-        )
-        return
-    
     # Await get_me to get the bot's user object
     bot = await client.get_me()
     mention = bot.mention
@@ -320,8 +186,8 @@ async def help_command(client, message):
         reply_markup=InlineKeyboardMarkup([
             [InlineKeyboardButton("ᴀᴜᴛᴏ ʀᴇɴᴀᴍᴇ ғᴏʀᴍᴀᴛ •", callback_data='file_names')],
             [InlineKeyboardButton('ᴛʜᴜᴍʙɴᴀɪʟ', callback_data='thumbnail'), InlineKeyboardButton('ᴄᴀᴘᴛɪᴏɴ', callback_data='caption')],
-            [InlineKeyboardButton('ᴍᴇᴛᴀᴅᴀᴛᴀ', callback_data='meta'), InlineKeyboardButton('ᴅᴏɴᴀᴛᴇ', callback_data='donate')],
-            [InlineKeyboardButton('ʜᴏᴍᴇ', callback_data='home')]
+            [InlineKeyboardButton('ᴍᴇᴛᴀᴅᴀᴛᴀ', callback_data='metadata'), InlineKeyboardButton('sᴏᴜʀᴄᴇ', callback_data='source')],
+            [InlineKeyboardButton("⚡ ᴄʟᴏsᴇ", callback_data="close_data"), InlineKeyboardButton("⬅️ ʙᴀᴄᴋ", callback_data="start")]
         ])
-                 )
+    )
     
