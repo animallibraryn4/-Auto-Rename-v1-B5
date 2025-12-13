@@ -4,7 +4,7 @@ import warnings
 import pytz
 from datetime import datetime, timedelta
 from pytz import timezone
-from pyrogram import Client, __version__, idle
+from pyrogram import Client, __version__
 from pyrogram.raw.all import layer
 from config import Config
 from aiohttp import web
@@ -15,6 +15,10 @@ from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 import os
 import time
 import sys
+import nest_asyncio
+
+# Apply nest_asyncio to fix event loop conflicts
+nest_asyncio.apply()
 
 pyrogram.utils.MIN_CHANNEL_ID = -1001896877147
 
@@ -28,11 +32,10 @@ class Bot(Client):
             api_id=Config.API_ID,
             api_hash=Config.API_HASH,
             bot_token=Config.BOT_TOKEN,
-            workers=200,
+            workers=50,  # Reduced from 200
             plugins={"root": "plugins"},
             sleep_threshold=15,
         )
-        # Initialize the bot's start time for uptime calculation
         self.start_time = time.time()
 
     async def start(self):
@@ -53,7 +56,7 @@ class Bot(Client):
         
         print(f"{me.first_name} Is Started.....✨️")
 
-        # Calculate uptime using timedelta
+        # Calculate uptime
         uptime_seconds = int(time.time() - self.start_time)
         uptime_string = str(timedelta(seconds=uptime_seconds))
 
@@ -63,7 +66,6 @@ class Bot(Client):
                 date = curr.strftime('%d %B, %Y')
                 time_str = curr.strftime('%I:%M:%S %p')
                 
-                # Send the message with the photo
                 await self.send_photo(
                     chat_id=chat_id,
                     photo=Config.START_PIC,
@@ -95,7 +97,11 @@ async def main():
         bot = Bot()
         await bot.start()
         print("Bot is running. Press Ctrl+C to stop.")
-        await idle()  # Keep the bot running
+        
+        # Keep bot running
+        while True:
+            await asyncio.sleep(3600)
+            
     except KeyboardInterrupt:
         print("\nReceived stop signal...")
     except Exception as e:
@@ -105,11 +111,9 @@ async def main():
             await bot.stop()
 
 if __name__ == "__main__":
-    # Set UTF-8 encoding for proper text handling
-    if sys.platform == "win32":
-        import io
-        sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
-        sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8')
+    # Add nest_asyncio to requirements.txt
+    # pip install nest_asyncio
+    import nest_asyncio
+    nest_asyncio.apply()
     
-    # Run the bot
     asyncio.run(main())
