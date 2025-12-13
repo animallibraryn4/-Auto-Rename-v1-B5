@@ -1,7 +1,10 @@
-import aiohttp, asyncio, warnings, pytz
+import aiohttp
+import asyncio
+import warnings
+import pytz
 from datetime import datetime, timedelta
 from pytz import timezone
-from pyrogram import Client, __version__
+from pyrogram import Client, __version__, idle
 from pyrogram.raw.all import layer
 from config import Config
 from aiohttp import web
@@ -11,8 +14,7 @@ import pyromod
 from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 import os
 import time
-
-from plugins.ad_token_handler import * # <-- ADDED IMPORT
+import sys
 
 pyrogram.utils.MIN_CHANNEL_ID = -1001896877147
 
@@ -20,7 +22,6 @@ pyrogram.utils.MIN_CHANNEL_ID = -1001896877147
 SUPPORT_CHAT = int(os.environ.get("SUPPORT_CHAT", "-1001896877147"))
 
 class Bot(Client):
-
     def __init__(self):
         super().__init__(
             name="codeflixbots",
@@ -40,10 +41,16 @@ class Bot(Client):
         self.mention = me.mention
         self.username = me.username  
         self.uptime = Config.BOT_UPTIME     
+        
         if Config.WEBHOOK:
-            app = web.AppRunner(await web_server())
-            await app.setup()       
-            await web.TCPSite(app, "0.0.0.0", 9090).start()     
+            try:
+                app = web.AppRunner(await web_server())
+                await app.setup()       
+                await web.TCPSite(app, "0.0.0.0", 9090).start()
+                print("Webhook server started on port 9090")
+            except Exception as e:
+                print(f"Webhook server error: {e}")
+        
         print(f"{me.first_name} Is Started.....✨️")
 
         # Calculate uptime using timedelta
@@ -70,9 +77,39 @@ class Bot(Client):
                         ]]
                     )
                 )
+                print(f"Restart message sent to chat {chat_id}")
 
             except Exception as e:
                 print(f"Failed to send message in chat {chat_id}: {e}")
+        
+        print(f"Bot started successfully! Username: @{me.username}")
+        return self
 
-Bot().run()
+    async def stop(self):
+        await super().stop()
+        print("Bot stopped successfully!")
 
+async def main():
+    bot = None
+    try:
+        bot = Bot()
+        await bot.start()
+        print("Bot is running. Press Ctrl+C to stop.")
+        await idle()  # Keep the bot running
+    except KeyboardInterrupt:
+        print("\nReceived stop signal...")
+    except Exception as e:
+        print(f"Bot error: {e}")
+    finally:
+        if bot:
+            await bot.stop()
+
+if __name__ == "__main__":
+    # Set UTF-8 encoding for proper text handling
+    if sys.platform == "win32":
+        import io
+        sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
+        sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8')
+    
+    # Run the bot
+    asyncio.run(main())
