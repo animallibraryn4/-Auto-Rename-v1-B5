@@ -1,5 +1,3 @@
-[file name]: admin_panel.py
-[file content begin]
 from config import Config, Txt
 from helper.database import codeflixbots
 from pyrogram.types import Message
@@ -317,4 +315,3 @@ async def list_banned_users(bot: Client, message: Message):
     except Exception as e:
         logger.error(f"Error listing banned users: {e}")
         await message.reply_text(f"❌ Error: {str(e)}")
-[file content end]
