@@ -1,5 +1,3 @@
-[file name]: database.py
-[file content begin]
 import motor.motor_asyncio
 import datetime
 import logging
@@ -350,4 +348,3 @@ class Database:
 
 # Initialize database connection
 codeflixbots = Database(Config.DB_URL, Config.DB_NAME)
-[file content end]
