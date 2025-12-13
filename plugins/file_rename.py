@@ -14,6 +14,7 @@ from plugins.antinsfw import check_anti_nsfw
 from helper.utils import progress_for_pyrogram, humanbytes, convert
 from helper.database import codeflixbots
 from config import Config
+from plugins import is_user_verified, send_verification
 
 # Global dictionary to prevent duplicate renaming within a short time
 renaming_operations = {}
