@@ -1,11 +1,11 @@
 pyrogram==2.0.80
 TgCrypto
-motor
+motor==3.3.2
 dnspython
 hachoir
 Pillow
 aiohttp
 pytz
 humanize
-pyromod
+pyromod==2.0.0
 ffmpeg-python
