@@ -11,7 +11,7 @@ async def ban_check_filter(_, client, message: Message):
     """
     
     if not message.from_user:
-        return True # Allow messages without a user (e.g., channel posts/updates)
+        return True  # Allow messages without a user (e.g., channel posts/updates)
 
     user_id = message.from_user.id
 
@@ -20,7 +20,8 @@ async def ban_check_filter(_, client, message: Message):
         return True
             
     # 2. Check ban status from the database
-    is_banned = await codeflixbots.is_banned(user_id)
+    # CHANGED: is_banned -> is_user_banned
+    is_banned = await codeflixbots.is_user_banned(user_id)
     
     if is_banned:
         # Send the required ban message to the user
@@ -30,11 +31,9 @@ async def ban_check_filter(_, client, message: Message):
             # Ignore if the bot can't send a message (e.g., user blocked the bot)
             print(f"Error sending ban message to {user_id}: {e}")
             
-        return False # Stop message propagation: the message will not be processed by any other handler
+        return False  # Stop message propagation: the message will not be processed by any other handler
         
-    return True # User is not banned, allow the message to proceed
+    return True  # User is not banned, allow the message to proceed
 
 # Instantiate the filter object for easy import
 is_not_banned_filter = filters.create(ban_check_filter)
-
-
