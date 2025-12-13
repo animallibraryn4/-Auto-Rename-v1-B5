@@ -1,11 +1,11 @@
 from helper.database import codeflixbots as db
 from pyrogram import Client, filters
-from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup, CallbackQuery
+from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup, CallbackQuery, Message # <-- FIX: 'Message' ko import kiya gaya hai
 from config import Txt
-from helper.ban_filter import is_not_banned_filter # <-- NEW IMPORT
+from helper.ban_filter import is_not_banned_filter
 
 
-@Client.on_message(filters.command("metadata") & is_not_banned_filter) # <-- MODIFIED
+@Client.on_message(filters.command("metadata") & is_not_banned_filter)
 async def metadata(client, message):
     user_id = message.from_user.id
 
@@ -61,7 +61,7 @@ async def metadata(client, message):
 
 # --- Command Handlers ---
 
-@Client.on_message(filters.private & filters.command('settitle') & is_not_banned_filter) # <-- MODIFIED
+@Client.on_message(filters.private & filters.command('settitle') & is_not_banned_filter)
 async def title(client, message):
     if len(message.command) == 1:
         return await message.reply_text(
@@ -70,7 +70,7 @@ async def title(client, message):
     await db.set_title(message.from_user.id, title=title)
     await message.reply_text("**✅ Tɪᴛʟᴇ Sᴀᴠᴇᴅ**")
 
-@Client.on_message(filters.private & filters.command('setauthor') & is_not_banned_filter) # <-- MODIFIED
+@Client.on_message(filters.private & filters.command('setauthor') & is_not_banned_filter)
 async def author(client, message):
     if len(message.command) == 1:
         return await message.reply_text(
@@ -79,7 +79,7 @@ async def author(client, message):
     await db.set_author(message.from_user.id, author=author)
     await message.reply_text("**✅ Aᴜᴛʜᴏʀ Sᴀᴠᴇᴅ**")
 
-@Client.on_message(filters.private & filters.command('setartist') & is_not_banned_filter) # <-- MODIFIED
+@Client.on_message(filters.private & filters.command('setartist') & is_not_banned_filter)
 async def artist(client, message):
     if len(message.command) == 1:
         return await message.reply_text(
@@ -88,7 +88,7 @@ async def artist(client, message):
     await db.set_artist(message.from_user.id, artist=artist)
     await message.reply_text("**✅ Aʀᴛɪꜱᴛ Sᴀᴠᴇᴅ**")
 
-@Client.on_message(filters.private & filters.command('setaudio') & is_not_banned_filter) # <-- MODIFIED
+@Client.on_message(filters.private & filters.command('setaudio') & is_not_banned_filter)
 async def audio(client, message):
     if len(message.command) == 1:
         return await message.reply_text(
@@ -97,7 +97,7 @@ async def audio(client, message):
     await db.set_audio(message.from_user.id, audio=audio)
     await message.reply_text("**✅ Aᴜᴅɪᴏ Sᴀᴠᴇᴅ**")
 
-@Client.on_message(filters.private & filters.command('setsubtitle') & is_not_banned_filter) # <-- MODIFIED
+@Client.on_message(filters.private & filters.command('setsubtitle') & is_not_banned_filter)
 async def subtitle(client, message):
     if len(message.command) == 1:
         return await message.reply_text(
@@ -106,7 +106,7 @@ async def subtitle(client, message):
     await db.set_subtitle(message.from_user.id, subtitle=subtitle)
     await message.reply_text("**✅ Sᴜʙᴛɪᴛʟᴇ Sᴀᴠᴇᴅ**")
 
-@Client.on_message(filters.private & filters.command('setvideo') & is_not_banned_filter) # <-- MODIFIED
+@Client.on_message(filters.private & filters.command('setvideo') & is_not_banned_filter)
 async def video_title(client, message):
     if len(message.command) == 1:
         return await message.reply_text(
@@ -139,7 +139,7 @@ async def set_metadata_code_cb(client, callback: CallbackQuery):
     # For simplicity here, we assume the user follows up with a command /setcode <new_code>
     await callback.answer("Ready to set new code.")
     
-@Client.on_message(filters.private & filters.command('setcode') & is_not_banned_filter) # <-- NEW COMMAND FOR SIMPLICITY
+@Client.on_message(filters.private & filters.command('setcode') & is_not_banned_filter)
 async def set_metadata_code_cmd(client, message: Message):
     if len(message.command) == 1:
         return await message.reply_text(
@@ -175,4 +175,4 @@ async def set_single_metadata_cb(client, callback: CallbackQuery):
         f"E.g., `/set{field} New {field} Value`"
     )
     await callback.answer(f"Ready to set {field}.")
-            
+    
