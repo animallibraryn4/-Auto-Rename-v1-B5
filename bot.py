@@ -1,5 +1,3 @@
-[file name]: bot.py
-[file content begin]
 import aiohttp, asyncio, warnings, pytz
 from datetime import datetime, timedelta
 from pytz import timezone
@@ -130,4 +128,3 @@ class Bot(Client):
 bot = Bot()
 bot.setup_middleware()
 bot.run()
-[file content end]
