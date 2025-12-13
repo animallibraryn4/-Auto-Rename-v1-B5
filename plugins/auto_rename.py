@@ -1,7 +1,6 @@
 from pyrogram import Client, filters
 from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from helper.database import codeflixbots
-from plugins import is_user_verified, send_verification
 
 @Client.on_message(filters.private & filters.command("autorename"))
 async def auto_rename_command(client, message):
