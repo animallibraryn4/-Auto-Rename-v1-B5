@@ -7,18 +7,17 @@ from pytz import timezone
 from pyrogram import Client, __version__
 from pyrogram.raw.all import layer
 from config import Config
-from aiohttp import web
-from route import web_server
-import pyrogram.utils
-# REMOVE THIS LINE: import pyromod
-from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 import os
 import time
 import sys
 import nest_asyncio
+from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton # Retaining imports for other files
 
 # Apply nest_asyncio
 nest_asyncio.apply()
+
+# Add current directory to Python path
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 pyrogram.utils.MIN_CHANNEL_ID = -1001896877147
 
@@ -37,25 +36,33 @@ class Bot(Client):
             sleep_threshold=15,
         )
         self.start_time = time.time()
+        self.is_running = False
 
     async def start(self):
         await super().start()
         me = await self.get_me()
         self.mention = me.mention
         self.username = me.username  
-        self.uptime = Config.BOT_UPTIME     
+        self.uptime = Config.BOT_UPTIME
         
-        if Config.WEBHOOK:
-            try:
-                app = web.AppRunner(await web_server())
-                await app.setup()       
-                await web.TCPSite(app, "0.0.0.0", 9090).start()
-                print("Webhook server started on port 9090")
-            except Exception as e:
-                print(f"Webhook server error: {e}")
+        # --- Webhook and AIOHTTP logic removed based on provided snippet ---
+        # If your project uses the web_server module, you may need to re-add 
+        # the imports and logic for aiohttp/web_server here.
+        # Original logic:
+        # if Config.WEBHOOK:
+        #     try:
+        #         from route import web_server
+        #         from aiohttp import web
+        #         app = web.AppRunner(await web_server())
+        #         await app.setup()       
+        #         await web.TCPSite(app, "0.0.0.0", 9090).start()
+        #         print("Webhook server started on port 9090")
+        #     except Exception as e:
+        #         print(f"Webhook server error: {e}")
         
         print(f"{me.first_name} Is Started.....✨️")
-
+        print(f"Bot started successfully! Username: @{me.username}")
+        
         # Calculate uptime
         uptime_seconds = int(time.time() - self.start_time)
         uptime_string = str(timedelta(seconds=uptime_seconds))
@@ -70,13 +77,8 @@ class Bot(Client):
                     chat_id=chat_id,
                     photo=Config.START_PIC,
                     caption=(
-                        "**ᴀɴʏᴀ ɪs ʀᴇsᴛᴀʀᴛᴇᴅ ᴀɢᴀɪɴ  !**\n\n"
+                        "**ᴀɴʏᴀ ɪs ʀᴇsᴛᴀʀᴛᴇᴅ ᴀɴᴇᴡ !**\n\n"
                         f"ɪ ᴅɪᴅɴ'ᴛ sʟᴇᴘᴛ sɪɴᴄᴇ: `{uptime_string}`"
-                    ),
-                    reply_markup=InlineKeyboardMarkup(
-                        [[
-                            InlineKeyboardButton("ᴜᴘᴅᴀᴛᴇs", url="https://t.me/animelibraryn4")
-                        ]]
                     )
                 )
                 print(f"Restart message sent to chat {chat_id}")
@@ -84,12 +86,14 @@ class Bot(Client):
             except Exception as e:
                 print(f"Failed to send message in chat {chat_id}: {e}")
         
-        print(f"Bot started successfully! Username: @{me.username}")
+        self.is_running = True
         return self
 
-    async def stop(self):
-        await super().stop()
-        print("Bot stopped successfully!")
+    async def stop(self, *args):
+        if self.is_running:
+            await super().stop()
+            self.is_running = False
+            print("Bot stopped successfully!")
 
 async def main():
     bot = None
@@ -98,17 +102,19 @@ async def main():
         await bot.start()
         print("Bot is running. Press Ctrl+C to stop.")
         
-        # Keep bot running without pyromod.idle()
-        while True:
-            await asyncio.sleep(3600)
+        # Keep bot running
+        await asyncio.Event().wait()
             
     except KeyboardInterrupt:
         print("\nReceived stop signal...")
     except Exception as e:
         print(f"Bot error: {e}")
+        import traceback
+        traceback.print_exc()
     finally:
-        if bot:
+        if bot and bot.is_running:
             await bot.stop()
 
 if __name__ == "__main__":
     asyncio.run(main())
+    
