@@ -10,14 +10,14 @@ from config import Config
 from aiohttp import web
 from route import web_server
 import pyrogram.utils
-import pyromod
+# REMOVE THIS LINE: import pyromod
 from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 import os
 import time
 import sys
 import nest_asyncio
 
-# Apply nest_asyncio to fix event loop conflicts
+# Apply nest_asyncio
 nest_asyncio.apply()
 
 pyrogram.utils.MIN_CHANNEL_ID = -1001896877147
@@ -32,7 +32,7 @@ class Bot(Client):
             api_id=Config.API_ID,
             api_hash=Config.API_HASH,
             bot_token=Config.BOT_TOKEN,
-            workers=50,  # Reduced from 200
+            workers=50,
             plugins={"root": "plugins"},
             sleep_threshold=15,
         )
@@ -98,7 +98,7 @@ async def main():
         await bot.start()
         print("Bot is running. Press Ctrl+C to stop.")
         
-        # Keep bot running
+        # Keep bot running without pyromod.idle()
         while True:
             await asyncio.sleep(3600)
             
@@ -111,9 +111,4 @@ async def main():
             await bot.stop()
 
 if __name__ == "__main__":
-    # Add nest_asyncio to requirements.txt
-    # pip install nest_asyncio
-    import nest_asyncio
-    nest_asyncio.apply()
-    
     asyncio.run(main())
