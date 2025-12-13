@@ -163,12 +163,12 @@ async def forward_to_dump_channel(client, path, media_type, ph_path, file_name, 
             return
         
         dump_caption = (
-            f"📁 **File Renamed**\n\n"
-            f"👤 **User:** {user_info['mention']}\n"
-            f"🆔 **User ID:** `{user_info['id']}`\n"
-            f"📛 **Username:** @{user_info['username']}\n\n"
-            f"📄 **Original Name:** `{file_name}`\n"
-            f"✨ **Renamed To:** `{renamed_file_name}`\n\n"
+            f"➜ **File Renamed**\n\n"
+            f"» **User:** {user_info['mention']}\n"
+            f"» **User ID:** `{user_info['id']}`\n"
+            f"» **Username:** @{user_info['username']}\n\n"
+            f"➲ **Original Name:** `{file_name}`\n"
+            f"➲ **Renamed To:** `{renamed_file_name}`\n\n"
             f"🕒 **Time:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
         )
         
