@@ -10,6 +10,11 @@ from config import Config
 # Start Command Handler
 @Client.on_message(filters.private & filters.command("start"))
 async def start(client, message: Message):
+    if hasattr(message, 'command') and len(message.command) == 2: 
+       data = message.command[1]
+       if data.split("-")[0] == 'verify':
+           await validate_token(client, message, data)
+           return
     user = message.from_user
     await codeflixbots.add_user(client, message)
 
