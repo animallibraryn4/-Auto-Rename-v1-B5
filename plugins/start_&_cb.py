@@ -1,5 +1,3 @@
-[file name]: start_&_cb.py
-[file content begin]
 import random
 import asyncio
 from pyrogram import Client, filters
@@ -305,4 +303,3 @@ async def help_command(client, message):
             [InlineKeyboardButton('ʜᴏᴍᴇ', callback_data='home')]
         ])
     )
-[file content end]
