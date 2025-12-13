@@ -7,14 +7,31 @@ from .utils import send_log
 class Database:
     def __init__(self, uri, database_name):
         try:
-            self._client = motor.motor_asyncio.AsyncIOMotorClient(uri)
-            self._client.server_info()
-            logging.info("Successfully connected to MongoDB")
+            # IMPORTANT: Use connect=False to avoid automatic connection
+            self._client = motor.motor_asyncio.AsyncIOMotorClient(
+                uri,
+                connect=False,  # Prevent automatic connection
+                serverSelectionTimeoutMS=5000
+            )
+            logging.info("MongoDB client initialized")
         except Exception as e:
-            logging.error(f"Failed to connect to MongoDB: {e}")
+            logging.error(f"Failed to initialize MongoDB client: {e}")
             raise e
+        
         self.codeflixbots = self._client[database_name]
         self.col = self.codeflixbots.user
+        self._is_connected = False
+
+    async def _ensure_connected(self):
+        """Ensure MongoDB is connected before operations."""
+        if not self._is_connected:
+            try:
+                await self._client.server_info()
+                self._is_connected = True
+                logging.info("Successfully connected to MongoDB")
+            except Exception as e:
+                logging.error(f"Failed to connect to MongoDB: {e}")
+                raise e
 
     def new_user(self, id):
         return dict(
@@ -35,14 +52,14 @@ class Database:
                 banned_on=datetime.date.max.isoformat(),
                 ban_reason=''
             ),
-            # Preserving all existing metadata fields
+            # Existing metadata fields
             title='Encoded by @Animelibraryn4',
             author='@Animelibraryn4',
             artist='@Animelibraryn4',
             audio='By @Animelibraryn4',
             subtitle='By @Animelibraryn4',
             video_title='By @Animelibraryn4',
-            # FIXED: Consolidated user info fields to avoid conflicts
+            # User info in nested structure to avoid conflicts
             user_info=dict(
                 username=None,
                 first_name=None,
@@ -52,32 +69,45 @@ class Database:
         )
 
     async def add_user(self, client, message):
+        """Simplified add_user method to avoid loop conflicts"""
         user = message.from_user
         user_id = user.id
         
         try:
-            # Check if user exists
+            # Don't await database operations here - handle them differently
+            # Just log and let bot continue
+            logging.info(f"User {user_id} started the bot")
+            
+            # We'll use a simple approach - try to insert if not exists
+            # But don't block the message flow
+            import asyncio
+            asyncio.create_task(self._async_add_user(client, user))
+            
+        except Exception as e:
+            logging.error(f"Error in add_user for user {user_id}: {e}")
+
+    async def _async_add_user(self, client, user):
+        """Async background task to add/update user"""
+        try:
+            await self._ensure_connected()
+            
+            user_id = user.id
             existing_user = await self.col.find_one({"_id": int(user_id)})
             
             if existing_user:
-                # Update only user_info for existing users
-                update_data = {
-                    "user_info.username": user.username,
-                    "user_info.first_name": user.first_name,
-                    "user_info.last_name": user.last_name,
-                    "user_info.mention": user.mention
-                }
-                
-                # Remove None values to avoid overwriting with None
-                update_data = {k: v for k, v in update_data.items() if v is not None}
-                
-                if update_data:  # Only update if there's something to update
-                    await self.col.update_one(
-                        {"_id": int(user_id)},
-                        {"$set": update_data}
-                    )
+                # Update user_info only
+                await self.col.update_one(
+                    {"_id": int(user_id)},
+                    {"$set": {
+                        "user_info.username": user.username,
+                        "user_info.first_name": user.first_name,
+                        "user_info.last_name": user.last_name,
+                        "user_info.mention": user.mention
+                    }}
+                )
+                logging.info(f"Updated user info for {user_id}")
             else:
-                # Create new user with all fields
+                # Create new user
                 user_data = self.new_user(user_id)
                 user_data["user_info"] = {
                     "username": user.username,
@@ -89,15 +119,17 @@ class Database:
                 await self.col.insert_one(user_data)
                 logging.info(f"New user added: {user_id}")
                 
-                # Send log only for new users
+                # Send log for new user
                 await send_log(client, user)
                 
         except Exception as e:
-            logging.error(f"Error adding/updating user {user_id}: {e}", exc_info=True)
+            logging.error(f"Background task error for user {user_id}: {e}")
 
+    # All other methods stay the same but add _ensure_connected
     async def get_format_template(self, id):
         """Get user's auto-rename format template."""
         try:
+            await self._ensure_connected()
             user = await self.col.find_one({"_id": int(id)})
             return user.get("format_template") if user else None
         except Exception as e:
@@ -107,6 +139,7 @@ class Database:
     async def set_format_template(self, id, template):
         """Set user's auto-rename format template."""
         try:
+            await self._ensure_connected()
             await self.col.update_one(
                 {"_id": int(id)},
                 {"$set": {"format_template": template}},
@@ -115,10 +148,10 @@ class Database:
         except Exception as e:
             logging.error(f"Error setting format template for user {id}: {e}")
 
-    # Caption Methods
     async def get_caption(self, id):
         """Get user's custom caption."""
         try:
+            await self._ensure_connected()
             user = await self.col.find_one({"_id": int(id)})
             return user.get("caption") if user else None
         except Exception as e:
@@ -128,6 +161,7 @@ class Database:
     async def set_caption(self, id, caption):
         """Set user's custom caption."""
         try:
+            await self._ensure_connected()
             await self.col.update_one(
                 {"_id": int(id)},
                 {"$set": {"caption": caption}},
@@ -136,10 +170,10 @@ class Database:
         except Exception as e:
             logging.error(f"Error setting caption for user {id}: {e}")
 
-    # Thumbnail Methods (Single)
     async def get_thumbnail(self, id):
         """Get user's single thumbnail file_id."""
         try:
+            await self._ensure_connected()
             user = await self.col.find_one({"_id": int(id)})
             return user.get("file_id") if user else None
         except Exception as e:
@@ -149,6 +183,7 @@ class Database:
     async def set_thumbnail(self, id, file_id):
         """Set user's single thumbnail file_id."""
         try:
+            await self._ensure_connected()
             await self.col.update_one(
                 {"_id": int(id)},
                 {"$set": {"file_id": file_id}},
@@ -157,10 +192,10 @@ class Database:
         except Exception as e:
             logging.error(f"Error setting thumbnail for user {id}: {e}")
 
-    # Metadata Toggle Methods
     async def get_metadata(self, id):
         """Get user's metadata toggle status."""
         try:
+            await self._ensure_connected()
             user = await self.col.find_one({"_id": int(id)})
             return user.get("metadata", False) if user else False
         except Exception as e:
@@ -170,6 +205,7 @@ class Database:
     async def set_metadata(self, id, status: bool):
         """Set user's metadata toggle status."""
         try:
+            await self._ensure_connected()
             await self.col.update_one(
                 {"_id": int(id)},
                 {"$set": {"metadata": status}},
@@ -178,10 +214,10 @@ class Database:
         except Exception as e:
             logging.error(f"Error setting metadata status for user {id}: {e}")
 
-    # Metadata Value Methods
     async def get_metadata_code(self, id):
         """Get user's metadata code."""
         try:
+            await self._ensure_connected()
             user = await self.col.find_one({"_id": int(id)})
             return user.get("metadata_code") if user else None
         except Exception as e:
@@ -191,6 +227,7 @@ class Database:
     async def set_metadata_code(self, id, code):
         """Set user's metadata code."""
         try:
+            await self._ensure_connected()
             await self.col.update_one(
                 {"_id": int(id)},
                 {"$set": {"metadata_code": code}},
@@ -199,10 +236,10 @@ class Database:
         except Exception as e:
             logging.error(f"Error setting metadata code for user {id}: {e}")
             
-    # Title
     async def get_title(self, id):
         """Get user's custom title."""
         try:
+            await self._ensure_connected()
             user = await self.col.find_one({"_id": int(id)})
             return user.get("title") if user else None
         except Exception as e:
@@ -212,6 +249,7 @@ class Database:
     async def set_title(self, id, title):
         """Set user's custom title."""
         try:
+            await self._ensure_connected()
             await self.col.update_one(
                 {"_id": int(id)},
                 {"$set": {"title": title}},
@@ -220,10 +258,10 @@ class Database:
         except Exception as e:
             logging.error(f"Error setting title for user {id}: {e}")
 
-    # Author
     async def get_author(self, id):
         """Get user's custom author."""
         try:
+            await self._ensure_connected()
             user = await self.col.find_one({"_id": int(id)})
             return user.get("author") if user else None
         except Exception as e:
@@ -233,6 +271,7 @@ class Database:
     async def set_author(self, id, author):
         """Set user's custom author."""
         try:
+            await self._ensure_connected()
             await self.col.update_one(
                 {"_id": int(id)},
                 {"$set": {"author": author}},
@@ -241,10 +280,10 @@ class Database:
         except Exception as e:
             logging.error(f"Error setting author for user {id}: {e}")
 
-    # Artist
     async def get_artist(self, id):
         """Get user's custom artist."""
         try:
+            await self._ensure_connected()
             user = await self.col.find_one({"_id": int(id)})
             return user.get("artist") if user else None
         except Exception as e:
@@ -254,6 +293,7 @@ class Database:
     async def set_artist(self, id, artist):
         """Set user's custom artist."""
         try:
+            await self._ensure_connected()
             await self.col.update_one(
                 {"_id": int(id)},
                 {"$set": {"artist": artist}},
@@ -262,10 +302,10 @@ class Database:
         except Exception as e:
             logging.error(f"Error setting artist for user {id}: {e}")
 
-    # Audio
     async def get_audio(self, id):
         """Get user's custom audio."""
         try:
+            await self._ensure_connected()
             user = await self.col.find_one({"_id": int(id)})
             return user.get("audio") if user else None
         except Exception as e:
@@ -275,6 +315,7 @@ class Database:
     async def set_audio(self, id, audio):
         """Set user's custom audio."""
         try:
+            await self._ensure_connected()
             await self.col.update_one(
                 {"_id": int(id)},
                 {"$set": {"audio": audio}},
@@ -283,10 +324,10 @@ class Database:
         except Exception as e:
             logging.error(f"Error setting audio for user {id}: {e}")
             
-    # Subtitle
     async def get_subtitle(self, id):
         """Get user's custom subtitle."""
         try:
+            await self._ensure_connected()
             user = await self.col.find_one({"_id": int(id)})
             return user.get("subtitle") if user else None
         except Exception as e:
@@ -296,6 +337,7 @@ class Database:
     async def set_subtitle(self, id, subtitle):
         """Set user's custom subtitle."""
         try:
+            await self._ensure_connected()
             await self.col.update_one(
                 {"_id": int(id)},
                 {"$set": {"subtitle": subtitle}},
@@ -304,10 +346,10 @@ class Database:
         except Exception as e:
             logging.error(f"Error setting subtitle for user {id}: {e}")
     
-    # Video Title
     async def get_video(self, id):
         """Get user's custom video title."""
         try:
+            await self._ensure_connected()
             user = await self.col.find_one({"_id": int(id)})
             return user.get("video_title") if user else None
         except Exception as e:
@@ -317,6 +359,7 @@ class Database:
     async def set_video(self, id, video_title):
         """Set user's custom video title."""
         try:
+            await self._ensure_connected()
             await self.col.update_one(
                 {"_id": int(id)},
                 {"$set": {"video_title": video_title}},
@@ -325,11 +368,10 @@ class Database:
         except Exception as e:
             logging.error(f"Error setting video title for user {id}: {e}")
 
-    # Quality Thumbnail Methods
     async def set_quality_thumbnail(self, id, quality, file_id):
         """Set a thumbnail file_id for a specific quality for the user."""
         try:
-            # Use dot notation to update a field within the 'thumbnails' dictionary
+            await self._ensure_connected()
             update_field = f"thumbnails.{quality}"
             await self.col.update_one(
                 {"_id": int(id)},
@@ -342,6 +384,7 @@ class Database:
     async def get_quality_thumbnail(self, id, quality):
         """Get the thumbnail file_id for a specific quality for the user."""
         try:
+            await self._ensure_connected()
             user = await self.col.find_one({"_id": int(id)})
             if user and user.get('thumbnails'):
                 return user['thumbnails'].get(quality)
@@ -353,6 +396,7 @@ class Database:
     async def delete_all_quality_thumbnails(self, id):
         """Delete all quality-specific thumbnails for the user."""
         try:
+            await self._ensure_connected()
             await self.col.update_one(
                 {"_id": int(id)},
                 {"$set": {"thumbnails": {}}},
@@ -361,10 +405,10 @@ class Database:
         except Exception as e:
             logging.error(f"Error deleting all quality thumbnails for user {id}: {e}")
 
-    # Temp Quality Setting
     async def get_temp_quality(self, id):
         """Get user's temporary quality setting."""
         try:
+            await self._ensure_connected()
             user = await self.col.find_one({"_id": int(id)})
             return user.get("temp_quality") if user else None
         except Exception as e:
@@ -374,6 +418,7 @@ class Database:
     async def set_temp_quality(self, id, quality):
         """Set user's temporary quality setting."""
         try:
+            await self._ensure_connected()
             await self.col.update_one(
                 {"_id": int(id)},
                 {"$set": {"temp_quality": quality}},
@@ -382,9 +427,9 @@ class Database:
         except Exception as e:
             logging.error(f"Error setting temp quality for user {id}: {e}")
 
-    # Global Thumbnail Methods
     async def set_global_thumb(self, id, file_id):
         try:
+            await self._ensure_connected()
             await self.col.update_one(
                 {"_id": int(id)},
                 {"$set": {"global_thumb": file_id}},
@@ -395,6 +440,7 @@ class Database:
 
     async def get_global_thumb(self, id):
         try:
+            await self._ensure_connected()
             user = await self.col.find_one({"_id": int(id)})
             return user.get("global_thumb") if user else None
         except Exception as e:
@@ -403,6 +449,7 @@ class Database:
 
     async def toggle_global_thumb(self, id, status: bool):
         try:
+            await self._ensure_connected()
             await self.col.update_one(
                 {"_id": int(id)},
                 {"$set": {"use_global_thumb": status}},
@@ -413,16 +460,17 @@ class Database:
 
     async def is_global_thumb_enabled(self, id):
         try:
+            await self._ensure_connected()
             user = await self.col.find_one({"_id": int(id)})
             return user.get("use_global_thumb", False) if user else False
         except Exception as e:
             logging.error(f"Error checking global thumb status for user {id}: {e}")
             return False
 
-    # Ban Status Methods
     async def is_user_banned(self, id):
         """Check if a user is banned."""
         try:
+            await self._ensure_connected()
             user = await self.col.find_one({"_id": int(id)})
             if user and user.get('ban_status'):
                 return user['ban_status']['is_banned']
@@ -434,6 +482,7 @@ class Database:
     async def ban_user(self, id, reason=""):
         """Ban a user."""
         try:
+            await self._ensure_connected()
             await self.col.update_one(
                 {"_id": int(id)},
                 {"$set": {
@@ -451,6 +500,7 @@ class Database:
     async def unban_user(self, id):
         """Unban a user."""
         try:
+            await self._ensure_connected()
             await self.col.update_one(
                 {"_id": int(id)},
                 {"$set": {
@@ -464,10 +514,10 @@ class Database:
             logging.error(f"Error unbanning user {id}: {e}")
             return False
 
-    # ADDITIONAL METHODS FOR ADMIN PANEL
     async def total_users_count(self):
         """Get total number of users."""
         try:
+            await self._ensure_connected()
             count = await self.col.count_documents({})
             return count
         except Exception as e:
@@ -477,6 +527,7 @@ class Database:
     async def get_all_users(self):
         """Get all users."""
         try:
+            await self._ensure_connected()
             return self.col.find({})
         except Exception as e:
             logging.error(f"Error getting all users: {e}")
@@ -485,48 +536,9 @@ class Database:
     async def delete_user(self, user_id):
         """Delete a user from the database."""
         try:
+            await self._ensure_connected()
             await self.col.delete_one({'_id': int(user_id)})
             return True
         except Exception as e:
             logging.error(f"Error deleting user {user_id}: {e}")
-            return False
-
-    async def is_banned(self, id):
-        """Alias for is_user_banned for backward compatibility."""
-        return await self.is_user_banned(id)
-
-    async def get_user(self, id):
-        """Get complete user document."""
-        try:
-            user = await self.col.find_one({"_id": int(id)})
-            return user
-        except Exception as e:
-            logging.error(f"Error getting user {id}: {e}")
-            return None
-
-    async def update_user_info(self, id, username=None, first_name=None, last_name=None, mention=None):
-        """Update user information separately."""
-        try:
-            update_data = {}
-            if username is not None:
-                update_data["user_info.username"] = username
-            if first_name is not None:
-                update_data["user_info.first_name"] = first_name
-            if last_name is not None:
-                update_data["user_info.last_name"] = last_name
-            if mention is not None:
-                update_data["user_info.mention"] = mention
-            
-            if update_data:
-                await self.col.update_one(
-                    {"_id": int(id)},
-                    {"$set": update_data},
-                    upsert=True
-                )
-            return True
-        except Exception as e:
-            logging.error(f"Error updating user info for {id}: {e}")
-            return False
-
-# Initialize database connection
-codeflixbots = Database(Config.DB_URL, Config.DB_NAME)
+            return
