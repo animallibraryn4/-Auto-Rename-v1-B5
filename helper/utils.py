@@ -1,4 +1,8 @@
-import math, time, asyncio, re, logging
+import math
+import time
+import asyncio
+import re
+import logging
 from datetime import datetime
 from pytz import timezone
 from config import Config, Txt
@@ -15,8 +19,7 @@ async def progress_for_pyrogram(current, total, ud_type, message, start):
     if round(diff % 5.0) == 0 or current == total:
         percentage = current * 100 / total
         speed = current / diff if diff else 0
-        elapsed_time = round(diff) * 1000
-        eta = round((total - current) / speed) * 1000 if speed else 0
+        eta = round((total - current) / speed) if speed else 0
 
         progress = "■" * int(percentage / 5) + "□" * (20 - int(percentage / 5))
         text = (
@@ -25,7 +28,7 @@ async def progress_for_pyrogram(current, total, ud_type, message, start):
             f"{round(percentage,2)}%\n"
             f"{humanbytes(current)} / {humanbytes(total)}\n"
             f"Speed: {humanbytes(speed)}/s\n"
-            f"ETA: {TimeFormatter(eta)}"
+            f"ETA: {convert(eta)}"
         )
 
         try:
@@ -38,7 +41,7 @@ async def progress_for_pyrogram(current, total, ud_type, message, start):
         except:
             pass
 
-# ================= HELPERS =================
+# ================= SIZE FORMAT =================
 
 def humanbytes(size):
     if not size:
@@ -51,8 +54,10 @@ def humanbytes(size):
         n += 1
     return f"{round(size,2)} {units[n]}"
 
+# ================= TIME FORMAT =================
+
 def TimeFormatter(ms):
-    seconds, _ = divmod(int(ms), 1000)
+    seconds = int(ms)
     minutes, seconds = divmod(seconds, 60)
     hours, minutes = divmod(minutes, 60)
     days, hours = divmod(hours, 24)
@@ -64,6 +69,17 @@ def TimeFormatter(ms):
     if seconds: result.append(f"{seconds}s")
 
     return " ".join(result) if result else "0s"
+
+# ================= REQUIRED FUNCTION (FIX) =================
+# ⚠️ This function was missing – now added back
+
+def convert(seconds):
+    seconds = int(seconds)
+    hours = seconds // 3600
+    seconds %= 3600
+    minutes = seconds // 60
+    seconds %= 60
+    return "%02d:%02d:%02d" % (hours, minutes, seconds)
 
 # ================= SAFE LOG =================
 
