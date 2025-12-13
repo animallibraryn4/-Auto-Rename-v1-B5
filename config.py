@@ -34,7 +34,7 @@ class Txt(object):
         
     START_TXT = """✨ ʜᴇʏ, {}!  
 
-<blockquote>🚀 FEATURES:</blockquote>  
+<b><i><blockquote>🚀FEATURES:</blockquote></i></b>  # All tags closed properly
 ✅ ᴀᴜᴛᴏ ʀᴇɴᴀᴍᴇ ꜰɪʟᴇꜱ
 ✅ ᴄᴜꜱᴛᴏᴍ ᴛʜᴜᴍʙɴᴀɪʟ & ᴄᴀᴘᴛɪᴏɴ
 ✅ ᴍᴇᴛᴀᴅᴀᴛᴀ ᴇᴅɪᴛ & ᴠɪᴅᴇᴏ ⇄ ꜰɪʟᴇ ᴄᴏɴᴠᴇʀꜱɪᴏɴ  
