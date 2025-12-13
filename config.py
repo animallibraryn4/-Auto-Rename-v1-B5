@@ -185,6 +185,4 @@ Pʀɪᴄɪɴɢ:
 
 **ᴜꜱᴇ ᴛʜᴇꜱᴇ ᴄᴏᴍᴍᴀɴᴅꜱ ᴛᴏ ᴇɴʀɪᴄʜ ʏᴏᴜʀ ᴍᴇᴅɪᴀ ᴡɪᴛʜ ᴀᴅᴅɪᴛɪᴏɴᴀʟ ᴍᴇᴛᴀᴅᴀᴛᴀ ɪɴꜰᴏʀᴍᴀᴛɪᴏɴ!**
 """
-    # In config.py, inside class Txt(object):
-    BAN_MSG = """You are banned and cannot use this bot. If you want access, request permission from @Anime_Library_N4."""
-    
+
