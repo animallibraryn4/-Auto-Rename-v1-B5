@@ -63,9 +63,34 @@ async def set_global_thumb(client, callback):
         ])
     )
 
+@Client.on_message(filters.private & filters.command('smart_thumb'))
+async def quality_menu(client, message):
+    # Check if user is banned
+    if await codeflixbots.is_user_banned(message.from_user.id):
+        await message.reply_text(
+            "🚫 **You are banned and cannot use this bot.**\n\n"
+            "If you want access, request permission from @Anime_Library_N4."
+        )
+        return
+    
+    buttons = await generate_main_menu_buttons(message.from_user.id)
+    await message.reply_text(
+        "🎬 Thumbnail Manager",
+        reply_markup=InlineKeyboardMarkup(buttons)
+    )
+
 @Client.on_message(filters.private & filters.photo & ~filters.command(''))
 async def save_thumbnail(client, message):
     user_id = message.from_user.id
+    
+    # Check if user is banned
+    if await codeflixbots.is_user_banned(user_id):
+        await message.reply_text(
+            "🚫 **You are banned and cannot use this bot.**\n\n"
+            "If you want access, request permission from @Anime_Library_N4."
+        )
+        return
+    
     quality = await codeflixbots.get_temp_quality(user_id)
     if not quality:
         return
