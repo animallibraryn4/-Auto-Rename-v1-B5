@@ -122,9 +122,15 @@ class Bot(Client):
     # Register the middleware
     def setup_middleware(self):
         """Setup ban check middleware"""
-        self.add_handler(filters.private & ~filters.user(Config.ADMIN), self.check_banned_user)
+        # Use lambda to properly pass self
+        self.add_handler(filters.private & ~filters.user(Config.ADMIN), self.check_banned_user, group=0)
 
-# Create bot instance and setup middleware
+# Create bot instance
 bot = Bot()
-bot.setup_middleware()
+
+# Setup middleware after bot is created but before running
+@bot.on_message(filters.private & ~filters.user(Config.ADMIN))
+async def check_banned_user_wrapper(client, message):
+    await bot.check_banned_user(client, message)
+
 bot.run()
