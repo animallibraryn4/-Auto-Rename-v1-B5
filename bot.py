@@ -1,27 +1,30 @@
-import aiohttp
+# bot.py - CORRECTED VERSION
 import asyncio
-import warnings
-import pytz
-from datetime import datetime, timedelta
-from pytz import timezone
-from pyrogram import Client, __version__
-from pyrogram.raw.all import layer
-from config import Config
 import os
 import time
 import sys
 import nest_asyncio
-from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton # Retaining imports for other files
+from datetime import datetime, timedelta
+from pytz import timezone
 
-# Apply nest_asyncio
+# Apply nest_asyncio first
 nest_asyncio.apply()
+
+# NOW import pyrogram
+from pyrogram import Client
+from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+import pyrogram.utils
+
+# Set MIN_CHANNEL_ID AFTER importing pyrogram.utils
+pyrogram.utils.MIN_CHANNEL_ID = -1001896877147
+
+# Now import your config
+from config import Config
 
 # Add current directory to Python path
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
-pyrogram.utils.MIN_CHANNEL_ID = -1001896877147
-
-# Setting SUPPORT_CHAT directly here
+# Setting SUPPORT_CHAT
 SUPPORT_CHAT = int(os.environ.get("SUPPORT_CHAT", "-1001896877147"))
 
 class Bot(Client):
@@ -44,21 +47,6 @@ class Bot(Client):
         self.mention = me.mention
         self.username = me.username  
         self.uptime = Config.BOT_UPTIME
-        
-        # --- Webhook and AIOHTTP logic removed based on provided snippet ---
-        # If your project uses the web_server module, you may need to re-add 
-        # the imports and logic for aiohttp/web_server here.
-        # Original logic:
-        # if Config.WEBHOOK:
-        #     try:
-        #         from route import web_server
-        #         from aiohttp import web
-        #         app = web.AppRunner(await web_server())
-        #         await app.setup()       
-        #         await web.TCPSite(app, "0.0.0.0", 9090).start()
-        #         print("Webhook server started on port 9090")
-        #     except Exception as e:
-        #         print(f"Webhook server error: {e}")
         
         print(f"{me.first_name} Is Started.....✨️")
         print(f"Bot started successfully! Username: @{me.username}")
@@ -117,4 +105,3 @@ async def main():
 
 if __name__ == "__main__":
     asyncio.run(main())
-    
