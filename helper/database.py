@@ -290,5 +290,67 @@ class Database:
             logging.error(f"Error checking global thumb status for user {id}: {e}")
             return False
 
+    # Add these methods to the Database class in database.py (before the last line)
+    async def ban_user(self, id, ban_duration=0, ban_reason=''):
+        """Ban a user"""
+        try:
+            ban_status = dict(
+                is_banned=True,
+                ban_duration=ban_duration,
+                banned_on=datetime.date.today().isoformat(),
+                ban_reason=ban_reason
+            )
+            await self.col.update_one(
+                {"_id": int(id)},
+                {"$set": {"ban_status": ban_status}}
+            )
+            return True
+        except Exception as e:
+            logging.error(f"Error banning user {id}: {e}")
+            return False
+
+    async def unban_user(self, id):
+        """Unban a user"""
+        try:
+            ban_status = dict(
+                is_banned=False,
+                ban_duration=0,
+                banned_on=datetime.date.max.isoformat(),
+                ban_reason=''
+            )
+            await self.col.update_one(
+                {"_id": int(id)},
+                {"$set": {"ban_status": ban_status}}
+            )
+            return True
+        except Exception as e:
+            logging.error(f"Error unbanning user {id}: {e}")
+            return False
+
+    async def is_user_banned(self, id):
+        """Check if user is banned"""
+        try:
+            user = await self.col.find_one({"_id": int(id)})
+            if user and "ban_status" in user:
+                ban_info = user["ban_status"]
+                if ban_info.get("is_banned", False):
+                    # Check if ban has expired (if duration is set)
+                    ban_duration = ban_info.get("ban_duration", 0)
+                    if ban_duration > 0:
+                        banned_on = datetime.datetime.strptime(
+                            ban_info.get("banned_on", datetime.date.today().isoformat()),
+                            "%Y-%m-%d"
+                        ).date()
+                        days_banned = (datetime.date.today() - banned_on).days
+                        if days_banned >= ban_duration:
+                            # Ban has expired, auto-unban
+                            await self.unban_user(id)
+                            return False
+                    return True
+            return False
+        except Exception as e:
+            logging.error(f"Error checking ban status for user {id}: {e}")
+            return False
+
 # Initialize database connection
 codeflixbots = Database(Config.DB_URL, Config.DB_NAME)
