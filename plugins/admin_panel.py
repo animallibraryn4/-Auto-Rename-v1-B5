@@ -114,7 +114,7 @@ async def ban_user_cmd(client, message):
     
     reason = " ".join(message.command[2:]) if len(message.command) > 2 else "No reason provided."
 
-    is_banned = await codeflixbots.is_banned(user_id)
+    is_banned = await codeflixbots.is_user_banned(user_id)
     if is_banned:
         return await message.reply_text(f"User `{user_id}` is already banned.")
     
@@ -142,7 +142,7 @@ async def unban_user_cmd(client, message):
     except ValueError:
         return await message.reply_text("Invalid User ID. Must be an integer.")
 
-    is_banned = await codeflixbots.is_banned(user_id)
+    is_banned = await codeflixbots.is_user_banned(user_id)
     if not is_banned:
         return await message.reply_text(f"User `{user_id}` is not currently banned.")
         
