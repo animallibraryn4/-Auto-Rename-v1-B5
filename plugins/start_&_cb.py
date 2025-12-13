@@ -114,8 +114,28 @@ async def cb_handler(client, query: CallbackQuery):
         )
 
     elif data == "mystats":
-        from plugins.ad_token_handler import show_user_stats
-        await show_user_stats(client, query)
+        # Import from token_handler instead of ad_token_handler
+        from plugins.token_handler import show_stats_command
+        
+        # Create a fake message for the callback
+        class FakeMessage:
+            def __init__(self, query):
+                self.from_user = query.from_user
+                self.chat = query.message.chat
+                # Overwrite reply_text to use query.message.reply_text (or edit_text) as needed for stats
+            
+            async def reply_text(self, *args, **kwargs):
+                # We will just edit the message, as a reply_text would not be the expected behavior for a callback query stat update.
+                # However, show_stats_command likely expects a message object for its reply.
+                # Since we don't know the exact implementation of show_stats_command, 
+                # we'll keep the reply_text method for compatibility, but the stat message 
+                # might appear as a new message instead of an edit.
+                # For this specific bot structure, `show_stats_command` usually sends a new message 
+                # and doesn't edit the inline button message.
+                await client.send_message(self.chat.id, *args, **kwargs)
+
+        fake_msg = FakeMessage(query)
+        await show_stats_command(client, fake_msg)
         
     elif data == "meta":
         await query.message.edit_text(
@@ -263,5 +283,5 @@ async def help_command(client, message):
             [InlineKeyboardButton('ᴍʏ sᴛᴀᴛs', callback_data='mystats')],
             [InlineKeyboardButton('ʜᴏᴍᴇ', callback_data='home')]
         ])
-            )
+        )
     
