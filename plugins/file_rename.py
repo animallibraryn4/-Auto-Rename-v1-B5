@@ -1,3 +1,5 @@
+[file name]: file_rename.py
+[file content begin]
 import os
 import re
 import time
@@ -199,9 +201,27 @@ async def forward_to_dump_channel(client, path, media_type, ph_path, file_name, 
         print(f"[DUMP ERROR] Failed to forward {renamed_file_name}: {e}")
 
 async def process_rename(client: Client, message: Message):
+    # ========== BAN CHECK ==========
+    user_id = message.from_user.id
+    
+    # Skip ban check for admins
+    if user_id not in Config.ADMIN:
+        # Check if user is banned
+        is_banned = await codeflixbots.is_banned(user_id)
+        
+        if is_banned:
+            ban_info = await codeflixbots.get_ban_info(user_id)
+            ban_reason = ban_info.get('ban_reason', 'No reason provided') if ban_info else 'No reason provided'
+            
+            await message.reply_text(
+                "🚫 **You are banned and cannot use this bot.**\n\n"
+                f"**Reason:** {ban_reason}\n\n"
+                "If you want access, please contact @Anime_Library_N4 for permission."
+            )
+            return
+    
     ph_path = None
     
-    user_id = message.from_user.id
     format_template = await codeflixbots.get_format_template(user_id)
     media_preference = await codeflixbots.get_media_preference(user_id)
 
@@ -541,6 +561,41 @@ async def process_rename(client: Client, message: Message):
         if ph_path and os.path.exists(ph_path):
             os.remove(ph_path)
         del renaming_operations[file_id]
+
+# ========== BAN CHECK FOR FILE UPLOADS ==========
+async def check_ban_before_queue(client, message):
+    """Check if user is banned before adding to rename queue"""
+    user_id = message.from_user.id
+    
+    # Skip ban check for admins
+    if user_id in Config.ADMIN:
+        return False
+    
+    # Check if user is banned
+    is_banned = await codeflixbots.is_banned(user_id)
+    
+    if is_banned:
+        ban_info = await codeflixbots.get_ban_info(user_id)
+        ban_reason = ban_info.get('ban_reason', 'No reason provided') if ban_info else 'No reason provided'
+        
+        await message.reply_text(
+            "🚫 **You are banned and cannot use this bot.**\n\n"
+            f"**Reason:** {ban_reason}\n\n"
+            "If you want access, please contact @Anime_Library_N4 for permission."
+        )
+        return True  # User is banned
+    
+    return False  # User is not banned
+
+@Client.on_message(filters.private & (filters.document | filters.video | filters.audio))
+async def auto_rename_files(client, message):
+    # Check if user is banned before adding to queue
+    is_banned = await check_ban_before_queue(client, message)
+    if is_banned:
+        return  # Don't add to queue if banned
+    
+    # User is not banned, add to rename queue
+    await rename_queue.put((client, message))
         
 async def rename_worker():
     while True:
@@ -552,8 +607,5 @@ async def rename_worker():
         finally:
             rename_queue.task_done()
 
-@Client.on_message(filters.private & (filters.document | filters.video | filters.audio))
-async def auto_rename_files(client, message):
-    await rename_queue.put((client, message))
-
 asyncio.create_task(rename_worker())
+[file content end]
