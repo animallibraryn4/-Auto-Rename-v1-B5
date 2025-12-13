@@ -7,5 +7,6 @@ Pillow
 aiohttp
 pytz
 humanize
-pyromod
 ffmpeg-python
+nest_asyncio
+# Remove pyromod from this list
