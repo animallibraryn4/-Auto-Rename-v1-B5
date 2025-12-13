@@ -1,9 +1,18 @@
+# Replace the auto_rename.py file with this updated version
 from pyrogram import Client, filters
 from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from helper.database import codeflixbots
 
 @Client.on_message(filters.private & filters.command("autorename"))
 async def auto_rename_command(client, message):
+    # Check if user is banned
+    if await codeflixbots.is_user_banned(message.from_user.id):
+        await message.reply_text(
+            "🚫 **You are banned and cannot use this bot.**\n\n"
+            "If you want access, request permission from @Anime_Library_N4."
+        )
+        return
+    
     user_id = message.from_user.id
 
     # Extract and validate the format from the command
@@ -31,6 +40,14 @@ async def auto_rename_command(client, message):
 
 @Client.on_message(filters.private & filters.command("setmedia"))
 async def set_media_command(client, message):
+    # Check if user is banned
+    if await codeflixbots.is_user_banned(message.from_user.id):
+        await message.reply_text(
+            "🚫 **You are banned and cannot use this bot.**\n\n"
+            "If you want access, request permission from @Anime_Library_N4."
+        )
+        return
+    
     # Define inline keyboard buttons for media type selection
     keyboard = InlineKeyboardMarkup([
         [InlineKeyboardButton("📄 Document", callback_data="setmedia_document")],
@@ -46,6 +63,12 @@ async def set_media_command(client, message):
 @Client.on_callback_query(filters.regex("^setmedia_"))
 async def handle_media_selection(client, callback_query):
     user_id = callback_query.from_user.id
+    
+    # Check if user is banned
+    if await codeflixbots.is_user_banned(user_id):
+        await callback_query.answer("🚫 You are banned from using this bot.", show_alert=True)
+        return
+    
     media_type = callback_query.data.split("_", 1)[1]  # Extract media type from callback data
 
     # Save the preferred media type in the database
@@ -54,4 +77,3 @@ async def handle_media_selection(client, callback_query):
     # Acknowledge the callback and send confirmation
     await callback_query.answer(f"Media preference set to: {media_type} ✅")
     await callback_query.message.edit_text(f"**Media preference set to:** {media_type} ✅")
-    
