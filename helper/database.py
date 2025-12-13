@@ -3,7 +3,7 @@ import datetime
 import logging
 from config import Config
 from .utils import send_log
-import asyncio
+# Removed 'import asyncio'
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -12,18 +12,11 @@ logger = logging.getLogger(__name__)
 class Database:
     def __init__(self, uri, database_name):
         try:
-            # Create a new event loop for database operations
-            # NOTE: This approach is often used when integrating non-async frameworks 
-            # with async libraries in a way that requires explicit loop management.
-            self._loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(self._loop)
+            # Use default event loop, avoiding conflicts with the main async event loop
+            self._client = motor.motor_asyncio.AsyncIOMotorClient(uri)
             
-            self._client = motor.motor_asyncio.AsyncIOMotorClient(
-                uri, 
-                io_loop=self._loop
-            )
-            # Verify connection (optional, but good practice)
-            # asyncio.run_coroutine_threadsafe(self._client.server_info(), self._loop).result()
+            # Optional: Check server info to confirm connection (non-blocking in an async env)
+            # await self._client.server_info() 
             
             self.codeflixbots = self._client[database_name]
             self.col = self.codeflixbots.user
