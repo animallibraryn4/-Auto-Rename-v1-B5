@@ -14,7 +14,7 @@ from plugins.antinsfw import check_anti_nsfw
 from helper.utils import progress_for_pyrogram, humanbytes, convert
 from helper.database import codeflixbots
 from config import Config
-from plugins.ad_token_handler import user_limits # <-- ADDED IMPORT
+# from plugins.ad_token_handler import user_limits # <-- REMOVED OLD IMPORT
 
 # Global dictionary to prevent duplicate renaming within a short time
 renaming_operations = {}
@@ -204,11 +204,11 @@ async def process_rename(client: Client, message: Message):
     
     user_id = message.from_user.id
     
-    # Check user limit before processing  <-- ADDED LIMIT CHECK
-    if user_id not in Config.ADMIN:  # Don't check for admins  
-        can_proceed, _ = await user_limits.check_user_limit(user_id)  
-        if not can_proceed:  
-            return  # Ad message will be sent by the handler  
+    # Check user limit before processing  <-- OLD LIMIT CHECK REMOVED
+    # if user_id not in Config.ADMIN:  
+    #     can_proceed, _ = await user_limits.check_user_limit(user_id)  
+    #     if not can_proceed:  
+    #         return  # Ad message will be sent by the handler  
 
     format_template = await codeflixbots.get_format_template(user_id)
     media_preference = await codeflixbots.get_media_preference(user_id)
@@ -536,8 +536,9 @@ async def process_rename(client: Client, message: Message):
         except asyncio.TimeoutError:
             print("[DUMP] Forwarding task timed out (but user already got their file)")
         
-        if message.from_user.id not in Config.ADMIN: # <-- ADDED INCREMENT COUNT
-            user_limits.increment_file_count(message.from_user.id) # <-- ADDED INCREMENT COUNT
+        # Old limit increment removed here. Token check handles decrement.
+        # if message.from_user.id not in Config.ADMIN: 
+        #     user_limits.increment_file_count(message.from_user.id) 
             
         if os.path.exists(path):
             os.remove(path)
@@ -563,8 +564,23 @@ async def rename_worker():
         finally:
             rename_queue.task_done()
 
+# Start the worker task once
+asyncio.create_task(rename_worker())
+
 @Client.on_message(filters.private & (filters.document | filters.video | filters.audio))
 async def auto_rename_files(client, message):
-    await rename_queue.put((client, message))
-
-asyncio.create_task(rename_worker())
+    """Handle file renaming with token check"""
+    # Import token system
+    from plugins.token_handler import token_system
+    
+    # Check if user can proceed
+    can_proceed = await token_system.check_and_process(client, message)
+    
+    if can_proceed:
+        # User has token or is under limit, process the file
+        print(f"[RENAME] Processing file from user {message.from_user.id}")
+        await rename_queue.put((client, message))
+    else:
+        # Token message already sent by token_system
+        print(f"[RENAME] User {message.from_user.id} needs token, file not processed")
+   
