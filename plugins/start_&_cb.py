@@ -1,3 +1,4 @@
+# Replace the start_&_cb.py file with this updated version
 import random
 import asyncio
 from pyrogram import Client, filters
@@ -11,6 +12,15 @@ from config import Config
 @Client.on_message(filters.private & filters.command("start"))
 async def start(client, message: Message):
     user = message.from_user
+    
+    # Check if user is banned FIRST
+    if await codeflixbots.is_user_banned(user.id):
+        await message.reply_text(
+            "🚫 **You are banned and cannot use this bot.**\n\n"
+            "If you want access, request permission from @Anime_Library_N4."
+        )
+        return
+    
     await codeflixbots.add_user(client, message)
 
     # Initial interactive text and sticker sequence
@@ -61,6 +71,11 @@ async def start(client, message: Message):
 async def cb_handler(client, query: CallbackQuery):
     data = query.data
     user_id = query.from_user.id
+
+    # Check if user is banned before processing any callback
+    if await codeflixbots.is_user_banned(user_id):
+        await query.answer("🚫 You are banned from using this bot.", show_alert=True)
+        return
 
     print(f"Callback data received: {data}")  # Debugging line
 
@@ -175,6 +190,14 @@ async def cb_handler(client, query: CallbackQuery):
 # Donation Command Handler
 @Client.on_message(filters.command("donate"))
 async def donation(client, message):
+    # Check if user is banned
+    if await codeflixbots.is_user_banned(message.from_user.id):
+        await message.reply_text(
+            "🚫 **You are banned and cannot use this bot.**\n\n"
+            "If you want access, request permission from @Anime_Library_N4."
+        )
+        return
+    
     buttons = InlineKeyboardMarkup([
         [InlineKeyboardButton(text="ʙᴀᴄᴋ", callback_data="help"), InlineKeyboardButton(text="ᴏᴡɴᴇʀ", url='https://t.me/Tanjiro_kamado_n4_bot')]
     ])
@@ -186,6 +209,14 @@ async def donation(client, message):
 # Premium Command Handler
 @Client.on_message(filters.command("premium"))
 async def getpremium(bot, message):
+    # Check if user is banned
+    if await codeflixbots.is_user_banned(message.from_user.id):
+        await message.reply_text(
+            "🚫 **You are banned and cannot use this bot.**\n\n"
+            "If you want access, request permission from @Anime_Library_N4."
+        )
+        return
+    
     buttons = InlineKeyboardMarkup([
         [InlineKeyboardButton("ᴏᴡɴᴇʀ", url="https://t.me/Anime_library_n4"), InlineKeyboardButton("ᴄʟᴏsᴇ", callback_data="close")]
     ])
@@ -197,6 +228,14 @@ async def getpremium(bot, message):
 # Plan Command Handler
 @Client.on_message(filters.command("plan"))
 async def premium(bot, message):
+    # Check if user is banned
+    if await codeflixbots.is_user_banned(message.from_user.id):
+        await message.reply_text(
+            "🚫 **You are banned and cannot use this bot.**\n\n"
+            "If you want access, request permission from @Anime_Library_N4."
+        )
+        return
+    
     buttons = InlineKeyboardMarkup([
         [InlineKeyboardButton("sᴇɴᴅ ss", url="https://t.me/Anime_library_n4"), InlineKeyboardButton("ᴄʟᴏsᴇ", callback_data="close")]
     ])
@@ -208,6 +247,14 @@ async def premium(bot, message):
 # Bought Command Handler
 @Client.on_message(filters.command("bought") & filters.private)
 async def bought(client, message):
+    # Check if user is banned
+    if await codeflixbots.is_user_banned(message.from_user.id):
+        await message.reply_text(
+            "🚫 **You are banned and cannot use this bot.**\n\n"
+            "If you want access, request permission from @Anime_Library_N4."
+        )
+        return
+    
     msg = await message.reply('Wait im checking...')
     replied = message.reply_to_message
 
@@ -226,6 +273,14 @@ async def bought(client, message):
 
 @Client.on_message(filters.private & filters.command("help"))
 async def help_command(client, message):
+    # Check if user is banned
+    if await codeflixbots.is_user_banned(message.from_user.id):
+        await message.reply_text(
+            "🚫 **You are banned and cannot use this bot.**\n\n"
+            "If you want access, request permission from @Anime_Library_N4."
+        )
+        return
+    
     # Await get_me to get the bot's user object
     bot = await client.get_me()
     mention = bot.mention
@@ -240,4 +295,4 @@ async def help_command(client, message):
             [InlineKeyboardButton('ᴍᴇᴛᴀᴅᴀᴛᴀ', callback_data='meta'), InlineKeyboardButton('ᴅᴏɴᴀᴛᴇ', callback_data='donate')],
             [InlineKeyboardButton('ʜᴏᴍᴇ', callback_data='home')]
         ])
-    )
+)
