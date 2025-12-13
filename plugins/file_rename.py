@@ -1,5 +1,3 @@
-[file name]: file_rename.py
-[file content begin]
 import os
 import re
 import time
@@ -608,4 +606,3 @@ async def rename_worker():
             rename_queue.task_done()
 
 asyncio.create_task(rename_worker())
-[file content end]
