@@ -9,4 +9,4 @@ pytz
 humanize
 pyromod
 ffmpeg-python
- cloudscraper
+cloudscraper
