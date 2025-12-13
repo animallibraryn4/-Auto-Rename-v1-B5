@@ -11,21 +11,33 @@ from config import Config
 @Client.on_message(filters.private & filters.command("start"))
 async def start(client, message: Message):
     user = message.from_user
-    await codeflixbots.add_user(client, message)
-
+    
+    try:
+        # Try to add user, but don't crash if it fails
+        await codeflixbots.add_user(client, message)
+    except Exception as e:
+        print(f"Database error in start: {e}")
+        # Continue even if database fails
+    
     # Initial interactive text and sticker sequence
-    m = await message.reply_text("ᴏɴᴇᴇ-ᴄʜᴀɴ!, ʜᴏᴡ ᴀʀᴇ ʏᴏᴜ \nᴡᴀɪᴛ ᴀ ᴍᴏᴍᴇɴᴛ. . .")
-    await asyncio.sleep(0.4)
-    await m.edit_text("🎊")
-    await asyncio.sleep(0.5)
-    await m.edit_text("⚡")
-    await asyncio.sleep(0.5)
-    await m.edit_text("ꜱᴛᴀʀᴛɪɴɢ...")
-    await asyncio.sleep(0.4)
-    await m.delete()
-
+    try:
+        m = await message.reply_text("ᴏɴᴇᴇ-ᴄʜᴀɴ!, ʜᴏᴡ ᴀʀᴇ ʏᴏᴜ \nᴡᴀɪᴛ ᴀ ᴍᴏᴍᴇɴᴛ. . .")
+        await asyncio.sleep(0.4)
+        await m.edit_text("🎊")
+        await asyncio.sleep(0.5)
+        await m.edit_text("⚡")
+        await asyncio.sleep(0.5)
+        await m.edit_text("ꜱᴛᴀʀᴛɪɴɢ...")
+        await asyncio.sleep(0.4)
+        await m.delete()
+    except Exception as e:
+        print(f"Animation error: {e}")
+    
     # Send sticker after the text sequence
-    await message.reply_sticker("CAACAgUAAxkBAAECroBmQKMAAQ-Gw4nibWoj_pJou2vP1a4AAlQIAAIzDxlVkNBkTEb1Lc4eBA")
+    try:
+        await message.reply_sticker("CAACAgUAAxkBAAECroBmQKMAAQ-Gw4nibWoj_pJou2vP1a4AAlQIAAIzDxlVkNBkTEb1Lc4eBA")
+    except:
+        pass
 
     # Define buttons for the start message
     buttons = InlineKeyboardMarkup([
@@ -42,18 +54,23 @@ async def start(client, message: Message):
     ])
 
     # Send start message with or without picture
-    if Config.START_PIC:
-        await message.reply_photo(
-            Config.START_PIC,
-            caption=Txt.START_TXT.format(user.mention),
-            reply_markup=buttons
-        )
-    else:
-        await message.reply_text(
-            text=Txt.START_TXT.format(user.mention),
-            reply_markup=buttons,
-            disable_web_page_preview=True
-        )
+    try:
+        if Config.START_PIC:
+            await message.reply_photo(
+                Config.START_PIC,
+                caption=Txt.START_TXT.format(user.mention),
+                reply_markup=buttons
+            )
+        else:
+            await message.reply_text(
+                text=Txt.START_TXT.format(user.mention),
+                reply_markup=buttons,
+                disable_web_page_preview=True
+            )
+    except Exception as e:
+        print(f"Error sending start message: {e}")
+        # Send a simple message if the fancy one fails
+        await message.reply_text(f"Hello {user.mention}! Use /help to see commands.")
 
 
 # Callback Query Handler
@@ -91,18 +108,18 @@ async def cb_handler(client, query: CallbackQuery):
                 [InlineKeyboardButton("ᴀᴜᴛᴏ ʀᴇɴᴀᴍᴇ ғᴏʀᴍᴀᴛ", callback_data='file_names')],
                 [InlineKeyboardButton('ᴛʜᴜᴍʙɴᴀɪʟ', callback_data='thumbnail'), InlineKeyboardButton('ᴄᴀᴘᴛɪᴏɴ', callback_data='caption')],
                 [InlineKeyboardButton('ᴍᴇᴛᴀᴅᴀᴛᴀ', callback_data='meta'), InlineKeyboardButton('ᴅᴏɴᴀᴛᴇ', callback_data='donate')],
-                [InlineKeyboardButton('ᴍʏ sᴛᴀᴛs', callback_data='mystats')], # <-- ADDED BUTTON
+                [InlineKeyboardButton('ᴍʏ sᴛᴀᴛs', callback_data='mystats')],
                 [InlineKeyboardButton('ʜᴏᴍᴇ', callback_data='home')]
             ])
         )
 
-    elif data == "mystats": # <-- ADDED MYSTATS HANDLER
+    elif data == "mystats":
         from plugins.ad_token_handler import show_user_stats
         await show_user_stats(client, query)
         
     elif data == "meta":
-        await query.message.edit_text(  # Change edit_caption to edit_text
-            text=Txt.SEND_METADATA,  # Changed from caption to text
+        await query.message.edit_text(
+            text=Txt.SEND_METADATA,
             reply_markup=InlineKeyboardMarkup([
                 [InlineKeyboardButton("ᴄʟᴏsᴇ", callback_data="close"), InlineKeyboardButton("ʙᴀᴄᴋ", callback_data="help")]
             ])
@@ -181,7 +198,7 @@ async def cb_handler(client, query: CallbackQuery):
 @Client.on_message(filters.command("donate"))
 async def donation(client, message):
     buttons = InlineKeyboardMarkup([
-        [InlineKeyboardButton(text="ʙᴀᴄᴋ", callback_data="help"), InlineKeyboardButton(text="ᴏᴡɴᴇʀ", url='https://t.me/Tanjiro_kamado_n4_bot')]
+        [InlineKeyboardButton(text="ʙᴀᴄᴋ", callback_data="help"), InlineKeyboardButton(text="ᴏᴡɴᴇʀ", url='https://t.me/Anime_library_n4')]
     ])
     yt = await message.reply_photo(photo='https://graph.org/file/1919fe077848bd0783d4c.jpg', caption=Txt.DONATE_TXT, reply_markup=buttons)
     await asyncio.sleep(300)
@@ -243,8 +260,8 @@ async def help_command(client, message):
             [InlineKeyboardButton("ᴀᴜᴛᴏ ʀᴇɴᴀᴍᴇ ғᴏʀᴍᴀᴛ •", callback_data='file_names')],
             [InlineKeyboardButton('ᴛʜᴜᴍʙɴᴀɪʟ', callback_data='thumbnail'), InlineKeyboardButton('ᴄᴀᴘᴛɪᴏɴ', callback_data='caption')],
             [InlineKeyboardButton('ᴍᴇᴛᴀᴅᴀᴛᴀ', callback_data='meta'), InlineKeyboardButton('ᴅᴏɴᴀᴛᴇ', callback_data='donate')],
-            [InlineKeyboardButton('ᴍʏ sᴛᴀᴛs', callback_data='mystats')], # <-- ADDED BUTTON
+            [InlineKeyboardButton('ᴍʏ sᴛᴀᴛs', callback_data='mystats')],
             [InlineKeyboardButton('ʜᴏᴍᴇ', callback_data='home')]
         ])
-    )
+            )
     
