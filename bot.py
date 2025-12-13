@@ -1,7 +1,9 @@
+[file name]: bot.py
+[file content begin]
 import aiohttp, asyncio, warnings, pytz
 from datetime import datetime, timedelta
 from pytz import timezone
-from pyrogram import Client, __version__
+from pyrogram import Client, __version__, filters
 from pyrogram.raw.all import layer
 from config import Config
 from aiohttp import web
@@ -72,4 +74,60 @@ class Bot(Client):
             except Exception as e:
                 print(f"Failed to send message in chat {chat_id}: {e}")
 
-Bot().run()
+    # ========== GLOBAL BAN CHECK MIDDLEWARE ==========
+    @staticmethod
+    async def check_user_ban_status(user_id):
+        """Check if a user is banned (import here to avoid circular imports)"""
+        try:
+            from helper.database import codeflixbots
+            return await codeflixbots.is_banned(user_id)
+        except ImportError:
+            # Database not imported yet, return False
+            return False
+    
+    async def check_banned_user(self, client, message):
+        """Global ban check for all incoming messages"""
+        # Only check private messages
+        if message.chat.type != "private":
+            return
+        
+        user_id = message.from_user.id
+        
+        # Skip ban check for admins
+        if user_id in Config.ADMIN:
+            return
+        
+        # Check if user is banned
+        is_banned = await self.check_user_ban_status(user_id)
+        
+        if is_banned:
+            # Get ban info to show reason
+            try:
+                from helper.database import codeflixbots
+                ban_info = await codeflixbots.get_ban_info(user_id)
+                ban_reason = ban_info.get('ban_reason', 'No reason provided') if ban_info else 'No reason provided'
+                
+                await message.reply_text(
+                    "🚫 **You are banned and cannot use this bot.**\n\n"
+                    f"**Reason:** {ban_reason}\n\n"
+                    "If you want access, please contact @Anime_Library_N4 for permission."
+                )
+            except:
+                await message.reply_text(
+                    "🚫 **You are banned and cannot use this bot.**\n\n"
+                    "If you want access, please contact @Anime_Library_N4 for permission."
+                )
+            
+            # Stop further processing
+            raise StopPropagation
+    
+    # Register the middleware
+    def setup_middleware(self):
+        """Setup ban check middleware"""
+        self.add_handler(filters.private & ~filters.user(Config.ADMIN), self.check_banned_user)
+
+# Create bot instance and setup middleware
+bot = Bot()
+bot.setup_middleware()
+bot.run()
+[file content end]
