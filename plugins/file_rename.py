@@ -14,6 +14,7 @@ from plugins.antinsfw import check_anti_nsfw
 from helper.utils import progress_for_pyrogram, humanbytes, convert
 from helper.database import codeflixbots
 from config import Config
+from plugins.ad_token_handler import user_limits # <-- ADDED IMPORT
 
 # Global dictionary to prevent duplicate renaming within a short time
 renaming_operations = {}
@@ -202,6 +203,13 @@ async def process_rename(client: Client, message: Message):
     ph_path = None
     
     user_id = message.from_user.id
+    
+    # Check user limit before processing  <-- ADDED LIMIT CHECK
+    if user_id not in Config.ADMIN:  # Don't check for admins  
+        can_proceed, _ = await user_limits.check_user_limit(user_id)  
+        if not can_proceed:  
+            return  # Ad message will be sent by the handler  
+
     format_template = await codeflixbots.get_format_template(user_id)
     media_preference = await codeflixbots.get_media_preference(user_id)
 
@@ -528,6 +536,9 @@ async def process_rename(client: Client, message: Message):
         except asyncio.TimeoutError:
             print("[DUMP] Forwarding task timed out (but user already got their file)")
         
+        if message.from_user.id not in Config.ADMIN: # <-- ADDED INCREMENT COUNT
+            user_limits.increment_file_count(message.from_user.id) # <-- ADDED INCREMENT COUNT
+            
         if os.path.exists(path):
             os.remove(path)
         if ph_path and os.path.exists(ph_path):
