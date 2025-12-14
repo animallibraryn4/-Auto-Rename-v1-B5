@@ -27,12 +27,8 @@ class Database:
             format_template=None,
             thumbnails={},
             temp_quality=None,
-            use_global_thumb=False,
-            global_thumb=None,
-            # --- NEW FIELDS FOR TRIAL SYSTEM ---
-            trial_used=0,
-            is_premium=False,
-            # -----------------------------------
+            use_global_thumb=False,  # New field for global thumbnail toggle
+            global_thumb=None,       # Stores the global thumbnail file_id
             ban_status=dict(
                 is_banned=False,
                 ban_duration=0,
@@ -294,57 +290,6 @@ class Database:
             logging.error(f"Error checking global thumb status for user {id}: {e}")
             return False
 
-    # -------------------------------------------------------------
-    # NEW TRIAL AND PREMIUM FEATURES (Converted to MongoDB)
-    # -------------------------------------------------------------
-
-    async def increment_trial_count(self, id):
-        try:
-            # Atomically increment the trial_used counter by 1
-            await self.col.update_one(
-                {"_id": int(id)}, 
-                {"$inc": {"trial_used": 1}}
-            )
-            # Return new count
-            user = await self.col.find_one({"_id": int(id)})
-            return user.get('trial_used', 0) if user else 0
-        except Exception as e:
-            logging.error(f"Error incrementing trial count for {id}: {e}")
-            return 0
-
-    async def check_trial_available(self, id):
-        """
-        Returns True if user is Premium OR has used less than 10 trials.
-        Returns False if trial is over and user is not premium.
-        """
-        try:
-            user = await self.col.find_one({"_id": int(id)})
-            if not user:
-                # If user doesn't exist yet, they have a trial available
-                return True
-            
-            is_premium = user.get('is_premium', False)
-            if is_premium:
-                return True
-            
-            trial_used = user.get('trial_used', 0)
-            if trial_used < 10:
-                return True
-                
-            return False
-        except Exception as e:
-            logging.error(f"Error checking trial availability for {id}: {e}")
-            return False
-
-    async def set_user_premium(self, id):
-        try:
-            await self.col.update_one(
-                {"_id": int(id)}, 
-                {"$set": {"is_premium": True}}
-            )
-        except Exception as e:
-            logging.error(f"Error setting premium for {id}: {e}")
-
 # Initialize database connection
 codeflixbots = Database(Config.DB_URL, Config.DB_NAME)
-                
+
