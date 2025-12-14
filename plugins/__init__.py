@@ -47,22 +47,16 @@ class VerifyDB():
     async def update_verify_status(self, user_id):
         await self._verifydb.update_one({'id': user_id}, {'$set': {'verify_status': time()}}, upsert=True)
 
-# GLOBAL VERIFY FUNCTION 
-async def token_system_filter(_, __, message):
-    if is_verified := await is_user_verified(message.from_user.id):
-        return False
-    return True 
-    
-@Client.on_message((filters.private|filters.group) & filters.incoming & filters.create(token_system_filter) & ~filters.bot)
-async def global_verify_function(client, message):
-    if message.text:
-        cmd = message.text.split()
-        if len(cmd) == 2:
-            data = cmd[1]
-            if data.startswith("verify"):
-                await validate_token(client, message, data)
-                return
-    await send_verification(client, message)
+# TOKEN VALIDATION COMMAND HANDLER (New Implementation)
+@Client.on_message(filters.private & filters.regex(r'^/verify') & ~filters.bot)
+async def verify_command_handler(client, message):
+    cmd = message.text.split()
+    if len(cmd) == 2:
+        data = cmd[1]
+        if data.startswith("verify"):
+            await validate_token(client, message, data)
+    else:
+        await send_verification(client, message)
         
 # FUNCTIONS
 async def is_user_verified(user_id):
@@ -163,3 +157,4 @@ def get_readable_time(seconds):
     return result
 
 verifydb = VerifyDB()
+    
