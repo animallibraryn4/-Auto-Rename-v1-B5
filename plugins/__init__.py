@@ -68,6 +68,7 @@ class VerifyDB():
             print(f'Failed To Connect To Database ❌. \nError: {str(e)}')
 
     async def get_verify_status(self, user_id):
+        # Returns the verification timestamp or 0 if not found
         if status := await self._verifydb.find_one({'id': user_id}):
             return status.get('verify_status', 0)
         return 0
@@ -137,23 +138,31 @@ async def home_callback_handler(client, callback_query: CallbackQuery):
     username = (await client.get_me()).username
     verify_token = await get_verify_token(client, user_id, f"https://telegram.me/{username}?start=")
 
-    text = f"""<b>Hi 👋 {callback_query.from_user.mention},
-<blockquote expandable>\nYour Ads Token Has Been Expired, Kindly Get A New Token To Continue Using This Bot.
-         ㅤㅤㅤㅤㅤ   - Thank You
+    # Use the logic from send_verification to determine the correct text
+    isveri = await verifydb.get_verify_status(user_id)
+    
+    if not isveri: # First time/No record found
+        # --- REMOVED #Verification...⌛ and - Thank You ---
+        text = f"""<b>Hi 👋 {callback_query.from_user.mention},
+<blockquote expandable>\nTo start using this bot, please generate a temporary Ads Token.
 
 \nValidity: {get_readable_time(VERIFY_EXPIRE)}
-\n#Verification...⌛</blockquote></b>"""
+</blockquote></b>"""
+    else: # Subsequent visit, token is likely expired since we are showing the verification
+        # --- REMOVED #Verification...⌛ and - Thank You ---
+        text = f"""<b>Hi 👋 {callback_query.from_user.mention},
+<blockquote expandable>\nYour Ads Token Has Been Expired, Kindly Get A New Token To Continue Using This Bot.
 
-    # Check if the message is a photo (the original verification message is a photo)
-    # Since edit_message_text cannot change a photo to text, we edit only the caption/text.
+\nValidity: {get_readable_time(VERIFY_EXPIRE)}
+</blockquote></b>"""
+        
+    # Edit message content
     if callback_query.message.photo:
         await callback_query.message.edit_caption(
             text,
             reply_markup=get_verification_markup(verify_token, username)
         )
     else:
-        # If the current message is text (from previous edits), edit it back to text
-        # If the bot is hosted on an external server, this might fail as the message type is changed from photo to text
         await callback_query.message.edit_text(
             text,
             reply_markup=get_verification_markup(verify_token, username)
@@ -182,20 +191,41 @@ async def is_user_verified(user_id):
 
 async def send_verification(client, message, text=None, buttons=None):
     username = (await client.get_me()).username
-    if done := await is_user_verified(message.from_user.id):
+    user_id = message.from_user.id
+    
+    isveri = await verifydb.get_verify_status(user_id)
+
+    if done := await is_user_verified(user_id):
         text = f'<b>Hi 👋 {message.from_user.mention},\nYou Are Already Verified Enjoy 😄</b>'
     else:
-        verify_token = await get_verify_token(client, message.from_user.id, f"https://telegram.me/{username}?start=")
+        verify_token = await get_verify_token(client, user_id, f"https://telegram.me/{username}?start=")
         buttons = get_verification_markup(verify_token, username)
-
-    if not text:
-        # --- MODIFIED MESSAGE TEXT: REMOVED HINDI PART ---
-        text = f"""<b>Hi 👋 {message.from_user.mention},
-<blockquote expandable>\nYour Ads Token Has Been Expired, Kindly Get A New Token To Continue Using This Bot.
-         ㅤㅤㅤㅤㅤ   - Thank You
+        
+        # --- NEW LOGIC: Check if user is completely new (isveri == 0) ---
+        if not isveri:
+            # --- REMOVED #Verification...⌛ and - Thank You ---
+            text = f"""<b>Hi 👋 {message.from_user.mention},
+<blockquote expandable>\nTo start using this bot, please generate a temporary Ads Token.
 
 \nValidity: {get_readable_time(VERIFY_EXPIRE)}
-\n#Verification...⌛</blockquote></b>"""
+</blockquote></b>"""
+        # --- ELSE: User record exists but token is expired ---
+        else:
+            # --- REMOVED #Verification...⌛ and - Thank You ---
+            text = f"""<b>Hi 👋 {message.from_user.mention},
+<blockquote expandable>\nYour Ads Token Has Been Expired, Kindly Get A New Token To Continue Using This Bot.
+
+\nValidity: {get_readable_time(VERIFY_EXPIRE)}
+</blockquote></b>"""
+
+    if not text:
+        # Fallback to the expired message if no specific text was set (should not happen with new logic)
+        # --- REMOVED #Verification...⌛ and - Thank You ---
+        text = f"""<b>Hi 👋 {message.from_user.mention},
+<blockquote expandable>\nYour Ads Token Has Been Expired, Kindly Get A New Token To Continue Using This Bot.
+
+\nValidity: {get_readable_time(VERIFY_EXPIRE)}
+</blockquote></b>"""
 
     message = message if isinstance(message, Message) else message.message
     await client.send_photo(
@@ -207,6 +237,7 @@ async def send_verification(client, message, text=None, buttons=None):
     )
 
 async def get_verify_token(bot, userid, link):
+# ... (rest of the function remains the same)
     vdict = verify_dict.setdefault(userid, {})
     short_url = vdict.get('short_url')
     if not short_url:
@@ -217,6 +248,7 @@ async def get_verify_token(bot, userid, link):
     return short_url
 
 async def get_short_url(longurl, shortener_site = SHORTLINK_SITE, shortener_api = SHORTLINK_API):
+# ... (rest of the function remains the same)
     cget = create_scraper().request
     disable_warnings()
     try:
@@ -239,11 +271,12 @@ async def get_short_url(longurl, shortener_site = SHORTLINK_SITE, shortener_api 
         return longurl
 
 async def validate_token(client, message, data):
+# ... (rest of the function remains the same)
     user_id = message.from_user.id
     vdict = verify_dict.setdefault(user_id, {})
     dict_token = vdict.get('token', None)
     if await is_user_verified(user_id):
-        return await message.reply("<b>Sɪʀ, Yᴏᴜ Aʀᴇ Aʟʀᴇᴀᴅʏ Vᴇʀɪғɪᴇᴅ 🤓...</b>")
+        return await message.reply("<b>Sɪʀ, Yᴏᴜ Aʀᴇ Aʟʀᴇᴀᴅʏ VᴇʀɪғɪED 🤓...</b>")
     if not dict_token:
         return await send_verification(client, message, text="<b>Tʜᴀᴛ's Nᴏᴛ Yᴏᴜʀ Vᴇʀɪғʏ Tᴏᴋᴇɴ 🥲...\n\n\nTᴀᴘ Oɴ Vᴇʀɪғʏ Tᴏ Gᴇɴᴇʀᴀᴛᴇ Yᴏᴜʀs...</b>")
     _, uid, token = data.split("-")
@@ -269,4 +302,4 @@ def get_readable_time(seconds):
     return result
 
 verifydb = VerifyDB()
-                              
+                      
