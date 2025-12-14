@@ -7,8 +7,8 @@ from time import time
 from urllib.parse import quote
 from urllib3 import disable_warnings
 
-from pyrogram import Client, filters
-from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton, Message, CallbackQuery
+from pyrogram import Client, filters 
+from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton, Message, CallbackQuery # CallbackQuery imported for new handlers
 
 from cloudscraper import create_scraper
 from motor.motor_asyncio import AsyncIOMotorClient
@@ -16,7 +16,7 @@ from motor.motor_asyncio import AsyncIOMotorClient
 
 verify_dict = {}
 
-# --- PREMIUM TEXTS ---
+# --- PREMIUM TEXTS (Added back for context) ---
 PREMIUM_TXT = """<b>ᴜᴘɢʀᴀᴅᴇ ᴛᴏ ᴏᴜʀ ᴘʀᴇᴍɪᴜᴍ sᴇʀᴠɪᴄᴇ ᴀɴᴅ ᴇɴJᴏʏ ᴇxᴄʟᴜsɪᴠᴇ ғᴇᴀᴛᴜʀᴇs:
 ○ ᴜɴʟɪᴍɪᴛᴇᴅ Rᴇɴᴀᴍɪɴɢ: ʀᴇɴᴀᴍᴇ ᴀs ᴍᴀɴʏ ғɪʟᴇs ᴀs ʏᴏᴜ ᴡᴀɴᴛ ᴡɪᴛʜᴏᴜᴛ ᴀɴʏ ʀᴇsᴛʀɪᴄᴛɪᴏɴs.
 ○ ᴇᴀʀʟʏ Aᴄᴄᴇss: ʙᴇ ᴛʜᴇ ғɪʀsᴛ ᴛᴏ ᴛᴇsᴛ ᴀɴᴅ ᴜsᴇ ᴏᴜʀ ʟᴀᴛᴇsᴛ ғᴇᴀᴛᴜʀᴇs ʙᴇғᴏʀᴇ ᴀɴʏᴏɴᴇ ᴇʟsᴇ.
@@ -48,13 +48,13 @@ Pricing:
 VERIFY_PHOTO = os.environ.get('VERIFY_PHOTO', 'https://images8.alphacoders.com/138/1384114.png')  # YOUR VERIFY PHOTO LINK
 SHORTLINK_SITE = os.environ.get('SHORTLINK_SITE', 'gplinks.com') # YOUR SHORTLINK URL LIKE:- site.com
 SHORTLINK_API = os.environ.get('SHORTLINK_API', '596f423cdf22b174e43d0b48a36a8274759ec2a3') # YOUR SHORTLINK API LIKE:- ma82owowjd9hw6_js7
-VERIFY_EXPIRE = os.environ.get('VERIFY_EXPIRE', 30000) # VERIFY EXPIRE TIME IN SECONDS. LIKE:- 0 (ZERO) TO OFF VERIFICATION
-VERIFY_TUTORIAL = os.environ.get('VERIFY_TUTORIAL', 'https://t.me/N4_Society/55') # LINK OF TUTORIAL TO VERIFY
-DATABASE_URL = os.environ.get('DATABASE_URL', 'mongodb+srv://n4animeedit:u80hdwhlka5NBFfY@cluster0.jowvb.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0') # MONGODB DATABASE URL To Store Verifications
-COLLECTION_NAME = os.environ.get('COLLECTION_NAME', 'Token1')   # Collection Name For MongoDB
+VERIFY_EXPIRE = os.environ.get('VERIFY_EXPIRE', 30000) # VERIFY EXPIRE TIME IN SECONDS. LIKE:- 0 (ZERO) TO OFF VERIFICATION 
+VERIFY_TUTORIAL = os.environ.get('VERIFY_TUTORIAL', 'https://t.me/N4_Society/55') # LINK OF TUTORIAL TO VERIFY 
+DATABASE_URL = os.environ.get('DATABASE_URL', 'mongodb+srv://n4animeedit:u80hdwhlka5NBFfY@cluster0.jowvb.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0') # MONGODB DATABASE URL To Store Verifications 
+COLLECTION_NAME = os.environ.get('COLLECTION_NAME', 'Token1')   # Collection Name For MongoDB 
 PREMIUM_USERS = list(map(int, os.environ.get('PREMIUM_USERS', '').split()))
 
-missing = [v for v in ["COLLECTION_NAME", "VERIFY_PHOTO", "SHORTLINK_SITE", "SHORTLINK_API", "VERIFY_TUTORIAL"] if not v]; sys.exit(f"Missing: {', '.join(missing)}") if missing else None
+missing = [v for v in ["COLLECTION_NAME", "VERIFY_PHOTO", "SHORTLINK_SITE", "SHORTLINK_API", "VERIFY_TUTORIAL"] if not v]; sys.exit(f"Missing: {', '.join(missing)}") if missing else None 
 
 # DATABASE
 class VerifyDB():
@@ -62,11 +62,11 @@ class VerifyDB():
         try:
             self._dbclient = AsyncIOMotorClient(DATABASE_URL)
             self._db = self._dbclient['verify-db']
-            self._verifydb = self._db[COLLECTION_NAME]
+            self._verifydb = self._db[COLLECTION_NAME]  
             print('Database Comnected ✅')
         except Exception as e:
             print(f'Failed To Connect To Database ❌. \nError: {str(e)}')
-
+    
     async def get_verify_status(self, user_id):
         # Returns the verification timestamp or 0 if not found
         if status := await self._verifydb.find_one({'id': user_id}):
@@ -142,14 +142,14 @@ async def home_callback_handler(client, callback_query: CallbackQuery):
     isveri = await verifydb.get_verify_status(user_id)
     
     if not isveri: # First time/No record found
-        # --- REMOVED #Verification...⌛ and - Thank You ---
+        # Verification message for first-time users (Hindi removed, #Verification...⌛, and - Thank You removed)
         text = f"""<b>Hi 👋 {callback_query.from_user.mention},
 <blockquote expandable>\nTo start using this bot, please generate a temporary Ads Token.
 
 \nValidity: {get_readable_time(VERIFY_EXPIRE)}
 </blockquote></b>"""
     else: # Subsequent visit, token is likely expired since we are showing the verification
-        # --- REMOVED #Verification...⌛ and - Thank You ---
+        # Verification message for expired token (Hindi removed, #Verification...⌛, and - Thank You removed)
         text = f"""<b>Hi 👋 {callback_query.from_user.mention},
 <blockquote expandable>\nYour Ads Token Has Been Expired, Kindly Get A New Token To Continue Using This Bot.
 
@@ -203,7 +203,7 @@ async def send_verification(client, message, text=None, buttons=None):
         
         # --- NEW LOGIC: Check if user is completely new (isveri == 0) ---
         if not isveri:
-            # --- REMOVED #Verification...⌛ and - Thank You ---
+            # Verification message for first-time users (Hindi removed, #Verification...⌛, and - Thank You removed)
             text = f"""<b>Hi 👋 {message.from_user.mention},
 <blockquote expandable>\nTo start using this bot, please generate a temporary Ads Token.
 
@@ -211,7 +211,7 @@ async def send_verification(client, message, text=None, buttons=None):
 </blockquote></b>"""
         # --- ELSE: User record exists but token is expired ---
         else:
-            # --- REMOVED #Verification...⌛ and - Thank You ---
+            # Verification message for expired token (Hindi removed, #Verification...⌛, and - Thank You removed)
             text = f"""<b>Hi 👋 {message.from_user.mention},
 <blockquote expandable>\nYour Ads Token Has Been Expired, Kindly Get A New Token To Continue Using This Bot.
 
@@ -219,8 +219,7 @@ async def send_verification(client, message, text=None, buttons=None):
 </blockquote></b>"""
 
     if not text:
-        # Fallback to the expired message if no specific text was set (should not happen with new logic)
-        # --- REMOVED #Verification...⌛ and - Thank You ---
+        # Fallback to the expired message (Hindi removed, #Verification...⌛, and - Thank You removed)
         text = f"""<b>Hi 👋 {message.from_user.mention},
 <blockquote expandable>\nYour Ads Token Has Been Expired, Kindly Get A New Token To Continue Using This Bot.
 
@@ -233,11 +232,10 @@ async def send_verification(client, message, text=None, buttons=None):
         photo=VERIFY_PHOTO,
         caption=text,
         reply_markup=buttons,
-        reply_to_message_id=message.id,
+        # REMOVED reply_to_message_id=message.id,
     )
-
+ 
 async def get_verify_token(bot, userid, link):
-# ... (rest of the function remains the same)
     vdict = verify_dict.setdefault(userid, {})
     short_url = vdict.get('short_url')
     if not short_url:
@@ -248,7 +246,6 @@ async def get_verify_token(bot, userid, link):
     return short_url
 
 async def get_short_url(longurl, shortener_site = SHORTLINK_SITE, shortener_api = SHORTLINK_API):
-# ... (rest of the function remains the same)
     cget = create_scraper().request
     disable_warnings()
     try:
@@ -271,27 +268,29 @@ async def get_short_url(longurl, shortener_site = SHORTLINK_SITE, shortener_api 
         return longurl
 
 async def validate_token(client, message, data):
-# ... (rest of the function remains the same)
     user_id = message.from_user.id
     vdict = verify_dict.setdefault(user_id, {})
     dict_token = vdict.get('token', None)
     if await is_user_verified(user_id):
-        return await message.reply("<b>Sɪʀ, Yᴏᴜ Aʀᴇ Aʟʀᴇᴀᴅʏ VᴇʀɪғɪED 🤓...</b>")
+        return await message.reply("<b>Sɪʀ, Yᴏᴜ Aʀᴇ Aʟʀᴇᴀᴅʏ Vᴇʀɪғɪᴇᴅ 🤓...</b>")
     if not dict_token:
-        return await send_verification(client, message, text="<b>Tʜᴀᴛ's Nᴏᴛ Yᴏᴜʀ Vᴇʀɪғʏ Tᴏᴋᴇɴ 🥲...\n\n\nTᴀᴘ Oɴ Vᴇʀɪғʏ Tᴏ Gᴇɴᴇʀᴀᴛᴇ Yᴏᴜʀs...</b>")
+        # The verification will be sent without replying to the file message
+        return await send_verification(client, message, text="<b>Tʜᴀᴛ's Nᴏᴛ Yᴏᴜʀ Vᴇʀɪғʏ Tᴏᴋᴇɴ 🥲...\n\n\nTᴀᴘ Oɴ Vᴇʀɪғʏ Tᴏ Gᴇɴᴇʀᴀᴛᴇ Yᴏᴜʀs...</b>")  
     _, uid, token = data.split("-")
     if uid != str(user_id):
+        # The verification will be sent without replying to the file message
         return await send_verification(client, message, text="<b>Vᴇʀɪғʏ Tᴏᴋᴇɴ Dɪᴅ Nᴏᴛ Mᴀᴛᴄʜᴇᴅ 😕...\n\n\nTᴀᴘ Oɴ Vᴇʀɪғʏ Tᴏ Gᴇɴᴇʀᴀᴛᴇ Aɢᴀɪɴ...</b>")
     elif dict_token != token:
+        # The verification will be sent without replying to the file message
         return await send_verification(client, message, text="<b>Iɴᴠᴀʟɪᴅ Oʀ Exᴘɪʀᴇᴅ Tᴏᴋᴇɴ 🔗...</b>")
     verify_dict.pop(user_id, None)
     await verifydb.update_verify_status(user_id)
     await client.send_photo(chat_id=message.from_user.id,
                             photo=VERIFY_PHOTO,
                             caption=f'<b>Wᴇʟᴄᴏᴍᴇ Bᴀᴄᴋ 😁, Nᴏᴡ Yᴏᴜ Cᴀɴ Usᴇ Mᴇ Fᴏʀ {get_readable_time(VERIFY_EXPIRE)}.\n\n\nEɴᴊᴏʏʏʏ...❤️</b>',
-                            reply_to_message_id=message.id,
+                            # REMOVED reply_to_message_id=message.id,
                             )
-
+    
 def get_readable_time(seconds):
     periods = [('ᴅ', 86400), ('ʜ', 3600), ('ᴍ', 60), ('s', 1)]
     result = ''
@@ -302,4 +301,4 @@ def get_readable_time(seconds):
     return result
 
 verifydb = VerifyDB()
-                      
+    
