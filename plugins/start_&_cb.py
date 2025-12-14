@@ -8,6 +8,16 @@ from helper.database import codeflixbots
 from config import *
 from config import Config
 
+# --- NEW: Token Validation Placeholder ---
+async def check_token_is_valid(token):
+    """
+    REPLACE THIS WITH YOUR ACTUAL TOKEN CHECK LOGIC!
+    e.g., check an external token list, a database, or a simple hardcoded token.
+    """
+    # Example placeholder logic:
+    return token.upper() == "PREMIUM123" 
+# ----------------------------------------
+
 # Start Command Handler
 @Client.on_message(filters.private & filters.command("start"))
 async def start(client, message: Message):
@@ -83,138 +93,136 @@ async def cb_handler(client, query: CallbackQuery):
                 [InlineKeyboardButton("ʙᴀᴄᴋ", callback_data="help")]
             ])
         )
-
     elif data == "help":
+        # Await get_me to get the bot's user object
+        bot = await client.get_me()
+        mention = bot.mention
+        
         await query.message.edit_text(
-            text=Txt.HELP_TXT.format(client.mention),
+            text=Txt.HELP_TXT.format(mention=mention),
             disable_web_page_preview=True,
             reply_markup=InlineKeyboardMarkup([
-                [InlineKeyboardButton("ᴀᴜᴛᴏ ʀᴇɴᴀᴍᴇ ғᴏʀᴍᴀᴛ", callback_data='file_names')],
+                [InlineKeyboardButton("ᴀᴜᴛᴏ ʀᴇɴᴀᴍᴇ ғᴏʀᴍᴀᴛ •", callback_data='file_names')],
                 [InlineKeyboardButton('ᴛʜᴜᴍʙɴᴀɪʟ', callback_data='thumbnail'), InlineKeyboardButton('ᴄᴀᴘᴛɪᴏɴ', callback_data='caption')],
-                [InlineKeyboardButton('ᴍᴇᴛᴀᴅᴀᴛᴀ', callback_data='meta'), InlineKeyboardButton('ᴅᴏɴᴀᴛᴇ', callback_data='donate')],
-                [InlineKeyboardButton('ʜᴏᴍᴇ', callback_data='home')]
-            ])
-        )
-
-    elif data == "meta":
-        await query.message.edit_text(  # Change edit_caption to edit_text
-            text=Txt.SEND_METADATA,  # Changed from caption to text
-            reply_markup=InlineKeyboardMarkup([
-                [InlineKeyboardButton("ᴄʟᴏsᴇ", callback_data="close"), InlineKeyboardButton("ʙᴀᴄᴋ", callback_data="help")]
-            ])
-        )
-    elif data == "donate":
-        await query.message.edit_text(
-            text=Txt.DONATE_TXT,
-            disable_web_page_preview=True,
-            reply_markup=InlineKeyboardMarkup([
-                [InlineKeyboardButton("ʙᴀᴄᴋ", callback_data="help"), InlineKeyboardButton("ᴏᴡɴᴇʀ", url='https://t.me/Anime_library_n4')]
-            ])
-        )
-    elif data == "file_names":
-        format_template = await codeflixbots.get_format_template(user_id)
-        await query.message.edit_text(
-            text=Txt.FILE_NAME_TXT.format(format_template=format_template),
-            disable_web_page_preview=True,
-            reply_markup=InlineKeyboardMarkup([
-                [InlineKeyboardButton("ᴄʟᴏsᴇ", callback_data="close"), InlineKeyboardButton("ʙᴀᴄᴋ", callback_data="help")]
-            ])
-        )
-    elif data == "thumbnail":
-        await query.message.edit_caption(
-            caption=Txt.THUMBNAIL_TXT,
-            reply_markup=InlineKeyboardMarkup([
-                [InlineKeyboardButton("ᴄʟᴏsᴇ", callback_data="close"), InlineKeyboardButton("ʙᴀᴄᴋ", callback_data="help")]
-            ])
-        )
-    elif data == "metadatax":
-        await query.message.edit_caption(
-            caption=Txt.SEND_METADATA,
-            reply_markup=InlineKeyboardMarkup([
-                [InlineKeyboardButton("ᴄʟᴏsᴇ", callback_data="close"), InlineKeyboardButton("ʙᴀᴄᴋ", callback_data="help")]
-            ])
-        )
-    elif data == "source":
-        await query.message.edit_caption(
-            caption=Txt.SOURCE_TXT,
-            reply_markup=InlineKeyboardMarkup([
-                [InlineKeyboardButton("ᴄʟᴏsᴇ", callback_data="close"), InlineKeyboardButton("ʙᴀᴄᴋ", callback_data="home")]
-            ])
-        )
-    elif data == "premiumx":
-        await query.message.edit_caption(
-            caption=Txt.PREMIUM_TXT,
-            reply_markup=InlineKeyboardMarkup([
-                [InlineKeyboardButton("ʙᴀᴄᴋ", callback_data="help"), InlineKeyboardButton("ʙᴜʏ ᴘʀᴇᴍɪᴜᴍ", url='https://t.me/Tanjiro_kamado_n4_bot')]
-            ])
-        )
-    elif data == "plans":
-        await query.message.edit_caption(
-            caption=Txt.PREPLANS_TXT,
-            reply_markup=InlineKeyboardMarkup([
-                [InlineKeyboardButton("ᴄʟᴏsᴇ", callback_data="close"), InlineKeyboardButton("ʙᴜʏ ᴘʀᴇᴍɪᴜᴍ", url='https://t.me/Tanjiro_kamado_n4_bot')]
+                [InlineKeyboardButton('ᴍᴇᴛᴀᴅᴀᴛᴀ', callback_data='metadata_help'), InlineKeyboardButton('ᴄʟᴏꜱᴇ', callback_data='close_data')]
             ])
         )
     elif data == "about":
         await query.message.edit_text(
-            text=Txt.ABOUT_TXT,
+            text=Txt.ABOUT_TXT.format(client.mention),
             disable_web_page_preview=True,
             reply_markup=InlineKeyboardMarkup([
-                [InlineKeyboardButton("ᴄᴏᴍᴍᴀɴᴅs", callback_data="help"), InlineKeyboardButton("ᴅᴇᴠᴇʟᴏᴘᴇʀ", url='https://t.me/Tanjiro_kamado_n4_bot')],
                 [InlineKeyboardButton("ʙᴀᴄᴋ", callback_data="home")]
             ])
         )
-    elif data == "close":
+    elif data == "source":
+        await query.message.edit_text(
+            text=Txt.SOURCE_TXT,
+            disable_web_page_preview=True,
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("ʙᴀᴄᴋ", callback_data="home")]
+            ])
+        )
+    elif data == "thumbnail":
+        await query.message.edit_text(
+            text=Txt.THUMBNAIL_TXT,
+            disable_web_page_preview=True,
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("ʙᴀᴄᴋ", callback_data="help")]
+            ])
+        )
+    elif data == "file_names":
+        await query.message.edit_text(
+            text=Txt.FILE_NAME_TXT,
+            disable_web_page_preview=True,
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("ʙᴀᴄᴋ", callback_data="help")]
+            ])
+        )
+    elif data == "metadata_help":
+        await query.message.edit_text(
+            text=Txt.SEND_METADATA,
+            disable_web_page_preview=True,
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("ʙᴀᴄᴋ", callback_data="help")]
+            ])
+        )
+    elif data == "check_subscription":
+        await validate_token(client, query)
+
+    elif data == "close_data":
         try:
             await query.message.delete()
             await query.message.reply_to_message.delete()
-            await query.message.continue_propagation()
         except:
             await query.message.delete()
-            await query.message.continue_propagation()
 
-# Donation Command Handler
-@Client.on_message(filters.command("donate"))
-async def donation(client, message):
-    buttons = InlineKeyboardMarkup([
-        [InlineKeyboardButton(text="ʙᴀᴄᴋ", callback_data="help"), InlineKeyboardButton(text="ᴏᴡɴᴇʀ", url='https://t.me/Tanjiro_kamado_n4_bot')]
-    ])
-    yt = await message.reply_photo(photo='https://graph.org/file/1919fe077848bd0783d4c.jpg', caption=Txt.DONATE_TXT, reply_markup=buttons)
-    await asyncio.sleep(300)
-    await yt.delete()
-    await message.delete()
+# --- NEW: Token Handling for Trial Users ---
+@Client.on_message(filters.private & filters.text & ~filters.command)
+async def handle_text_message(client, message: Message):
+    user_id = message.from_user.id
+    
+    # Check if user is waiting for token (trial finished)
+    if not await codeflixbots.check_trial_available(user_id):
+        token = message.text.strip()
+        
+        # Check if the token is valid
+        token_is_valid = await check_token_is_valid(token)
+        
+        if token_is_valid:
+            # Mark as premium
+            await codeflixbots.set_user_premium(user_id)
+            await message.reply_text(
+                "✅ **Token Verified!**\n"
+                "You now have unlimited access. You can now send files for renaming."
+            )
+        else:
+            await message.reply_text(
+                "❌ Invalid token. Please try again."
+            )
 
-# Premium Command Handler
-@Client.on_message(filters.command("premium"))
-async def getpremium(bot, message):
-    buttons = InlineKeyboardMarkup([
-        [InlineKeyboardButton("ᴏᴡɴᴇʀ", url="https://t.me/Anime_library_n4"), InlineKeyboardButton("ᴄʟᴏsᴇ", callback_data="close")]
-    ])
-    yt = await message.reply_photo(photo='https://graph.org/file/feebef43bbdf76e796b1b.jpg', caption=Txt.PREMIUM_TXT, reply_markup=buttons)
-    await asyncio.sleep(300)
-    await yt.delete()
-    await message.delete()
+# --- NEW: Usage Check Command ---
+@Client.on_message(filters.command("myusage") & filters.private)
+async def check_usage(client, message: Message):
+    user_id = message.from_user.id
+    
+    # Retrieve user data from MongoDB
+    user_data = await codeflixbots.col.find_one({"_id": int(user_id)})
+    
+    if user_data:
+        trial_used = user_data.get('trial_used', 0)
+        is_premium = user_data.get('is_premium', False)
+        
+        if is_premium:
+            status = "✅ **Premium User** (Unlimited access)"
+        else:
+            remaining = 10 - trial_used
+            if remaining < 0: remaining = 0 # Safety check
+            status = (
+                f"🆓 **Trial User**\n"
+                f"**Used:** `{trial_used}`/10\n"
+                f"**Remaining:** `{remaining}`\n\n"
+                "Buy a token for unlimited access!"
+            )
+        
+        await message.reply_text(f"**🌟 Your Account Status**\n\n{status}")
+    else:
+        # This should rarely happen as user is added on /start
+        await message.reply_text("You haven't started the bot yet. Type /start.")
 
-# Plan Command Handler
-@Client.on_message(filters.command("plan"))
-async def premium(bot, message):
-    buttons = InlineKeyboardMarkup([
-        [InlineKeyboardButton("sᴇɴᴅ ss", url="https://t.me/Anime_library_n4"), InlineKeyboardButton("ᴄʟᴏsᴇ", callback_data="close")]
-    ])
-    yt = await message.reply_photo(photo='https://graph.org/file/8b50e21db819f296661b7.jpg', caption=Txt.PREPLANS_TXT, reply_markup=buttons)
-    await asyncio.sleep(300)
-    await yt.delete()
-    await message.delete()
-
-# Bought Command Handler
-@Client.on_message(filters.command("bought") & filters.private)
-async def bought(client, message):
-    msg = await message.reply('Wait im checking...')
+# ... (Rest of the start_&_cb.py content, like /bought, /help)
+@Client.on_message(filters.private & filters.command("bought"))
+async def bought_handler(client, message):
+    if len(message.command) == 1:
+        return await message.reply_text("<b>Reply to a screenshot with the /bought command</b>")
+    
     replied = message.reply_to_message
-
-    if not replied:
-        await msg.edit("<b>Please reply with the screenshot of your payment for the premium purchase to proceed.\n\nFor example, first upload your screenshot, then reply to it using the '/bought' command</b>")
-    elif replied.photo:
+    if not replied or not (replied.photo or replied.document):
+        return await message.reply_text("<b>Reply to a screenshot with the /bought command</b>")
+        
+    LOG_CHANNEL = Config.LOG_CHANNEL
+    
+    if replied.photo:
         await client.send_photo(
             chat_id=LOG_CHANNEL,
             photo=replied.photo.file_id,
@@ -223,7 +231,18 @@ async def bought(client, message):
                 [InlineKeyboardButton("Close", callback_data="close_data")]
             ])
         )
-        await msg.edit_text('<b>Your screenshot has been sent to Admins</b>')
+        await message.reply_text('<b>Your screenshot has been sent to Admins</b>')
+    elif replied.document:
+        await client.send_document(
+            chat_id=LOG_CHANNEL,
+            document=replied.document.file_id,
+            caption=f'<b>User - {message.from_user.mention}\nUser id - <code>{message.from_user.id}</code>\nUsername - <code>{message.from_user.username}</code>\nName - <code>{message.from_user.first_name}</code></b>',
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("Close", callback_data="close_data")]
+            ])
+        )
+        await message.reply_text('<b>Your screenshot has been sent to Admins</b>')
+
 
 @Client.on_message(filters.private & filters.command("help"))
 async def help_command(client, message):
@@ -238,7 +257,7 @@ async def help_command(client, message):
         reply_markup=InlineKeyboardMarkup([
             [InlineKeyboardButton("ᴀᴜᴛᴏ ʀᴇɴᴀᴍᴇ ғᴏʀᴍᴀᴛ •", callback_data='file_names')],
             [InlineKeyboardButton('ᴛʜᴜᴍʙɴᴀɪʟ', callback_data='thumbnail'), InlineKeyboardButton('ᴄᴀᴘᴛɪᴏɴ', callback_data='caption')],
-            [InlineKeyboardButton('ᴍᴇᴛᴀᴅᴀᴛᴀ', callback_data='meta'), InlineKeyboardButton('ᴅᴏɴᴀᴛᴇ', callback_data='donate')],
-            [InlineKeyboardButton('ʜᴏᴍᴇ', callback_data='home')]
+            [InlineKeyboardButton('ᴍᴇᴛᴀᴅᴀᴛᴀ', callback_data='metadata_help'), InlineKeyboardButton('ᴄʟᴏꜱᴇ', callback_data='close_data')]
         ])
-    )
+        )
+    
