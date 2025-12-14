@@ -200,9 +200,15 @@ async def forward_to_dump_channel(client, path, media_type, ph_path, file_name, 
         print(f"[DUMP ERROR] Failed to forward {renamed_file_name}: {e}")
 
 async def process_rename(client: Client, message: Message):
+    user_id = message.from_user.id
+    
+    # Add verification check here too as a safety measure
+    if not await is_user_verified(user_id):
+        await send_verification(client, message)
+        return
+        
     ph_path = None
     
-    user_id = message.from_user.id
     format_template = await codeflixbots.get_format_template(user_id)
     media_preference = await codeflixbots.get_media_preference(user_id)
 
@@ -555,11 +561,13 @@ async def rename_worker():
 
 @Client.on_message(filters.private & (filters.document | filters.video | filters.audio))
 async def auto_rename_files(client, message):
-   
+    # Check if user is verified
     if not await is_user_verified(message.from_user.id):
+        # Send verification prompt instead of processing the file
         await send_verification(client, message)
         return
-        
+    
+    # Only add to queue if user is verified
     await rename_queue.put((client, message))
 
 asyncio.create_task(rename_worker())
