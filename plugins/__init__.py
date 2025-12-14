@@ -16,7 +16,7 @@ from motor.motor_asyncio import AsyncIOMotorClient
 
 verify_dict = {}
 
-# --- NEW PREMIUM TEXTS ---
+# --- PREMIUM TEXTS ---
 PREMIUM_TXT = """<b>ᴜᴘɢʀᴀᴅᴇ ᴛᴏ ᴏᴜʀ ᴘʀᴇᴍɪᴜᴍ sᴇʀᴠɪᴄᴇ ᴀɴᴅ ᴇɴJᴏʏ ᴇxᴄʟᴜsɪᴠᴇ ғᴇᴀᴛᴜʀᴇs:
 ○ ᴜɴʟɪᴍɪᴛᴇᴅ Rᴇɴᴀᴍɪɴɢ: ʀᴇɴᴀᴍᴇ ᴀs ᴍᴀɴʏ ғɪʟᴇs ᴀs ʏᴏᴜ ᴡᴀɴᴛ ᴡɪᴛʜᴏᴜᴛ ᴀɴʏ ʀᴇsᴛʀɪᴄᴛɪᴏɴs.
 ○ ᴇᴀʀʟʏ Aᴄᴄᴇss: ʙᴇ ᴛʜᴇ ғɪʀsᴛ ᴛᴏ ᴛᴇsᴛ ᴀɴᴅ ᴜsᴇ ᴏᴜʀ ʟᴀᴛᴇsᴛ ғᴇᴀᴛᴜʀᴇs ʙᴇғᴏʀᴇ ᴀɴʏᴏɴᴇ ᴇʟsᴇ.
@@ -86,11 +86,89 @@ async def verify_command_handler(client, message):
     else:
         await send_verification(client, message)
 
-# --- NEW CALLBACK QUERY HANDLER FOR PREMIUM BUTTON ---
-@Client.on_callback_query(filters.regex("premium_info"))
+# --- INLINE KEYBOARD MARKUPS ---
+
+def get_verification_markup(verify_token, username):
+    return InlineKeyboardMarkup([
+        [InlineKeyboardButton('Get Token', url=verify_token)],
+        [InlineKeyboardButton('🎬 Tutorial 🎬', url=VERIFY_TUTORIAL),
+         InlineKeyboardButton('✨ Premium ✨', callback_data="premium_page")]
+    ])
+
+def get_premium_markup():
+    return InlineKeyboardMarkup([
+        [InlineKeyboardButton('🔙 Back', callback_data="home_page"),
+         InlineKeyboardButton('💰 Plan', callback_data="plan_page")]
+    ])
+
+def get_plan_markup():
+    return InlineKeyboardMarkup([
+        [InlineKeyboardButton('🔙 Back', callback_data="premium_page"),
+         InlineKeyboardButton('❌ Cancel', callback_data="close_message")],
+        [InlineKeyboardButton('🏠 Home', callback_data="home_page")]
+    ])
+
+# --- NEW CALLBACK QUERY HANDLERS ---
+
+# Handler for 'Premium' button (opens Premium page)
+@Client.on_callback_query(filters.regex("premium_page"))
 async def premium_callback_handler(client, callback_query: CallbackQuery):
-    await callback_query.message.reply_text(PREMIUM_TXT, disable_web_page_preview=True)
-    await callback_query.answer("Showing Premium Details!")
+    await callback_query.message.edit_text(
+        PREMIUM_TXT,
+        reply_markup=get_premium_markup(),
+        disable_web_page_preview=True
+    )
+    await callback_query.answer()
+
+# Handler for 'Plan' button (opens Plans page)
+@Client.on_callback_query(filters.regex("plan_page"))
+async def plan_callback_handler(client, callback_query: CallbackQuery):
+    await callback_query.message.edit_text(
+        PREPLANS_TXT,
+        reply_markup=get_plan_markup(),
+        disable_web_page_preview=True
+    )
+    await callback_query.answer()
+
+# Handler for 'Back' and 'Home' buttons (returns to Verification page)
+@Client.on_callback_query(filters.regex("home_page"))
+async def home_callback_handler(client, callback_query: CallbackQuery):
+    user_id = callback_query.from_user.id
+    username = (await client.get_me()).username
+    verify_token = await get_verify_token(client, user_id, f"https://telegram.me/{username}?start=")
+
+    text = f"""<b>Hi 👋 {callback_query.from_user.mention},
+<blockquote expandable>\nYour Ads Token Has Been Expired, Kindly Get A New Token To Continue Using This Bot.
+         ㅤㅤㅤㅤㅤ   - Thank You
+
+\nValidity: {get_readable_time(VERIFY_EXPIRE)}
+\n#Verification...⌛</blockquote></b>"""
+
+    # Check if the message is a photo (the original verification message is a photo)
+    # Since edit_message_text cannot change a photo to text, we edit only the caption/text.
+    if callback_query.message.photo:
+        await callback_query.message.edit_caption(
+            text,
+            reply_markup=get_verification_markup(verify_token, username)
+        )
+    else:
+        # If the current message is text (from previous edits), edit it back to text
+        # If the bot is hosted on an external server, this might fail as the message type is changed from photo to text
+        await callback_query.message.edit_text(
+            text,
+            reply_markup=get_verification_markup(verify_token, username)
+        )
+
+    await callback_query.answer()
+
+# Handler for 'Cancel' button (closes the message or sends an alert)
+@Client.on_callback_query(filters.regex("close_message"))
+async def close_callback_handler(client, callback_query: CallbackQuery):
+    try:
+        await callback_query.message.delete()
+        await callback_query.answer("Closed the window.")
+    except Exception:
+        await callback_query.answer("Closed the window.", show_alert=True)
 
 
 # FUNCTIONS
@@ -108,12 +186,8 @@ async def send_verification(client, message, text=None, buttons=None):
         text = f'<b>Hi 👋 {message.from_user.mention},\nYou Are Already Verified Enjoy 😄</b>'
     else:
         verify_token = await get_verify_token(client, message.from_user.id, f"https://telegram.me/{username}?start=")
-        # --- MODIFIED BUTTONS TO INCLUDE PREMIUM OPTION ---
-        buttons = InlineKeyboardMarkup([
-            [InlineKeyboardButton('Get Token', url=verify_token)],
-            [InlineKeyboardButton('🎬 Tutorial 🎬', url=VERIFY_TUTORIAL),
-             InlineKeyboardButton('✨ Premium ✨', callback_data="premium_info")] # ADDED PREMIUM BUTTON
-        ])
+        buttons = get_verification_markup(verify_token, username)
+
     if not text:
         # --- MODIFIED MESSAGE TEXT: REMOVED HINDI PART ---
         text = f"""<b>Hi 👋 {message.from_user.mention},
@@ -122,6 +196,7 @@ async def send_verification(client, message, text=None, buttons=None):
 
 \nValidity: {get_readable_time(VERIFY_EXPIRE)}
 \n#Verification...⌛</blockquote></b>"""
+
     message = message if isinstance(message, Message) else message.message
     await client.send_photo(
         chat_id=message.chat.id,
@@ -194,4 +269,4 @@ def get_readable_time(seconds):
     return result
 
 verifydb = VerifyDB()
-    
+                              
