@@ -8,11 +8,11 @@ from urllib.parse import quote
 from urllib3 import disable_warnings
 
 from pyrogram import Client, filters 
-from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton, Message, CallbackQuery # CallbackQuery imported for new handlers
+from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton, Message, CallbackQuery 
 
 from cloudscraper import create_scraper
 from motor.motor_asyncio import AsyncIOMotorClient
-from config import config 
+from config import DB_URL # <-- FIX: 'Config' (Bada C) class import karein 
 
 verify_dict = {}
 
