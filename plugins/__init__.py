@@ -12,7 +12,7 @@ from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton, Message, 
 
 from cloudscraper import create_scraper
 from motor.motor_asyncio import AsyncIOMotorClient
-from config import config import DB_URL as DATABASE_URL
+from config from config import DB_URL as DATABASE_URL
 
 verify_dict = {}
 
