@@ -72,5 +72,8 @@ class Bot(Client):
             except Exception as e:
                 print(f"Failed to send message in chat {chat_id}: {e}")
 
-Bot().run()
+# --- FIX: Added if __name__ == \"__main__\": for stable execution ---
+if __name__ == "__main__":
+    Bot().run()
+# ------------------------------------------------------------------
 
