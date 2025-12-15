@@ -48,8 +48,11 @@ Pricing:
 VERIFY_PHOTO = os.environ.get('VERIFY_PHOTO', 'https://images8.alphacoders.com/138/1384114.png')  # YOUR VERIFY PHOTO LINK
 SHORTLINK_SITE = os.environ.get('SHORTLINK_SITE', 'gplinks.com') # YOUR SHORTLINK URL LIKE:- site.com
 SHORTLINK_API = os.environ.get('SHORTLINK_API', '596f423cdf22b174e43d0b48a36a8274759ec2a3') # YOUR SHORTLINK API LIKE:- ma82owowjd9hw6_js7
-VERIFY_EXPIRE = os.environ.get('VERIFY_EXPIRE', 30000) # VERIFY EXPIRE TIME IN SECONDS. LIKE:- 0 (ZERO) TO OFF VERIFICATION 
+VERIFY_EXPIRE = os.environ.get('VERIFY_EXPIRE', 7200) # VERIFY EXPIRE TIME IN SECONDS. LIKE:- 0 (ZERO) TO OFF VERIFICATION 
 VERIFY_TUTORIAL = os.environ.get('VERIFY_TUTORIAL', 'https://t.me/N4_Society/55') # LINK OF TUTORIAL TO VERIFY 
+VERIFY_SUCCESS_VIDEO = os.environ.get('VERIFY_SUCCESS_VIDEO', 'https://files.catbox.moe/g0uvtl.jpg')
+# ----------------------------------------------------
+
 # DATABASE_URL now uses Config.DB_URL
 DATABASE_URL = Config.DB_URL
 COLLECTION_NAME = os.environ.get('COLLECTION_NAME', 'Token1')   # Collection Name For MongoDB 
@@ -156,7 +159,7 @@ async def home_callback_handler(client, callback_query: CallbackQuery):
     else: # Subsequent visit, token is likely expired since we are showing the verification
         text = f"""ʜɪ 👋 {callback_query.from_user.mention},
 
-<code>ʏᴏᴜʀ ᴀᴅꜱ ᴛᴏᴋᴇɴ ʜᴀꜱ ʙᴇᴇɴ ᴇxᴘɪʀᴇᴅ, ᴋɪɴᴅʟʏ ɢᴇᴛ ᴀ ɴᴇᴡ ᴛᴏᴋᴇɴ ᴛᴏ ᴄᴏɴᴛɪɴᴜᴇ ᴜꜱɪɴɢ ᴛʜɪꜱ ʙᴏᴛ.</code>
+ʏᴏᴜʀ ᴀᴅꜱ ᴛᴏᴋᴇɴ ʜᴀꜱ ʙᴇᴇɴ ᴇxᴘɪʀᴇᴅ, ᴋɪɴᴅʟʏ ɢᴇᴛ ᴀ ɴᴇᴡ ᴛᴏᴋᴇɴ ᴛᴏ ᴄᴏɴᴛɪɴᴜᴇ ᴜꜱɪɴɢ ᴛʜɪꜱ ʙᴏᴛ.
 
 ᴠᴀʟɪᴅɪᴛʏ: {get_readable_time(VERIFY_EXPIRE)}"""
         
@@ -218,7 +221,7 @@ async def send_verification(client, message, text=None, buttons=None):
             # Verification message for expired token
             text = f"""ʜɪ 👋 {message.from_user.mention},
 
-<code>ʏᴏᴜʀ ᴀᴅꜱ ᴛᴏᴋᴇɴ ʜᴀꜱ ʙᴇᴇɴ ᴇxᴘɪʀᴇᴅ, ᴋɪɴᴅʟʏ ɢᴇᴛ ᴀ ɴᴇᴡ ᴛᴏᴋᴇɴ ᴛᴏ ᴄᴏɴᴛɪɴᴜᴇ ᴜꜱɪɴɢ ᴛʜɪꜱ ʙᴏᴛ.</code>
+ʏᴏᴜʀ ᴀᴅꜱ ᴛᴏᴋᴇɴ ʜᴀꜱ ʙᴇᴇɴ ᴇxᴘɪʀᴇᴅ, ᴋɪɴᴅʟʏ ɢᴇᴛ ᴀ ɴᴇᴡ ᴛᴏᴋᴇɴ ᴛᴏ ᴄᴏɴᴛɪɴᴜᴇ ᴜꜱɪɴɢ ᴛʜɪꜱ ʙᴏᴛ.
 
 ᴠᴀʟɪᴅɪᴛʏ: {get_readable_time(VERIFY_EXPIRE)}"""
 
@@ -236,7 +239,7 @@ async def send_verification(client, message, text=None, buttons=None):
         photo=VERIFY_PHOTO,
         caption=text,
         reply_markup=buttons,
-        # reply_to_message_id=message.id, IS REMOVED
+        
     )
  
 async def get_verify_token(bot, userid, link):
@@ -266,7 +269,7 @@ async def get_short_url(longurl, shortener_site = SHORTLINK_SITE, shortener_api 
             res = cget('GET', url, params=params)
             res = res.json()
             if res.status_code == 200:
-                return res.get('shortenedUrl', long_url)
+                return res.get('shortenedUrl', longurl)
     except Exception as e:
         print(e)
         return longurl
@@ -289,11 +292,17 @@ async def validate_token(client, message, data):
         return await send_verification(client, message, text="<b>Iɴᴠᴀʟɪᴅ Oʀ Exᴘɪʀᴇᴅ Tᴏᴋᴇɴ 🔗...</b>")
     verify_dict.pop(user_id, None)
     await verifydb.update_verify_status(user_id)
-    await client.send_photo(chat_id=message.from_user.id,
-                            photo=VERIFY_PHOTO,
-                            caption=f'<b>Wᴇʟᴄᴏᴍᴇ Bᴀᴄᴋ 😁, Nᴏᴡ Yᴏᴜ Cᴀɴ Usᴇ Mᴇ Fᴏʀ {get_readable_time(VERIFY_EXPIRE)}.\n\n\nEɴᴊᴏʏʏʏ...❤️</b>',
-                            # reply_to_message_id=message.id, IS REMOVED
-                            )
+    
+    # --- MODIFIED: Using send_video with the new variable for success message ---
+    await client.send_video(
+        chat_id=message.from_user.id,
+        video=VERIFY_SUCCESS_VIDEO, # This uses the video link: https://files.catbox.moe/g0uvtl.jpg
+        caption=f'<b>Wᴇʟᴄᴏᴍᴇ Bᴀᴄᴋ 😊, Nᴏᴡ Yᴏᴜ Cᴀɴ Usᴇ Mᴇ Fᴏʀ {get_readable_time(VERIFY_EXPIRE)}.\n\n\nEɴᴊᴏʏʏʏ...❤️</b>',
+        # reply_to_message_id=message.id, IS REMOVED
+    )
+    # --- HERE IS THE FIX: This stops the code from proceeding to the main /start command ---
+    return
+    # --------------------------------------------------------------------------
     
 def get_readable_time(seconds):
     periods = [('ᴅ', 86400), ('ʜ', 3600), ('ᴍ', 60), ('s', 1)]
@@ -305,6 +314,4 @@ def get_readable_time(seconds):
     return result
 
 verifydb = VerifyDB()
-    
-
-        
+                         
