@@ -50,7 +50,7 @@ SHORTLINK_SITE = os.environ.get('SHORTLINK_SITE', 'gplinks.com') # YOUR SHORTLIN
 SHORTLINK_API = os.environ.get('SHORTLINK_API', '596f423cdf22b174e43d0b48a36a8274759ec2a3') # YOUR SHORTLINK API LIKE:- ma82owowjd9hw6_js7
 VERIFY_EXPIRE = os.environ.get('VERIFY_EXPIRE', 20) # VERIFY EXPIRE TIME IN SECONDS. LIKE:- 0 (ZERO) TO OFF VERIFICATION 
 VERIFY_TUTORIAL = os.environ.get('VERIFY_TUTORIAL', 'https://t.me/N4_Society/55') # LINK OF TUTORIAL TO VERIFY 
-VERIFY_SUCCESS_VIDEO = os.environ.get('VERIFY_SUCCESS_VIDEO', 'https://files.catbox.moe/g0uvtl.jpg')
+VERIFY_SUCCESS_VIDEO = os.environ.get('VERIFY_SUCCESS_VIDEO', 'https://files.catbox.moe/um3zgp.mp4')
 # ----------------------------------------------------
 
 # DATABASE_URL now uses Config.DB_URL
