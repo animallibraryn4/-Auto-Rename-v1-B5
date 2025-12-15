@@ -52,7 +52,7 @@ VERIFY_EXPIRE = os.environ.get('VERIFY_EXPIRE', 30000) # VERIFY EXPIRE TIME IN S
 VERIFY_TUTORIAL = os.environ.get('VERIFY_TUTORIAL', 'https://t.me/N4_Society/55') # LINK OF TUTORIAL TO VERIFY 
 
 # --- NEW VARIABLE ADDED FOR SUCCESS MESSAGE VIDEO ---
-VERIFY_SUCCESS_VIDEO = os.environ.get('VERIFY_SUCCESS_VIDEO', 'https://files.catbox.moe/um3zgp.mp4')
+VERIFY_SUCCESS_VIDEO = os.environ.get('VERIFY_SUCCESS_VIDEO', 'https://files.catbox.moe/g0uvtl.jpg')
 # ----------------------------------------------------
 
 # DATABASE_URL now uses Config.DB_URL
