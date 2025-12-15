@@ -368,10 +368,8 @@ async def validate_token(client, message, data):
     await verifydb.update_verify_status(user_id)
     
     # SUCCESS MESSAGE - Using the 'token expired' text with new buttons, as requested
-    text = f"""ʜɪ 👋 {message.from_user.mention},
-
-<blockquote>ᴡᴇʟᴄᴏᴍᴇ ʙᴀᴄᴋ 😊 ʏᴏᴜʀ ᴛᴏᴋᴇɴ ʜᴀꜱ ʙᴇᴇɴ ꜱᴜᴄᴄᴇꜱꜱꜰᴜʟʟʏ ᴠᴇʀɪꜰɪᴇᴅ. ʏᴏᴜ ᴄᴀɴ ɴᴏᴡ ᴜꜱᴇ ᴍᴇ ꜰᴏʀ {time_str} ɪꜰ ʏᴏᴜ ꜰɪɴᴅ ᴀɴʏ ᴛᴇᴄʜɴɪᴄᴀʟ ɪꜱꜱᴜᴇ, ᴘʟᴇᴀꜱᴇ ʀᴇᴘᴏʀᴛ ɪᴛ ᴛᴏ ᴜꜱ.
-ᴡᴇ’ʟʟ ꜰɪx ɪᴛ ᴀꜱ ꜱᴏᴏɴ ᴀꜱ ᴘᴏꜱꜱɪʙʟᴇ ᴛᴏ ᴍᴀᴋᴇ ʏᴏᴜʀ ᴇxᴘᴇʀɪᴇɴᴄᴇ ʙᴇᴛᴛᴇʀ. ᴇɴᴊᴏʏ ʏᴏᴜʀ ᴛɪᴍᴇ ❤️ </blockquote>"""
+    text = f"""<b><u>ᴡᴇʟᴄᴏᴍᴇ ʙᴀᴄᴋ 😊 ʏᴏᴜʀ ᴛᴏᴋᴇɴ ʜᴀꜱ ʙᴇᴇɴ ꜱᴜᴄᴄᴇꜱꜱꜰᴜʟʟʏ ᴠᴇʀɪꜰɪᴇᴅ. ʏᴏᴜ ᴄᴀɴ ɴᴏᴡ ᴜꜱᴇ ᴍᴇ ꜰᴏʀ {time_str} ɪꜰ ʏᴏᴜ ꜰɪɴᴅ ᴀɴʏ ᴛᴇᴄʜɴɪᴄᴀʟ ɪꜱꜱᴜᴇ, ᴘʟᴇᴀꜱᴇ ʀᴇᴘᴏʀᴛ ɪᴛ ᴛᴏ ᴜꜱ.
+ᴡᴇ’ʟʟ ꜰɪx ɪᴛ ᴀꜱ ꜱᴏᴏɴ ᴀꜱ ᴘᴏꜱꜱɪʙʟᴇ ᴛᴏ ᴍᴀᴋᴇ ʏᴏᴜʀ ᴇxᴘᴇʀɪᴇɴᴄᴇ ʙᴇᴛᴛᴇʀ. ᴇɴᴊᴏʏ ʏᴏᴜʀ ᴛɪᴍᴇ ❤️ </u></u>"""
     
     await client.send_photo(chat_id=message.from_user.id,
                             photo=VERIFY_PHOTO,
