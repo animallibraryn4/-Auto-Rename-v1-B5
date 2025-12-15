@@ -17,11 +17,11 @@ from config import Config
 verify_dict = {}
 
 # --- PREMIUM TEXTS (Added back for context) ---
-PREMIUM_TXT = """<b>ᴜᴘɢʀᴀᴅᴇ ᴛᴏ ᴏᴜʀ ᴘʀᴇᴍɪᴜᴍ sᴇʀᴠɪᴄᴇ ᴀɴᴅ ᴇɴJᴏʏ ᴇxᴄʟᴜsɪᴠᴇ ғᴇᴀᴛᴜʀᴇs:
+PREMIUM_TXT = """<b>ᴜᴘɢʀʀᴀᴅᴇ ᴛᴏ ᴏᴜʀ ᴘʀᴇᴍɪᴜᴍ sᴇʀᴠɪᴄᴇ ᴀɴᴅ ᴇɴJᴏʏ ᴇxᴄʟᴜsɪᴠᴇ ғᴇᴀᴛᴜʀᴇs:
 ○ ᴜɴʟɪᴍɪᴛᴇᴅ Rᴇɴᴀᴍɪɴɢ: ʀᴇɴᴀᴍᴇ ᴀs ᴍᴀɴʏ ғɪʟᴇs ᴀs ʏᴏᴜ ᴡᴀɴᴛ ᴡɪᴛʜᴏᴜᴛ ᴀɴʏ ʀᴇsᴛʀɪᴄᴛɪᴏɴs.
 ○ ᴇᴀʀʟʏ Aᴄᴄᴇss: ʙᴇ ᴛʜᴇ ғɪʀsᴛ ᴛᴏ ᴛᴇsᴛ ᴀɴᴅ ᴜsᴇ ᴏᴜʀ ʟᴀᴛᴇsᴛ ғᴇᴀᴛᴜʀᴇs ʙᴇғᴏʀᴇ ᴀɴʏᴏɴᴇ ᴇʟsᴇ.
 
-• ᴜꜱᴇ /plan ᴛᴏ ꜱᴇᴇ ᴀʟʟ ᴏᴜʀ ᴘʟᴀɴꜱ ᴀᴛ ᴏɴᴄᴇ.
+• ᴜꜱᴇ /plan ᴛᴏ ꜱᴇᴇ ᴀʟʟ ᴏᴜʀ ᴘʟᴀɴs ᴀᴛ ᴏɴᴄᴇ.
 
 ➲ ғɪʀsᴛ sᴛᴇᴘ : ᴘᴀʏ ᴛʜᴇ ᴀᴍᴏᴜɴᴛ ᴀᴄᴄᴏʀᴅɪɴɢ ᴛᴏ ʏᴏᴜʀ ғᴀᴠᴏʀɪᴛᴇ ᴘʟᴀɴ ᴛᴏ ᴛʜɪs fam ᴜᴘɪ ɪᴅ.
 
@@ -46,6 +46,8 @@ Pricing:
 
 # CONFIG VARIABLES 😄
 VERIFY_PHOTO = os.environ.get('VERIFY_PHOTO', 'https://images8.alphacoders.com/138/1384114.png')  # YOUR VERIFY PHOTO LINK
+# NEW: Non-Verified Message VIDEO/Photo Link 
+UNVERIFIED_MEDIA = os.environ.get('UNVERIFIED_MEDIA', 'https://files.catbox.moe/um3zgp.mp4') 
 SHORTLINK_SITE = os.environ.get('SHORTLINK_SITE', 'gplinks.com') # YOUR SHORTLINK URL LIKE:- site.com
 SHORTLINK_API = os.environ.get('SHORTLINK_API', '596f423cdf22b174e43d0b48a36a8274759ec2a3') # YOUR SHORTLINK API LIKE:- ma82owowjd9hw6_js7
 VERIFY_EXPIRE = os.environ.get('VERIFY_EXPIRE', 30000) # VERIFY EXPIRE TIME IN SECONDS. LIKE:- 0 (ZERO) TO OFF VERIFICATION 
@@ -87,6 +89,57 @@ async def verify_command_handler(client, message):
             await validate_token(client, message, data)
     else:
         await send_verification(client, message)
+
+# --- NEW MESSAGE HANDLER FOR UNVERIFIED USERS WHO SEND FILES ---
+# यह हैंडलर किसी भी अनसत्यापित उपयोगकर्ता के संदेशों (जो कमांड नहीं हैं) को रोकेगा और उन्हें सत्यापन संदेश भेजेगा।
+@Client.on_message(filters.private & ~filters.command(["verify", "start", "bought", "plan"]) & ~filters.bot)
+async def unverified_file_handler(client, message):
+    user_id = message.from_user.id
+    username = message.from_user.mention
+    
+    # Check if the user is verified. If verified, let other handlers process the file/message.
+    if await is_user_verified(user_id):
+        return  # Exit this handler, allow the file processing logic to run next.
+
+    # User is NOT verified and has sent a message that is not a known command.
+    
+    # Custom message for unverified users (आपके अनुरोध के अनुसार)
+    unverified_text = f"""{username}
+
+😑 ᴛʜɪꜱ ʙᴏᴛ ᴅᴏᴇꜱɴ’ᴛ ʀᴜɴ ᴏɴ ɢᴜᴇꜱꜱᴇꜱ.
+ɴᴏ ᴠᴇʀɪꜰɪᴄᴀᴛɪᴏɴ, ɴᴏ ꜰɪʟᴇ ᴘʀᴏᴄᴇꜱꜱɪɴɢ.
+
+ᴄᴏᴍᴘʟᴇᴛᴇ ᴛʜᴇ ᴀᴅꜱ ᴛᴏᴋᴇɴ ᴠᴇʀɪꜰɪᴄᴀᴛɪᴏɴ ʙᴇꜰᴏʀᴇ ꜱᴇɴᴅɪɴɢ ꜰɪʟᴇꜱ ᴀɢᴀɪɴ.
+
+ɪꜰ ʏᴏᴜ ᴅᴏɴ’ᴛ ᴋɴᴏᴡ ʜᴏᴡ ɪᴛ ᴡᴏʀᴋꜱ, ᴄʜᴇᴄᴋ ᴛʜᴇ ᴛᴜᴛᴏʀɪᴀʟ ꜰɪʀꜱᴛ.
+
+ᴠᴀʟɪᴅɪᴛʏ: {get_readable_time(VERIFY_EXPIRE)}"""
+
+    # Get the verification markup again for easy access to the token link
+    bot_username = (await client.get_me()).username
+    verify_token = await get_verify_token(client, user_id, f"https://telegram.me/{bot_username}?start=")
+    buttons = get_verification_markup(verify_token, bot_username)
+
+    # Check if the UNVERIFIED_MEDIA link is a video (ends with .mp4 or similar)
+    if UNVERIFIED_MEDIA.endswith(('.mp4', '.mkv', '.mov', '.webm')):
+        await client.send_video(
+            chat_id=message.chat.id,
+            video=UNVERIFIED_MEDIA,
+            caption=unverified_text,
+            reply_markup=buttons,
+            reply_to_message_id=message.id,
+            disable_notification=True
+        )
+    else:
+        # Fallback to sending as a photo if it's not a recognizable video or if it's a photo
+        await client.send_photo(
+            chat_id=message.chat.id,
+            photo=UNVERIFIED_MEDIA,
+            caption=unverified_text,
+            reply_markup=buttons,
+            reply_to_message_id=message.id,
+            disable_notification=True
+        )
 
 # --- INLINE KEYBOARD MARKUPS ---
 
@@ -146,17 +199,19 @@ async def home_callback_handler(client, callback_query: CallbackQuery):
 
     isveri = await verifydb.get_verify_status(user_id)
     
-    # NEW FORMAT AND FONT
+    # NEW FORMAT AND FONT (Quote box added)
     if not isveri: # First time/No record found
+        # NEW: First-time user message is wrapped in blockquote
         text = f"""ʜɪ 👋 {callback_query.from_user.mention},
 
-ᴛᴏ ꜱᴛᴀʀᴛ ᴜꜱɪɴɢ ᴛʜɪꜱ ʙᴏᴛ, ᴘʟᴇᴀꜱᴇ ɢᴇɴᴇʀᴀᴛᴇ ᴀ ᴛᴇᴍᴘᴏʀᴀʀʏ ᴀᴅꜱ ᴛᴏᴋᴇɴ.
+<blockquote>ᴛᴏ ꜱᴛᴀʀᴛ ᴜꜱɪɴɢ ᴛʜɪꜱ ʙᴏᴛ, ᴘʟᴇᴀꜱᴇ ɢᴇɴᴇʀᴀᴛᴇ ᴀ ᴛᴇᴍᴘᴏʀᴀʀʏ ᴀᴅꜱ ᴛᴏᴋᴇɴ.</blockquote>
 
 ᴠᴀʟɪᴅɪᴛʏ: {get_readable_time(VERIFY_EXPIRE)}"""
     else: # Subsequent visit, token is likely expired since we are showing the verification
+        # NEW: Expired token message is wrapped in blockquote
         text = f"""ʜɪ 👋 {callback_query.from_user.mention},
 
-ʏᴏᴜʀ ᴀᴅꜱ ᴛᴏᴋᴇɴ ʜᴀꜱ ʙᴇᴇɴ ᴇxᴘɪʀᴇᴅ, ᴋɪɴᴅʟʏ ɢᴇᴛ ᴀ ɴᴇᴡ ᴛᴏᴋᴇɴ ᴛᴏ ᴄᴏɴᴛɪɴᴜᴇ ᴜꜱɪɴɢ ᴛʜɪꜱ ʙᴏᴛ.
+<blockquote>ʏᴏᴜʀ ᴀᴅꜱ ᴛᴏᴋᴇɴ ʜᴀꜱ ʙᴇᴇɴ ᴇxᴘɪʀᴇᴅ, ᴋɪɴᴅʟʏ ɢᴇᴛ ᴀ ɴᴇᴡ ᴛᴏᴋᴇɴ ᴛᴏ ᴄᴏɴᴛɪɴᴜᴇ ᴜꜱɪɴɢ ᴛʜɪꜱ ʙᴏᴛ.</blockquote>
 
 ᴠᴀʟɪᴅɪᴛʏ: {get_readable_time(VERIFY_EXPIRE)}"""
         
@@ -205,28 +260,28 @@ async def send_verification(client, message, text=None, buttons=None):
         verify_token = await get_verify_token(client, user_id, f"https://telegram.me/{username}?start=")
         buttons = get_verification_markup(verify_token, username)
         
-        # NEW FORMAT AND FONT
+        # NEW FORMAT AND FONT (Quote box added)
         if not isveri:
-            # Verification message for first-time users
+            # Verification message for first-time users is wrapped in blockquote
             text = f"""ʜɪ 👋 {message.from_user.mention},
 
-ᴛᴏ ꜱᴛᴀʀᴛ ᴜꜱɪɴɢ ᴛʜɪꜱ ʙᴏᴛ, ᴘʟᴇᴀꜱᴇ ɢᴇɴᴇʀᴀᴛᴇ ᴀ ᴛᴇᴍᴘᴏʀᴀʀʏ ᴀᴅꜱ ᴛᴏᴋᴇɴ.
+<blockquote>ᴛᴏ ꜱᴛᴀʀᴛ ᴜꜱɪɴɢ ᴛʜɪꜱ ʙᴏᴛ, ᴘʟᴇᴀꜱᴇ ɢᴇɴᴇʀᴀᴛᴇ ᴀ ᴛᴇᴍᴘᴏʀᴀʀʏ ᴀᴅꜱ ᴛᴏᴋᴇɴ.</blockquote>
 
 ᴠᴀʟɪᴅɪᴛʏ: {get_readable_time(VERIFY_EXPIRE)}"""
         # ELSE: User record exists but token is expired
         else:
-            # Verification message for expired token
+            # Verification message for expired token is wrapped in blockquote
             text = f"""ʜɪ 👋 {message.from_user.mention},
 
-ʏᴏᴜʀ ᴀᴅꜱ ᴛᴏᴋᴇɴ ʜᴀꜱ ʙᴇᴇɴ ᴇxᴘɪʀᴇᴅ, ᴋɪɴᴅʟʏ ɢᴇᴛ ᴀ ɴᴇᴡ ᴛᴏᴋᴇɴ ᴛᴏ ᴄᴏɴᴛɪɴᴜᴇ ᴜꜱɪɴɢ ᴛʜɪꜱ ʙᴏᴛ.
+<blockquote>ʏᴏᴜʀ ᴀᴅꜱ ᴛᴏᴋᴇɴ ʜᴀꜱ ʙᴇᴇɴ ᴇxᴘɪʀᴇᴅ, ᴋɪɴᴅʟʏ ɢᴇᴛ ᴀ ɴᴇᴡ ᴛᴏᴋᴇɴ ᴛᴏ ᴄᴏɴᴛɪɴᴜᴇ ᴜꜱɪɴɢ ᴛʜɪꜱ ʙᴏᴛ.</blockquote>
 
 ᴠᴀʟɪᴅɪᴛʏ: {get_readable_time(VERIFY_EXPIRE)}"""
 
     if not text:
-        # Fallback to the expired message
+        # Fallback to the expired message (wrapped in blockquote)
         text = f"""ʜɪ 👋 {message.from_user.mention},
 
-ʏᴏᴜʀ ᴀᴅꜱ ᴛᴏᴋᴇɴ ʜᴀꜱ ʙᴇᴇɴ ᴇxᴘɪʀᴇᴅ, ᴋɪɴᴅʟʏ ɢᴇᴛ ᴀ ɴᴇᴡ ᴛᴏᴋᴇɴ ᴛᴏ ᴄᴏɴᴛɪɴᴜᴇ ᴜꜱɪɴɢ ᴛʜɪꜱ ʙᴏᴛ.
+<blockquote>ʏᴏᴜʀ ᴀᴅꜱ ᴛᴏᴋᴇɴ ʜᴀꜱ ʙᴇᴇɴ ᴇxᴘɪʀᴇᴅ, ᴋɪɴᴅʟʏ ɢᴇᴛ ᴀ ɴᴇᴡ ᴛᴏᴋᴇɴ ᴛᴏ ᴄᴏɴᴛɪɴᴜᴇ ᴜꜱɪɴɢ ᴛʜɪꜱ ʙᴏᴛ.</blockquote>
 
 ᴠᴀʟɪᴅɪᴛʏ: {get_readable_time(VERIFY_EXPIRE)}"""
 
@@ -266,7 +321,7 @@ async def get_short_url(longurl, shortener_site = SHORTLINK_SITE, shortener_api 
             res = cget('GET', url, params=params)
             res = res.json()
             if res.status_code == 200:
-                return res.get('shortenedUrl', long_url)
+                return res.get('shortenedUrl', longurl)
     except Exception as e:
         print(e)
         return longurl
@@ -305,4 +360,4 @@ def get_readable_time(seconds):
     return result
 
 verifydb = VerifyDB()
-    
+        
