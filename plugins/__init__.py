@@ -93,9 +93,10 @@ async def verify_command_handler(client, message):
 def get_verification_markup(verify_token, username):
     # CHANGED: Get Token is now the first button in the first row
     return InlineKeyboardMarkup([
-        [InlineKeyboardButton('ɢᴇᴛ ᴛᴏᴋᴇɴ', url=verify_token)],
         [InlineKeyboardButton('ᴛᴜᴛᴏʀɪᴀʟ', url=VERIFY_TUTORIAL),
          InlineKeyboardButton('ᴘʀᴇᴍɪᴜᴍ', callback_data="premium_page")]
+        [InlineKeyboardButton('ɢᴇᴛ ᴛᴏᴋᴇɴ', url=verify_token)]
+
     ])
 
 def get_premium_markup():
