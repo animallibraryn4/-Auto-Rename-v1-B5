@@ -12,7 +12,7 @@ from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton, Message, 
 
 from cloudscraper import create_scraper
 from motor.motor_asyncio import AsyncIOMotorClient
-from config import Config # FIXED: Importing the Config class
+from config import Config 
 
 verify_dict = {}
 
@@ -93,11 +93,14 @@ async def verify_command_handler(client, message):
 def get_verification_markup(verify_token, username):
     # CHANGED: Get Token is now the first button in the first row
     return InlineKeyboardMarkup([
-        [InlineKeyboardButton('ᴛᴜᴛᴏʀɪᴀʟ', url=VERIFY_TUTORIAL),
-         InlineKeyboardButton('ᴘʀᴇᴍɪᴜᴍ', callback_data="premium_page")]
-        [InlineKeyboardButton('ɢᴇᴛ ᴛᴏᴋᴇɴ', url=verify_token)]
-
-    ])
+    [
+        InlineKeyboardButton('ᴛᴜᴛᴏʀɪᴀʟ', url='https://t.me/N4_Society/55'),
+        InlineKeyboardButton('ᴘʀᴇᴍɪᴜᴍ', callback_data="premium_page")
+    ],
+    [
+        InlineKeyboardButton('ɢᴇᴛ ᴛᴏᴋᴇɴ', url=verify_token)
+    ]
+])
 
 def get_premium_markup():
     return InlineKeyboardMarkup([
