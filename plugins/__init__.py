@@ -50,6 +50,11 @@ SHORTLINK_SITE = os.environ.get('SHORTLINK_SITE', 'gplinks.com') # YOUR SHORTLIN
 SHORTLINK_API = os.environ.get('SHORTLINK_API', '596f423cdf22b174e43d0b48a36a8274759ec2a3') # YOUR SHORTLINK API LIKE:- ma82owowjd9hw6_js7
 VERIFY_EXPIRE = os.environ.get('VERIFY_EXPIRE', 30000) # VERIFY EXPIRE TIME IN SECONDS. LIKE:- 0 (ZERO) TO OFF VERIFICATION 
 VERIFY_TUTORIAL = os.environ.get('VERIFY_TUTORIAL', 'https://t.me/N4_Society/55') # LINK OF TUTORIAL TO VERIFY 
+
+# --- NEW VARIABLE ADDED FOR SUCCESS MESSAGE VIDEO ---
+VERIFY_SUCCESS_VIDEO = os.environ.get('VERIFY_SUCCESS_VIDEO', 'https://files.catbox.moe/um3zgp.mp4')
+# ----------------------------------------------------
+
 # DATABASE_URL now uses Config.DB_URL
 DATABASE_URL = Config.DB_URL
 COLLECTION_NAME = os.environ.get('COLLECTION_NAME', 'Token1')   # Collection Name For MongoDB 
@@ -289,11 +294,15 @@ async def validate_token(client, message, data):
         return await send_verification(client, message, text="<b>Iɴᴠᴀʟɪᴅ Oʀ Exᴘɪʀᴇᴅ Tᴏᴋᴇɴ 🔗...</b>")
     verify_dict.pop(user_id, None)
     await verifydb.update_verify_status(user_id)
-    await client.send_photo(chat_id=message.from_user.id,
-                            photo=VERIFY_PHOTO,
-                            caption=f'<b>Wᴇʟᴄᴏᴍᴇ Bᴀᴄᴋ 😁, Nᴏᴡ Yᴏᴜ Cᴀɴ Usᴇ Mᴇ Fᴏʀ {get_readable_time(VERIFY_EXPIRE)}.\n\n\nEɴᴊᴏʏʏʏ...❤️</b>',
-                            # reply_to_message_id=message.id, IS REMOVED
-                            )
+    
+    # --- MODIFIED: Using send_video with the new variable for success message ---
+    await client.send_video(
+        chat_id=message.from_user.id,
+        video=VERIFY_SUCCESS_VIDEO, # This uses the video link: https://files.catbox.moe/um3zgp.mp4
+        caption=f'<b>Wᴇʟᴄᴏᴍᴇ Bᴀᴄᴋ 😁, Nᴏᴡ Yᴏᴜ Cᴀɴ Usᴇ Mᴇ Fᴏʀ {get_readable_time(VERIFY_EXPIRE)}.\n\n\nEɴᴊᴏʏʏʏ...❤️</b>',
+        # reply_to_message_id=message.id, IS REMOVED
+    )
+    # --------------------------------------------------------------------------
     
 def get_readable_time(seconds):
     periods = [('ᴅ', 86400), ('ʜ', 3600), ('ᴍ', 60), ('s', 1)]
@@ -305,5 +314,4 @@ def get_readable_time(seconds):
     return result
 
 verifydb = VerifyDB()
-    
-
+                                           
