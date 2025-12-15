@@ -12,7 +12,7 @@ from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton, Message, 
 
 from cloudscraper import create_scraper
 from motor.motor_asyncio import AsyncIOMotorClient
-from config import Config
+from config import Config # FIXED: Importing the Config class
 
 verify_dict = {}
 
@@ -50,7 +50,7 @@ SHORTLINK_SITE = os.environ.get('SHORTLINK_SITE', 'gplinks.com') # YOUR SHORTLIN
 SHORTLINK_API = os.environ.get('SHORTLINK_API', '596f423cdf22b174e43d0b48a36a8274759ec2a3') # YOUR SHORTLINK API LIKE:- ma82owowjd9hw6_js7
 VERIFY_EXPIRE = os.environ.get('VERIFY_EXPIRE', 30000) # VERIFY EXPIRE TIME IN SECONDS. LIKE:- 0 (ZERO) TO OFF VERIFICATION 
 VERIFY_TUTORIAL = os.environ.get('VERIFY_TUTORIAL', 'https://t.me/N4_Society/55') # LINK OF TUTORIAL TO VERIFY 
-#DATABASE_URL = os.environ.get('DATABASE_URL', 'mongodb+srv://n4animeedit:u80hdwhlka5NBFfY@cluster0.jowvb.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0') # MONGODB DATABASE URL To Store Verifications 
+# DATABASE_URL now uses Config.DB_URL
 DATABASE_URL = Config.DB_URL
 COLLECTION_NAME = os.environ.get('COLLECTION_NAME', 'Token1')   # Collection Name For MongoDB 
 PREMIUM_USERS = list(map(int, os.environ.get('PREMIUM_USERS', '').split()))
@@ -91,6 +91,7 @@ async def verify_command_handler(client, message):
 # --- INLINE KEYBOARD MARKUPS ---
 
 def get_verification_markup(verify_token, username):
+    # CHANGED: Get Token is now the first button in the first row
     return InlineKeyboardMarkup([
         [InlineKeyboardButton('Get Token', url=verify_token)],
         [InlineKeyboardButton('🎬 Tutorial 🎬', url=VERIFY_TUTORIAL),
@@ -139,23 +140,21 @@ async def home_callback_handler(client, callback_query: CallbackQuery):
     username = (await client.get_me()).username
     verify_token = await get_verify_token(client, user_id, f"https://telegram.me/{username}?start=")
 
-    # Use the logic from send_verification to determine the correct text
     isveri = await verifydb.get_verify_status(user_id)
     
+    # NEW FORMAT AND FONT
     if not isveri: # First time/No record found
-        # Verification message for first-time users (Hindi removed, #Verification...⌛, and - Thank You removed)
-        text = f"""<b>Hi 👋 {callback_query.from_user.mention},
-<blockquote expandable>\nTo start using this bot, please generate a temporary Ads Token.
+        text = f"""ʜɪ 👋 {callback_query.from_user.mention},
 
-\nValidity: {get_readable_time(VERIFY_EXPIRE)}
-</blockquote></b>"""
+ᴛᴏ ꜱᴛᴀʀᴛ ᴜꜱɪɴɢ ᴛʜɪꜱ ʙᴏᴛ, ᴘʟᴇᴀꜱᴇ ɢᴇɴᴇʀᴀᴛᴇ ᴀ ᴛᴇᴍᴘᴏʀᴀʀʏ ᴀᴅꜱ ᴛᴏᴋᴇɴ.
+
+ᴠᴀʟɪᴅɪᴛʏ: {get_readable_time(VERIFY_EXPIRE)}"""
     else: # Subsequent visit, token is likely expired since we are showing the verification
-        # Verification message for expired token (Hindi removed, #Verification...⌛, and - Thank You removed)
-        text = f"""<b>Hi 👋 {callback_query.from_user.mention},
-<blockquote expandable>\nYour Ads Token Has Been Expired, Kindly Get A New Token To Continue Using This Bot.
+        text = f"""ʜɪ 👋 {callback_query.from_user.mention},
 
-\nValidity: {get_readable_time(VERIFY_EXPIRE)}
-</blockquote></b>"""
+ʏᴏᴜʀ ᴀᴅꜱ ᴛᴏᴋᴇɴ ʜᴀꜱ ʙᴇᴇɴ ᴇxᴘɪʀᴇᴅ, ᴋɪɴᴅʟʏ ɢᴇᴛ ᴀ ɴᴇᴡ ᴛᴏᴋᴇɴ ᴛᴏ ᴄᴏɴᴛɪɴᴜᴇ ᴜꜱɪɴɢ ᴛʜɪꜱ ʙᴏᴛ.
+
+ᴠᴀʟɪᴅɪᴛʏ: {get_readable_time(VERIFY_EXPIRE)}"""
         
     # Edit message content
     if callback_query.message.photo:
@@ -202,30 +201,30 @@ async def send_verification(client, message, text=None, buttons=None):
         verify_token = await get_verify_token(client, user_id, f"https://telegram.me/{username}?start=")
         buttons = get_verification_markup(verify_token, username)
         
-        # --- NEW LOGIC: Check if user is completely new (isveri == 0) ---
+        # NEW FORMAT AND FONT
         if not isveri:
-            # Verification message for first-time users (Hindi removed, #Verification...⌛, and - Thank You removed)
-            text = f"""<b>Hi 👋 {message.from_user.mention},
-<blockquote expandable>\nTo start using this bot, please generate a temporary Ads Token.
+            # Verification message for first-time users
+            text = f"""ʜɪ 👋 {message.from_user.mention},
 
-\nValidity: {get_readable_time(VERIFY_EXPIRE)}
-</blockquote></b>"""
-        # --- ELSE: User record exists but token is expired ---
+ᴛᴏ ꜱᴛᴀʀᴛ ᴜꜱɪɴɢ ᴛʜɪꜱ ʙᴏᴛ, ᴘʟᴇᴀꜱᴇ ɢᴇɴᴇʀᴀᴛᴇ ᴀ ᴛᴇᴍᴘᴏʀᴀʀʏ ᴀᴅꜱ ᴛᴏᴋᴇɴ.
+
+ᴠᴀʟɪᴅɪᴛʏ: {get_readable_time(VERIFY_EXPIRE)}"""
+        # ELSE: User record exists but token is expired
         else:
-            # Verification message for expired token (Hindi removed, #Verification...⌛, and - Thank You removed)
-            text = f"""<b>Hi 👋 {message.from_user.mention},
-<blockquote expandable>\nYour Ads Token Has Been Expired, Kindly Get A New Token To Continue Using This Bot.
+            # Verification message for expired token
+            text = f"""ʜɪ 👋 {message.from_user.mention},
 
-\nValidity: {get_readable_time(VERIFY_EXPIRE)}
-</blockquote></b>"""
+ʏᴏᴜʀ ᴀᴅꜱ ᴛᴏᴋᴇɴ ʜᴀꜱ ʙᴇᴇɴ ᴇxᴘɪʀᴇᴅ, ᴋɪɴᴅʟʏ ɢᴇᴛ ᴀ ɴᴇᴡ ᴛᴏᴋᴇɴ ᴛᴏ ᴄᴏɴᴛɪɴᴜᴇ ᴜꜱɪɴɢ ᴛʜɪꜱ ʙᴏᴛ.
+
+ᴠᴀʟɪᴅɪᴛʏ: {get_readable_time(VERIFY_EXPIRE)}"""
 
     if not text:
-        # Fallback to the expired message (Hindi removed, #Verification...⌛, and - Thank You removed)
-        text = f"""<b>Hi 👋 {message.from_user.mention},
-<blockquote expandable>\nYour Ads Token Has Been Expired, Kindly Get A New Token To Continue Using This Bot.
+        # Fallback to the expired message
+        text = f"""ʜɪ 👋 {message.from_user.mention},
 
-\nValidity: {get_readable_time(VERIFY_EXPIRE)}
-</blockquote></b>"""
+ʏᴏᴜʀ ᴀᴅꜱ ᴛᴏᴋᴇɴ ʜᴀꜱ ʙᴇᴇɴ ᴇxᴘɪʀᴇᴅ, ᴋɪɴᴅʟʏ ɢᴇᴛ ᴀ ɴᴇᴡ ᴛᴏᴋᴇɴ ᴛᴏ ᴄᴏɴᴛɪɴᴜᴇ ᴜꜱɪɴɢ ᴛʜɪꜱ ʙᴏᴛ.
+
+ᴠᴀʟɪᴅɪᴛʏ: {get_readable_time(VERIFY_EXPIRE)}"""
 
     message = message if isinstance(message, Message) else message.message
     await client.send_photo(
@@ -233,7 +232,7 @@ async def send_verification(client, message, text=None, buttons=None):
         photo=VERIFY_PHOTO,
         caption=text,
         reply_markup=buttons,
-        # REMOVED reply_to_message_id=message.id,
+        # reply_to_message_id=message.id, IS REMOVED
     )
  
 async def get_verify_token(bot, userid, link):
@@ -289,7 +288,7 @@ async def validate_token(client, message, data):
     await client.send_photo(chat_id=message.from_user.id,
                             photo=VERIFY_PHOTO,
                             caption=f'<b>Wᴇʟᴄᴏᴍᴇ Bᴀᴄᴋ 😁, Nᴏᴡ Yᴏᴜ Cᴀɴ Usᴇ Mᴇ Fᴏʀ {get_readable_time(VERIFY_EXPIRE)}.\n\n\nEɴᴊᴏʏʏʏ...❤️</b>',
-                            # REMOVED reply_to_message_id=message.id,
+                            # reply_to_message_id=message.id, IS REMOVED
                             )
     
 def get_readable_time(seconds):
