@@ -33,9 +33,9 @@ Your premium plan will be activated after verification.</b>"""
 
 PREPLANS_TXT = """<b>👋 bro,
 
-🎖️ <u>Available Plans</u> :
+<blockquote>🎖️ <u>Available Plans</u> : </blockquote>
 
-</blockquote>Pricing:</blockquote>
+ Pricing:
 ➜ Monthly Premium: ₹50/month
 ➜ Daily Premium: ₹5/day
 ➜ For bot hosting: contact @Anime_Library_N4
