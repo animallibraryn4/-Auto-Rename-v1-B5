@@ -93,22 +93,22 @@ async def verify_command_handler(client, message):
 def get_verification_markup(verify_token, username):
     # CHANGED: Get Token is now the first button in the first row
     return InlineKeyboardMarkup([
-        [InlineKeyboardButton('Get Token', url=verify_token)],
-        [InlineKeyboardButton('🎬 Tutorial 🎬', url=VERIFY_TUTORIAL),
-         InlineKeyboardButton('✨ Premium ✨', callback_data="premium_page")]
+        [InlineKeyboardButton('ɢᴇᴛ ᴛᴏᴋᴇɴ', url=verify_token)],
+        [InlineKeyboardButton('ᴛᴜᴛᴏʀɪᴀʟ', url=VERIFY_TUTORIAL),
+         InlineKeyboardButton('ᴘʀᴇᴍɪᴜᴍ', callback_data="premium_page")]
     ])
 
 def get_premium_markup():
     return InlineKeyboardMarkup([
-        [InlineKeyboardButton('🔙 Back', callback_data="home_page"),
-         InlineKeyboardButton('💰 Plan', callback_data="plan_page")]
+        [InlineKeyboardButton('ʙᴀᴄᴋ', callback_data="home_page"),
+         InlineKeyboardButton('ᴘʟᴀɴ', callback_data="plan_page")]
     ])
 
 def get_plan_markup():
     return InlineKeyboardMarkup([
-        [InlineKeyboardButton('🔙 Back', callback_data="premium_page"),
-         InlineKeyboardButton('❌ Cancel', callback_data="close_message")],
-        [InlineKeyboardButton('🏠 Home', callback_data="home_page")]
+        [InlineKeyboardButton('ʙᴀᴄᴋ', callback_data="premium_page"),
+         InlineKeyboardButton('ᴄᴀɴᴄᴇʟ', callback_data="close_message")],
+        [InlineKeyboardButton('ʜᴏᴍᴇ', callback_data="home_page")]
     ])
 
 # --- NEW CALLBACK QUERY HANDLERS ---
