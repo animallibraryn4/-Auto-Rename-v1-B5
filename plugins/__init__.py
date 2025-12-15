@@ -55,7 +55,6 @@ VERIFY_SUCCESS_VIDEO = os.environ.get('VERIFY_SUCCESS_VIDEO', 'https://files.cat
 # ----------------------------------------------------
 
 # DATABASE_URL now uses Config.DB_URL
-DATABASE_URL = Config.DB_URL
 COLLECTION_NAME = os.environ.get('COLLECTION_NAME', 'Token1')   # Collection Name For MongoDB 
 PREMIUM_USERS = list(map(int, os.environ.get('PREMIUM_USERS', '').split()))
 
