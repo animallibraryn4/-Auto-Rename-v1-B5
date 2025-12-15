@@ -269,7 +269,7 @@ async def get_short_url(longurl, shortener_site = SHORTLINK_SITE, shortener_api 
             res = cget('GET', url, params=params)
             res = res.json()
             if res.status_code == 200:
-                return res.get('shortenedUrl', longurl)
+                return res.get('shortenedUrl', longurl) # Changed long_url to longurl
     except Exception as e:
         print(e)
         return longurl
@@ -300,7 +300,7 @@ async def validate_token(client, message, data):
         caption=f'<b>Wᴇʟᴄᴏᴍᴇ Bᴀᴄᴋ 😊, Nᴏᴡ Yᴏᴜ Cᴀɴ Usᴇ Mᴇ Fᴏʀ {get_readable_time(VERIFY_EXPIRE)}.\n\n\nEɴᴊᴏʏʏʏ...❤️</b>',
         # reply_to_message_id=message.id, IS REMOVED
     )
-    # --- HERE IS THE FIX: This stops the code from proceeding to the main /start command ---
+    # --- FIX ADDED HERE: Stops execution to prevent automatic /start ---
     return
     # --------------------------------------------------------------------------
     
@@ -314,4 +314,4 @@ def get_readable_time(seconds):
     return result
 
 verifydb = VerifyDB()
-                         
+
