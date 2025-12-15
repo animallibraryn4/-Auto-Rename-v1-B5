@@ -35,7 +35,7 @@ PREPLANS_TXT = """<b>👋 bro,
 
 🎖️ <u>Available Plans</u> :
 
-Pricing:
+</blockquote> Pricing: </blockquote>
 ➜ Monthly Premium: ₹50/month
 ➜ Daily Premium: ₹5/day
 ➜ For bot hosting: contact @Anime_Library_N4
