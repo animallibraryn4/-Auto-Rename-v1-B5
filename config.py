@@ -34,14 +34,14 @@ class Txt(object):
         
     START_TXT = """✨ ʜᴇʏ, {}!  
 
-<b><blockquote>🚀FEATURES:<blockquote></b>  
+<b>🚀FEATURES:</b>  
 ✅ ᴀᴜᴛᴏ ʀᴇɴᴀᴍᴇ ꜰɪʟᴇꜱ
 ✅ ᴄᴜꜱᴛᴏᴍ ᴛʜᴜᴍʙɴᴀɪʟ & ᴄᴀᴘᴛɪᴏɴ
 ✅ ᴍᴇᴛᴀᴅᴀᴛᴀ ᴇᴅɪᴛ & ᴠɪᴅᴇᴏ ⇄ ꜰɪʟᴇ ᴄᴏɴᴠᴇʀꜱɪᴏɴ  
 
 💡 ᴜꜱᴇ /tutorial ᴛᴏ ɢᴇᴛ ꜱᴛᴀʀᴛᴇᴅ!  
 
-🤖 ᴘᴏᴡᴇʀᴇᴅ ʙʏ @animelibraryn4"""
+<blockquote>🤖 ᴘᴏᴡᴇʀᴇᴅ ʙʏ @animelibraryn4</blockquote>"""
 
     FILE_NAME_TXT = """<b>» <u>sᴇᴛᴜᴘ ᴀᴜᴛᴏ ʀᴇɴᴀᴍᴇ ғᴏʀᴍᴀᴛ</u></b>
 
