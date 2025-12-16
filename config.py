@@ -41,7 +41,7 @@ class Txt(object):
 
 💡 ᴜꜱᴇ /tutorial ᴛᴏ ɢᴇᴛ ꜱᴛᴀʀᴛᴇᴅ!  
 
-<blockquote expandable>🤖 ᴘᴏᴡᴇʀᴇᴅ ʙʏ @animelibraryn4</blockquote>"""
+🤖 ᴘᴏᴡᴇʀᴇᴅ ʙʏ @animelibraryn4"""
 
     FILE_NAME_TXT = """<b>» <u>sᴇᴛᴜᴘ ᴀᴜᴛᴏ ʀᴇɴᴀᴍᴇ ғᴏʀᴍᴀᴛ</u></b>
 
