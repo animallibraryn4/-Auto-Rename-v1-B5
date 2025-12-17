@@ -518,6 +518,7 @@ async def process_rename(client: Client, message: Message):
                 await client.send_document(
                     message.chat.id,
                     document=path,
+                    file_name=renamed_file_name,
                     thumb=ph_path if ph_path else None,
                     caption=caption,
                     progress=progress_for_pyrogram,
@@ -527,6 +528,7 @@ async def process_rename(client: Client, message: Message):
                 await client.send_video(
                     message.chat.id,
                     video=path,
+                    file_name=renamed_file_name,
                     caption=caption,
                     thumb=ph_path if ph_path else None,
                     duration=0,
@@ -537,6 +539,7 @@ async def process_rename(client: Client, message: Message):
                 await client.send_audio(
                     message.chat.id,
                     audio=path,
+                    file_name=renamed_file_name,
                     caption=caption,
                     thumb=ph_path if ph_path else None,
                     duration=0,
@@ -547,13 +550,15 @@ async def process_rename(client: Client, message: Message):
                 await client.send_document(
                     message.chat.id,
                     document=path,
+                    file_name=renamed_file_name,
                     thumb=ph_path if ph_path else None,
                     caption=caption,
                     progress=progress_for_pyrogram,
                     progress_args=("Upload Started...", upload_msg, time.time()),
                 )
         except Exception as e:
-            os.remove(renamed_file_path)
+            if os.path.exists(renamed_file_path):
+                os.remove(renamed_file_path)
             if ph_path and os.path.exists(ph_path):
                 os.remove(ph_path)
             return await upload_msg.edit(f"Error: {e}")
@@ -599,3 +604,5 @@ async def auto_rename_files(client, message):
     
     # Add message to user's queue
     await user_queues[user_id]["queue"].put(message)
+        
+    
