@@ -16,11 +16,15 @@ from helper.database import codeflixbots
 from config import Config
 from plugins import is_user_verified, send_verification
 
+# ===== Global + Per-User Queue System =====
+MAX_CONCURRENT_TASKS = 3  # server capacity ke hisaab se change kar sakte ho
+global_semaphore = asyncio.Semaphore(MAX_CONCURRENT_TASKS)
+
+user_queues = {}
+# =========================================
+
 # Global dictionary to prevent duplicate renaming within a short time
 renaming_operations = {}
-
-# Asyncio Queue to manage file renaming tasks
-rename_queue = asyncio.Queue()
 
 # Patterns for extracting file information
 pattern1 = re.compile(r'S(\d+)(?:E|EP)(\d+)')
@@ -548,16 +552,60 @@ async def process_rename(client: Client, message: Message):
         if ph_path and os.path.exists(ph_path):
             os.remove(ph_path)
         del renaming_operations[file_id]
+
+async def process_user_queue(user_id, client, message):
+    """Process files from a specific user's queue"""
+    # Wait for global semaphore (limits concurrent tasks)
+    async with global_semaphore:
+        # Get user's queue
+        if user_id not in user_queues:
+            user_queues[user_id] = asyncio.Queue()
         
-async def rename_worker():
+        user_queue = user_queues[user_id]
+        
+        # Process files from user's queue
+        while True:
+            try:
+                # Get next task from user's queue (with timeout to prevent blocking)
+                task_client, task_message = await asyncio.wait_for(user_queue.get(), timeout=1.0)
+                
+                try:
+                    await process_rename(task_client, task_message)
+                except Exception as e:
+                    print(f"Error processing rename task for user {user_id}: {e}")
+                finally:
+                    user_queue.task_done()
+                    
+            except asyncio.TimeoutError:
+                # No more tasks in user's queue
+                break
+            except asyncio.QueueEmpty:
+                # Queue is empty
+                break
+
+async def user_queue_worker():
+    """Worker to manage user queues"""
     while True:
-        client, message = await rename_queue.get()
         try:
-            await process_rename(client, message)
+            # Process each user's queue
+            for user_id in list(user_queues.keys()):
+                if user_id in user_queues and not user_queues[user_id].empty():
+                    # Get the first task from user's queue to process
+                    task_client, task_message = await user_queues[user_id].get()
+                    
+                    # Process this task
+                    try:
+                        await process_rename(task_client, task_message)
+                    except Exception as e:
+                        print(f"Error processing rename task for user {user_id}: {e}")
+                    finally:
+                        user_queues[user_id].task_done()
+            
+            # Sleep briefly to prevent CPU overload
+            await asyncio.sleep(0.1)
         except Exception as e:
-            print(f"Error processing rename task: {e}")
-        finally:
-            rename_queue.task_done()
+            print(f"Error in user_queue_worker: {e}")
+            await asyncio.sleep(1)
 
 @Client.on_message(filters.private & (filters.document | filters.video | filters.audio))
 async def auto_rename_files(client, message):
@@ -567,7 +615,21 @@ async def auto_rename_files(client, message):
         await send_verification(client, message)
         return
     
-    # Only add to queue if user is verified
-    await rename_queue.put((client, message))
+    user_id = message.from_user.id
+    
+    # Initialize user queue if it doesn't exist
+    if user_id not in user_queues:
+        user_queues[user_id] = asyncio.Queue()
+    
+    # Add task to user's queue
+    await user_queues[user_id].put((client, message))
+    
+    # Notify user about queue position
+    queue_size = user_queues[user_id].qsize()
+    if queue_size > 1:
+        await message.reply_text(f"📁 **File added to queue.**\n\n"
+                                f"📊 **Your position in queue:** {queue_size}\n"
+                                f"⏳ **Processing will start soon...**")
 
-asyncio.create_task(rename_worker())
+# Start queue worker on bot startup
+asyncio.create_task(user_queue_worker())
