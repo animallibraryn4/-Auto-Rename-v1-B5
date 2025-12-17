@@ -281,7 +281,7 @@ async def validate_token(client, message, data):
     
     markup = InlineKeyboardMarkup([
         [
-            InlineKeyboardButton('ᴛᴜᴛᴏʀɪᴀʟ', url='https://t.me/N4_Society/55'),
+            InlineKeyboardButton("ᴄʟᴏsᴇ", callback_data="close"),
             InlineKeyboardButton('ᴘʀᴇᴍɪᴜᴍ', callback_data="premium_page")
         ],
         [
