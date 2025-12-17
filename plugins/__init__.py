@@ -31,9 +31,7 @@ PREMIUM_TXT = """<b>ᴜᴘɢʀᴀᴅᴇ ᴛᴏ ᴏᴜʀ ᴘʀᴇᴍɪᴜᴍ sᴇ
 
 Your premium plan will be activated after verification.</b>"""
 
-PREPLANS_TXT = """<b>👋 bro,
-
-<blockquote>🎖️ <u>Available Plans</u> : </blockquote>
+PREPLANS_TXT = """<b><pre>🎖️Available Plans:</pre>
 
  Pricing:
 ➜ Monthly Premium: ₹50/month
