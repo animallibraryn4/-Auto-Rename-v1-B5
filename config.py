@@ -32,7 +32,7 @@ class Config(object):
 class Txt(object):
     # part of text configuration
         
-    START_TXT = """<b>👋 ʜᴇʏ, {}!  
+    START_TXT = """👋 ʜᴇʏ, {}!  
 
 🚀FEATURES:  
 ✅ ᴀᴜᴛᴏ ʀᴇɴᴀᴍᴇ ꜰɪʟᴇꜱ
@@ -41,7 +41,7 @@ class Txt(object):
 
 💡 ᴜꜱᴇ /tutorial ᴛᴏ ɢᴇᴛ ꜱᴛᴀʀᴛᴇᴅ!  
 
-🤖 ᴘᴏᴡᴇʀᴇᴅ ʙʏ @animelibraryn4</b>"""
+🤖 ᴘᴏᴡᴇʀᴇᴅ ʙʏ @animelibraryn4"""
 
     FILE_NAME_TXT = """<b><pre>»sᴇᴛᴜᴘ ᴀᴜᴛᴏ ʀᴇɴᴀᴍᴇ ғᴏʀᴍᴀᴛ</pre></b>
 
