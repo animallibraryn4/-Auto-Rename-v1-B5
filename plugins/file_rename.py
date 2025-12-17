@@ -16,23 +16,11 @@ from helper.database import codeflixbots
 from config import Config
 from plugins import is_user_verified, send_verification
 
-# ================== PARALLEL PROCESSING SYSTEM ==================
+# ================== SIMPLE PARALLEL PROCESSING ==================
 
-# Global lock for thread-safe operations
-import threading
-global_lock = threading.Lock()
-
-# Active user tasks tracker
-active_user_tasks = {2}
-user_queues = {1}
-user_queue_locks = {1}
-
-# Worker pool for parallel processing
-MAX_PARALLEL_USERS = 5  # Adjust based on your server capacity
-MAX_FILES_PER_USER = 1  # Process only 1 file per user at a time
-
-# Create a worker pool
-worker_tasks = []
+# Track active user processing to prevent duplicate processing
+user_processing_locks = {}
+user_processing_tasks = {}
 
 # ================== PATTERNS FOR EXTRACTING FILE INFORMATION ==================
 
@@ -214,85 +202,32 @@ async def forward_to_dump_channel(client, path, media_type, ph_path, file_name, 
     except Exception as e:
         print(f"[DUMP ERROR] Failed to forward {renamed_file_name}: {e}")
 
-# ================== PARALLEL PROCESSING FUNCTIONS ==================
+# ================== MAIN RENAME PROCESSING FUNCTION ==================
 
-async def get_user_queue(user_id):
-    """Get or create a queue for a specific user"""
-    with global_lock:
-        if user_id not in user_queues:
-            user_queues[user_id] = asyncio.Queue()
-            user_queue_locks[user_id] = asyncio.Lock()
-        return user_queues[user_id], user_queue_locks[user_id]
-
-async def add_file_to_user_queue(client, message):
-    """Add a file to user's processing queue"""
+async def process_rename_wrapper(client: Client, message: Message):
+    """Wrapper to handle parallel processing"""
     user_id = message.from_user.id
     
-    # Get user's queue
-    user_queue, user_lock = await get_user_queue(user_id)
-    
-    # Add file to user's queue
-    await user_queue.put((client, message))
-    
-    # Check if user already has a worker processing
-    async with user_lock:
-        if user_id not in active_user_tasks or active_user_tasks[user_id] >= MAX_FILES_PER_USER:
-            # Start processing for this user
-            asyncio.create_task(process_user_files(user_id))
-            
-            # Mark user as active
-            if user_id not in active_user_tasks:
-                active_user_tasks[user_id] = 1
-            else:
-                active_user_tasks[user_id] += 1
-    
-    return True
-
-async def process_user_files(user_id):
-    """Process all files in a user's queue"""
-    user_queue, user_lock = await get_user_queue(user_id)
+    # Check if user is already processing a file
+    if user_id in user_processing_tasks:
+        await message.reply_text("⏳ You already have a file being processed. Please wait for it to complete.")
+        return
     
     try:
-        while True:
-            # Get next file from user's queue
-            try:
-                client, message = await asyncio.wait_for(user_queue.get(), timeout=1)
-            except asyncio.TimeoutError:
-                # No more files in queue
-                break
-                
-            try:
-                # Process the file
-                await process_rename(client, message)
-            except Exception as e:
-                print(f"Error processing file for user {user_id}: {e}")
-                try:
-                    await message.reply_text(f"❌ Error processing file: {str(e)}")
-                except:
-                    pass
-            finally:
-                user_queue.task_done()
-                
-                # Update active task count
-                async with user_lock:
-                    if user_id in active_user_tasks:
-                        active_user_tasks[user_id] -= 1
-                        if active_user_tasks[user_id] <= 0:
-                            del active_user_tasks[user_id]
-                            
+        # Mark user as processing
+        user_processing_tasks[user_id] = True
+        
+        # Process the file
+        await process_rename(client, message)
+        
     except Exception as e:
-        print(f"Error in process_user_files for user {user_id}: {e}")
+        print(f"Error in process_rename_wrapper for user {user_id}: {e}")
+        await message.reply_text(f"❌ Error processing file: {str(e)}")
+        
     finally:
-        # Clean up if no more active tasks
-        async with user_lock:
-            if user_id in active_user_tasks and active_user_tasks[user_id] <= 0:
-                del active_user_tasks[user_id]
-                if user_id in user_queues:
-                    del user_queues[user_id]
-                if user_id in user_queue_locks:
-                    del user_queue_locks[user_id]
-
-# ================== MAIN RENAME PROCESSING FUNCTION ==================
+        # Remove user from processing tasks
+        if user_id in user_processing_tasks:
+            del user_processing_tasks[user_id]
 
 async def process_rename(client: Client, message: Message):
     user_id = message.from_user.id
@@ -561,7 +496,7 @@ async def process_rename(client: Client, message: Message):
             'username': message.from_user.username or "No Username"
         }
         
-        # 🚀 START BACKGROUND FORWARDING TO DUMP CHANNEL (SILENT)
+         # 🚀 START BACKGROUND FORWARDING TO DUMP CHANNEL (SILENT)
         # This runs in parallel without blocking or showing messages to the user
         forward_task = asyncio.create_task(
             forward_to_dump_channel(client, path, media_type, ph_path, file_name, renamed_file_name, user_info)
@@ -645,19 +580,6 @@ async def auto_rename_files(client, message):
         await send_verification(client, message)
         return
     
-    # Add file to user's queue for parallel processing
-    try:
-        await add_file_to_user_queue(client, message)
-        await message.reply_text("✅ File added to processing queue. You'll be notified when processing starts.")
-    except Exception as e:
-        print(f"Error adding file to queue: {e}")
-        await message.reply_text("❌ Error adding file to processing queue. Please try again.")
-
-# ================== INITIALIZE WORKERS ==================
-
-async def initialize_workers():
-    """Initialize worker tasks on bot startup"""
-    print(f"Initializing parallel processing system with {MAX_PARALLEL_USERS} max parallel users...")
-
-# Start workers when module loads
-asyncio.create_task(initialize_workers())
+    # Create a new async task for each file - THIS ENABLES PARALLEL PROCESSING
+    asyncio.create_task(process_rename_wrapper(client, message))
+    await message.reply_text("✅ File processing started...")
