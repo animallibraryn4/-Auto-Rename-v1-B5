@@ -28,6 +28,7 @@ class Bot(Client):
             workers=200,
             plugins={"root": "plugins"},
             sleep_threshold=15,
+            max_concurrent_transmissions=10,
         )
         # Initialize the bot's start time for uptime calculation
         self.start_time = time.time()
@@ -73,3 +74,4 @@ class Bot(Client):
                 print(f"Failed to send message in chat {chat_id}: {e}")
 
 Bot().run()
+
