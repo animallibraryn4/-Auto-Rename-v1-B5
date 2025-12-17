@@ -16,6 +16,11 @@ from config import Config
 
 verify_dict = {}
 
+# 🔹 STEP 1: Track if verification message already sent
+# Track if verification message already sent
+verification_in_progress = set()
+
+
 # --- PREMIUM TEXTS (Added back for context) ---
 PREMIUM_TXT = """<b>ᴜᴘɢʀᴀᴅᴇ ᴛᴏ ᴏᴜʀ ᴘʀᴇᴍɪᴜᴍ sᴇʀᴠɪᴄᴇ ᴀɴᴅ ᴇɴJᴏʏ ᴇxᴄʟᴜsɪᴠᴇ ғᴇᴀᴛᴜʀᴇs:
 ○ ᴜɴʟɪᴍɪᴛᴇᴅ Rᴇɴᴀᴍɪɴɢ: ʀᴇɴᴀᴍᴇ ᴀs ᴍᴀɴʏ ғɪʟᴇs ᴀs ʏᴏᴜ ᴡᴀɴᴛ ᴡɪᴛʜᴏᴜᴛ ᴀɴʏ ʀᴇsᴛʀɪᴄᴛɪᴏɴs.
@@ -47,7 +52,7 @@ Pricing:
 VERIFY_PHOTO = os.environ.get('VERIFY_PHOTO', 'https://images8.alphacoders.com/138/1384114.png')  # YOUR VERIFY PHOTO LINK
 SHORTLINK_SITE = os.environ.get('SHORTLINK_SITE', 'gplinks.com') # YOUR SHORTLINK URL LIKE:- site.com
 SHORTLINK_API = os.environ.get('SHORTLINK_API', '596f423cdf22b174e43d0b48a36a8274759ec2a3') # YOUR SHORTLINK API LIKE:- ma82owowjd9hw6_js7
-VERIFY_EXPIRE = os.environ.get('VERIFY_EXPIRE', 7000) # VERIFY EXPIRE TIME IN SECONDS. LIKE:- 0 (ZERO) TO OFF VERIFICATION 
+VERIFY_EXPIRE = os.environ.get('VERIFY_EXPIRE', 0) # VERIFY EXPIRE TIME IN SECONDS. LIKE:- 0 (ZERO) TO OFF VERIFICATION 
 VERIFY_TUTORIAL = os.environ.get('VERIFY_TUTORIAL', 'https://t.me/N4_Society/55') # LINK OF TUTORIAL TO VERIFY 
 # DATABASE_URL now uses Config.DB_URL
 DATABASE_URL = Config.DB_URL
@@ -118,7 +123,7 @@ def get_premium_markup():
 
 def get_plan_markup():
     return InlineKeyboardMarkup([
-        [InlineKeyboardButton('ʙᴀᴄᴋ', callback_data="premium_page"),
+        [InlineKeyboardButton('ʙᴀᴄᴇʟ', callback_data="premium_page"),
          InlineKeyboardButton('ᴄᴀɴᴄᴇʟ', callback_data="close_message")],
         [InlineKeyboardButton('ʜᴏᴍᴇ', callback_data="home_page")]
     ])
@@ -223,51 +228,51 @@ async def is_user_verified(user_id):
         return False
     return True
 
+# 🔹 STEP 2: REPLACE send_verification() function
 async def send_verification(client, message, text=None, buttons=None):
-    username = (await client.get_me()).username
     user_id = message.from_user.id
-    
+
+    # ✅ Agar pehle hi verification message ja chuka hai
+    if user_id in verification_in_progress:
+        return  # kuch bhi mat karo
+
+    # ✅ Mark verification as in progress
+    verification_in_progress.add(user_id)
+
+    username = (await client.get_me()).username
     isveri = await verifydb.get_verify_status(user_id)
 
-    if done := await is_user_verified(user_id):
-        text = f'<b>Wᴇʟᴄᴏᴍᴇ Bᴀᴄᴋ 😁, Nᴏᴡ Yᴏᴜ Cᴀɴ Usᴇ Mᴇ Fᴏʀ {get_readable_time(VERIFY_EXPIRE)}.\n\n\nEɴᴊᴏʏʏʏ...❤️</b>'
-        buttons = get_welcome_markup()
-    else:
-        verify_token = await get_verify_token(client, user_id, f"https://telegram.me/{username}?start=")
-        buttons = get_verification_markup(verify_token, username)
-        
-        # NEW FORMAT AND FONT
-        if not isveri:
-            # Verification message for first-time users
-            text = f"""ʜɪ 👋 {message.from_user.mention},
+    if await is_user_verified(user_id):
+        verification_in_progress.discard(user_id)
+        return
+
+    verify_token = await get_verify_token(
+        client,
+        user_id,
+        f"https://telegram.me/{username}?start="
+    )
+
+    buttons = get_verification_markup(verify_token, username)
+
+    if not isveri:
+        text = f"""ʜɪ 👋 {message.from_user.mention},
 
 ᴛᴏ ꜱᴛᴀʀᴛ ᴜꜱɪɴɢ ᴛʜɪꜱ ʙᴏᴛ, ᴘʟᴇᴀꜱᴇ ɢᴇɴᴇʀᴀᴛᴇ ᴀ ᴛᴇᴍᴘᴏʀᴀʀʏ ᴀᴅꜱ ᴛᴏᴋᴇɴ.
 
 ᴠᴀʟɪᴅɪᴛʏ: {get_readable_time(VERIFY_EXPIRE)}"""
-        # ELSE: User record exists but token is expired
-        else:
-            # Verification message for expired token
-            text = f"""ʜɪ 👋 {message.from_user.mention},
-
-ʏᴏᴜʀ ᴀᴅꜱ ᴛᴏᴋᴇɴ ʜᴀꜱ ʙᴇᴇɴ ᴇxᴘɪʀᴇᴅ, ᴋɪɴᴅʟʏ ɢᴇᴛ ᴀ ɴᴇᴡ ᴛᴏᴋᴇɴ ᴛᴏ ᴄᴏɴᴛɪɴᴜᴇ ᴜꜱɪɴɢ ᴛʜɪꜱ ʙᴏᴛ.
-
-ᴠᴀʟɪᴅɪᴛʏ: {get_readable_time(VERIFY_EXPIRE)}"""
-
-    if not text:
-        # Fallback to the expired message
+    else:
         text = f"""ʜɪ 👋 {message.from_user.mention},
 
-ʏᴏᴜʀ ᴀᴅꜱ ᴛᴏᴋᴇɴ ʜᴀꜱ ʙᴇᴇɴ ᴇxᴘɪʀᴇᴅ, ᴋɪɴᴅʟʏ ɢᴇᴛ ᴀ ɴᴇᴡ ᴛᴏᴋᴇɴ ᴛᴏ ᴄᴏɴᴛɪɴᴜᴇ ᴜꜱɪɴɢ ᴛʜɪꜱ ʙᴏᴛ.
+ʏᴏᴜʀ ᴀᴅꜱ ᴛᴏᴋᴇɴ ʜᴀꜱ ʙᴇᴇɴ ᴇxᴘɪʀᴇᴅ.
+ᴋɪɴᴅʟʏ ɢᴇᴛ ᴀ ɴᴇᴡ ᴛᴏᴋᴇɴ.
 
 ᴠᴀʟɪᴅɪᴛʏ: {get_readable_time(VERIFY_EXPIRE)}"""
 
-    message = message if isinstance(message, Message) else message.message
     await client.send_photo(
         chat_id=message.chat.id,
         photo=VERIFY_PHOTO,
         caption=text,
-        reply_markup=buttons,
-        # reply_to_message_id=message.id, IS REMOVED
+        reply_markup=buttons
     )
  
 async def get_verify_token(bot, userid, link):
@@ -318,7 +323,10 @@ async def validate_token(client, message, data):
     elif dict_token != token:
         # The verification will be sent without replying to the file message
         return await send_verification(client, message, text="<b>Iɴᴠᴀʟɪᴅ Oʀ Exᴘɪʀᴇᴅ Tᴏᴋᴇɴ 🔗...</b>")
+    
+    # 🔹 STEP 3: Cleanup - RESET FLAG
     verify_dict.pop(user_id, None)
+    verification_in_progress.discard(user_id)  # ✅ RESET FLAG
     await verifydb.update_verify_status(user_id)
     
     # Send Welcome message with Cancel | Premium buttons
