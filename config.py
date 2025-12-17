@@ -10,7 +10,7 @@ class Config(object):
     BOT_TOKEN = os.environ.get("BOT_TOKEN", "") 
 
     # database config
-    DB_NAME = os.environ.get("DB_NAME","codeflix")     
+    DB_NAME = os.environ.get("DB_NAME","nikhil7858978052")     
     DB_URL  = os.environ.get("DB_URL","mongodb+srv://hanemo2969:ywIjmR6hj2ntxk2A@cluster0.errugno.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0")
     PORT = os.environ.get("PORT", "9090")
  
