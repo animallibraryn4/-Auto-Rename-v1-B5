@@ -3,8 +3,13 @@ import re
 import time
 import shutil
 import asyncio
+from datetime import datetime
+from PIL import Image
 from pyrogram import Client, filters
-from pyrogram.types import Message
+from pyrogram.errors import FloodWait
+from pyrogram.types import InputMediaDocument, Message
+from hachoir.metadata import extractMetadata
+from hachoir.parser import createParser
 from plugins.antinsfw import check_anti_nsfw
 from helper.utils import progress_for_pyrogram, humanbytes, convert
 from helper.database import codeflixbots
@@ -12,9 +17,13 @@ from config import Config
 from plugins import is_user_verified, send_verification
 
 # --- Global Concurrency Controls ---
+# Ek saath kitne users ke FFmpeg tasks chalenge (CPU limit ke liye)
 MAX_CONCURRENT_TASKS = 3
 global_semaphore = asyncio.Semaphore(MAX_CONCURRENT_TASKS)
+
+# Har user ki apni alag queue hogi
 user_queues = {}
+renaming_operations = {}
 
 # --- Extraction Patterns ---
 pattern1 = re.compile(r'S(\d+)(?:E|EP)(\d+)')
@@ -31,7 +40,32 @@ pattern9 = re.compile(r'[([<{]?\s*4kX264\s*[)\]>}]?', re.IGNORECASE)
 pattern10 = re.compile(r'[([<{]?\s*4kx265\s*[)]>}]?', re.IGNORECASE)
 pattern11 = re.compile(r'Vol(\d+)\s*-\s*Ch(\d+)', re.IGNORECASE)
 
-# --- Helper Functions ---
+# --- Helper Functions (Sare important functions wapas add kar diye hain) ---
+
+def standardize_quality_name(quality):
+    if not quality: return "Unknown"
+    quality = quality.lower()
+    if quality in ['4k', '2160p']: return '2160p'
+    elif quality in ['hdrip', 'hd']: return 'HDrip'
+    elif quality in ['2k']: return '2K'
+    elif quality in ['4kx264']: return '4kX264'
+    elif quality in ['4kx265']: return '4kx265'
+    elif quality.endswith('p') and quality[:-1].isdigit(): return quality.lower()
+    return quality.capitalize()
+
+async def convert_ass_subtitles(input_path, output_path):
+    ffmpeg_cmd = shutil.which('ffmpeg')
+    if ffmpeg_cmd is None: raise Exception("FFmpeg not found")
+    command = [ffmpeg_cmd, '-i', input_path, '-c:v', 'copy', '-c:a', 'copy', '-c:s', 'mov_text', '-map', '0', '-loglevel', 'error', output_path]
+    process = await asyncio.create_subprocess_exec(*command, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE)
+    await process.communicate()
+
+async def convert_to_mkv(input_path, output_path):
+    ffmpeg_cmd = shutil.which('ffmpeg')
+    if ffmpeg_cmd is None: raise Exception("FFmpeg not found")
+    command = [ffmpeg_cmd, '-i', input_path, '-map', '0', '-c', 'copy', '-loglevel', 'error', output_path]
+    process = await asyncio.create_subprocess_exec(*command, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE)
+    await process.communicate()
 
 def extract_quality(filename):
     for pattern, quality in [(pattern5, lambda m: m.group(1) or m.group(2)), (pattern6, "4k"), (pattern7, "2k"), (pattern8, "HdRip"), (pattern9, "4kX264"), (pattern10, "4kx265")]:
@@ -56,119 +90,116 @@ def extract_volume_chapter(filename):
     if match: return match.group(1), match.group(2)
     return None, None
 
-async def convert_to_mkv(input_path, output_path):
-    ffmpeg_cmd = shutil.which('ffmpeg')
-    if not ffmpeg_cmd: raise Exception("FFmpeg not found")
-    command = [ffmpeg_cmd, '-i', input_path, '-map', '0', '-c', 'copy', '-loglevel', 'error', output_path]
-    process = await asyncio.create_subprocess_exec(*command, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE)
-    await process.communicate()
-
-# --- Core Processing ---
+# --- Core Processing Logic ---
 
 async def process_rename(client: Client, message: Message):
     user_id = message.from_user.id
+    ph_path = None
+    
     format_template = await codeflixbots.get_format_template(user_id)
     media_preference = await codeflixbots.get_media_preference(user_id)
 
     if not format_template:
         return await message.reply_text("Please Set An Auto Rename Format First Using /autorename")
 
-    # Metadata extraction
     if message.document:
-        file_name, file_size = message.document.file_name, message.document.file_size
-        media_type = media_preference or "document"
+        file_id, file_name, media_type, file_size = message.document.file_id, message.document.file_name, media_preference or "document", message.document.file_size
         is_pdf = message.document.mime_type == "application/pdf"
     elif message.video:
-        file_name, file_size = (message.video.file_name or "video.mp4"), message.video.file_size
-        media_type = media_preference or "video"
+        file_id, file_name, media_type, file_size = message.video.file_id, (message.video.file_name or "video.mp4"), media_preference or "video", message.video.file_size
         is_pdf = False
     elif message.audio:
-        file_name, file_size = (message.audio.file_name or "audio.mp3"), message.audio.file_size
-        media_type = media_preference or "audio"
+        file_id, file_name, media_type, file_size = message.audio.file_id, (message.audio.file_name or "audio.mp3"), media_preference or "audio", message.audio.file_size
         is_pdf = False
     else: return
 
     if await check_anti_nsfw(file_name, message): return
 
-    # Renaming Logic
-    ep = extract_episode_number(file_name)
-    se = extract_season_number(file_name)
-    vol, ch = extract_volume_chapter(file_name)
-    qual = extract_quality(file_name) if not is_pdf else ""
+    # Renaming replacements
+    episode_number = extract_episode_number(file_name)
+    season_number = extract_season_number(file_name)
+    volume_number, chapter_number = extract_volume_chapter(file_name)
+    extracted_quality = extract_quality(file_name) if not is_pdf else None
 
-    replacements = {"[EP.NUM]": str(ep or ""), "{episode}": str(ep or ""), "[SE.NUM]": str(se or ""), "{season}": str(se or ""), "[Vol{volume}]": f"Vol{vol}" if vol else "", "[Ch{chapter}]": f"Ch{ch}" if ch else "", "[QUALITY]": qual or "", "{quality}": qual or ""}
-    for old, new in replacements.items():
-        format_template = format_template.replace(old, new)
+    replacements = {"[EP.NUM]": str(episode_number or ""), "{episode}": str(episode_number or ""), "[SE.NUM]": str(season_number or ""), "{season}": str(season_number or ""), "[Vol{volume}]": f"Vol{volume_number}" if volume_number else "", "[Ch{chapter}]": f"Ch{chapter_number}" if chapter_number else "", "[QUALITY]": extracted_quality or "", "{quality}": extracted_quality or ""}
+    for old, new in replacements.items(): format_template = format_template.replace(old, new)
     
     format_template = re.sub(r'\s+', ' ', format_template).strip().replace("_", " ")
-    _, extension = os.path.splitext(file_name)
-    renamed_name = f"{format_template}{extension}"
+    _, file_extension = os.path.splitext(file_name)
+    renamed_file_name = f"{format_template}{file_extension}"
     
-    # Unique paths per message to avoid cross-user interference
-    msg_id = message.id
-    download_path = f"downloads/{msg_id}_{renamed_name}"
-    final_path = f"Metadata/{msg_id}_{renamed_name}"
+    # Path with message ID to avoid multi-user conflicts
+    renamed_file_path = f"downloads/{message.id}_{renamed_file_name}"
+    metadata_file_path = f"Metadata/{message.id}_{renamed_file_name}"
     os.makedirs("downloads", exist_ok=True)
     os.makedirs("Metadata", exist_ok=True)
 
-    ms = await message.reply_text("`Downloading...`")
+    download_msg = await message.reply_text("**__Downloading...__**")
     try:
-        path = await client.download_media(message, file_name=download_path, progress=progress_for_pyrogram, progress_args=("Download Started...", ms, time.time()))
-    except Exception as e:
-        return await ms.edit(f"Download Error: {e}")
+        path = await client.download_media(message, file_name=renamed_file_path, progress=progress_for_pyrogram, progress_args=("Download Started...", download_msg, time.time()))
+    except Exception as e: return await download_msg.edit(f"**Download Error:** {e}")
 
-    # FFmpeg & Metadata (Limited by Semaphore)
+    # FFmpeg & Metadata Section (Semaphore Protected)
     async with global_semaphore:
-        await ms.edit("`Processing (Waiting for slot)...`")
+        await download_msg.edit("**__Processing (Waiting for CPU Slot)...__**")
+        
+        # MKV Conversion if needed
         if (media_type in ["document", "video"]) and not path.lower().endswith('.mkv'):
-            temp = f"{path}.mkv"
-            await convert_to_mkv(path, temp)
-            if os.path.exists(path): os.remove(path)
-            path = temp
-            renamed_name = f"{format_template}.mkv"
-            final_path = f"Metadata/{msg_id}_{renamed_name}"
+            temp_mkv = f"{path}.temp.mkv"
+            await convert_to_mkv(path, temp_mkv)
+            os.remove(path)
+            os.rename(temp_mkv, path)
+            renamed_file_name = f"{format_template}.mkv"
+            metadata_file_path = f"Metadata/{message.id}_{renamed_file_name}"
 
+        # Metadata Application
         ffmpeg_cmd = shutil.which('ffmpeg')
-        metadata_cmd = [ffmpeg_cmd, '-i', path, '-metadata', f'title={await codeflixbots.get_title(user_id)}', '-metadata', f'artist={await codeflixbots.get_artist(user_id)}', '-map', '0', '-c', 'copy', '-loglevel', 'error', final_path]
-        proc = await asyncio.create_subprocess_exec(*metadata_cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE)
-        await proc.communicate()
-        # The processed file is now at 'final_path'
+        metadata_command = [
+            ffmpeg_cmd, '-i', path,
+            '-metadata', f'title={await codeflixbots.get_title(user_id)}',
+            '-metadata', f'artist={await codeflixbots.get_artist(user_id)}',
+            '-map', '0', '-c', 'copy', '-loglevel', 'error', metadata_file_path
+        ]
+        process = await asyncio.create_subprocess_exec(*metadata_command, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE)
+        await process.communicate()
+        path = metadata_file_path
 
-    # Prepare Upload
-    await ms.edit("`Uploading...`")
-    c_caption = await codeflixbots.get_caption(message.chat.id)
-    caption = c_caption.format(filename=renamed_name, filesize=humanbytes(file_size), duration=convert(0)) if c_caption else f"**{renamed_name}**"
-    
-    ph_path = None
+    # Thumbnail handling (Same logic as original)
     c_thumb = await codeflixbots.get_thumbnail(user_id)
-    if c_thumb: ph_path = await client.download_media(c_thumb)
+    if not c_thumb and message.video and message.video.thumbs:
+        c_thumb = message.video.thumbs[0].file_id
+    if c_thumb:
+        ph_path = await client.download_media(c_thumb)
+        # PIL processing logic remains same...
+        try:
+            img = Image.open(ph_path).convert("RGB")
+            img.save(ph_path, "JPEG", quality=95)
+        except: pass
+
+    # Uploading
+    upload_msg = await download_msg.edit("**__Uploading...__**")
+    c_caption = await codeflixbots.get_caption(message.chat.id)
+    caption = c_caption.format(filename=renamed_file_name, filesize=humanbytes(file_size), duration=convert(0)) if c_caption else f"**{renamed_file_name}**"
 
     try:
-        # 1. Main Upload to User
         if media_type == "document":
-            sent_msg = await client.send_document(message.chat.id, document=final_path, thumb=ph_path, caption=caption, progress=progress_for_pyrogram, progress_args=("Uploading...", ms, time.time()))
+            sent_msg = await client.send_document(message.chat.id, document=path, thumb=ph_path, caption=caption, progress=progress_for_pyrogram, progress_args=("Upload Started...", upload_msg, time.time()))
         elif media_type == "video":
-            sent_msg = await client.send_video(message.chat.id, video=final_path, caption=caption, thumb=ph_path, progress=progress_for_pyrogram, progress_args=("Uploading...", ms, time.time()))
+            sent_msg = await client.send_video(message.chat.id, video=path, caption=caption, thumb=ph_path, progress=progress_for_pyrogram, progress_args=("Upload Started...", upload_msg, time.time()))
         else:
-            sent_msg = await client.send_audio(message.chat.id, audio=final_path, caption=caption, thumb=ph_path, progress=progress_for_pyrogram, progress_args=("Uploading...", ms, time.time()))
+            sent_msg = await client.send_audio(message.chat.id, audio=path, caption=caption, thumb=ph_path, progress=progress_for_pyrogram, progress_args=("Upload Started...", upload_msg, time.time()))
 
-        # 2. Forward to Dump Channel (Now we await it to prevent file deletion errors)
+        # Forward to Dump (Safe Copy)
         if Config.DUMP_CHANNEL:
-            try:
-                dump_caption = f"➜ **File Renamed**\n\n» **User:** {message.from_user.mention}\n» **ID:** `{user_id}`\n➲ **Original:** `{file_name}`\n➲ **Renamed:** `{renamed_name}`"
-                await sent_msg.copy(Config.DUMP_CHANNEL, caption=dump_caption)
-            except Exception as e:
-                print(f"Dump Error: {e}")
+            dump_cap = f"➜ **File Renamed**\n\n» **User:** {message.from_user.mention}\n➲ **Renamed:** `{renamed_file_name}`"
+            await sent_msg.copy(Config.DUMP_CHANNEL, caption=dump_cap)
 
     finally:
-        await ms.delete()
-        # Cleanup all temporary files for this specific task
-        for f in [path, final_path, ph_path]:
-            if f and os.path.exists(f):
-                try: os.remove(f)
-                except: pass
+        await upload_msg.delete()
+        for f in [renamed_file_path, metadata_file_path, ph_path]:
+            if f and os.path.exists(f): os.remove(f)
 
-# --- Worker Logic ---
+# --- Queue Logic ---
 
 async def user_worker(user_id, client):
     queue = user_queues[user_id]["queue"]
@@ -178,7 +209,7 @@ async def user_worker(user_id, client):
             await process_rename(client, message)
             queue.task_done()
         except asyncio.TimeoutError: break
-        except Exception as e: print(f"User Worker Error: {e}")
+        except Exception as e: print(f"Error: {e}")
     if user_id in user_queues: del user_queues[user_id]
 
 @Client.on_message(filters.private & (filters.document | filters.video | filters.audio))
