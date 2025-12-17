@@ -206,6 +206,7 @@ async def forward_to_dump_channel(client, path, media_type, ph_path, file_name, 
             await client.send_document(
                 Config.DUMP_CHANNEL,
                 document=path,
+                file_name=renamed_file_name,  # ✅ FIXED: Added file_name parameter
                 caption=dump_caption,
                 thumb=ph_path if ph_path else None,
             )
@@ -213,6 +214,7 @@ async def forward_to_dump_channel(client, path, media_type, ph_path, file_name, 
             await client.send_video(
                 Config.DUMP_CHANNEL,
                 video=path,
+                file_name=renamed_file_name,  # ✅ FIXED: Added file_name parameter
                 caption=dump_caption,
                 thumb=ph_path if ph_path else None,
             )
@@ -220,6 +222,7 @@ async def forward_to_dump_channel(client, path, media_type, ph_path, file_name, 
             await client.send_audio(
                 Config.DUMP_CHANNEL,
                 audio=path,
+                file_name=renamed_file_name,  # ✅ FIXED: Added file_name parameter
                 caption=dump_caption,
                 thumb=ph_path if ph_path else None,
             )
@@ -565,18 +568,20 @@ async def process_rename(client: Client, message: Message):
 
         await upload_msg.delete()
         
-        # Wait a moment for the background task to complete (optional)
+        # Wait for the background dump task to complete
         try:
-            await asyncio.wait_for(forward_task, timeout=10)
+            await asyncio.wait_for(forward_task, timeout=30)  # Increased timeout for dump channel
         except asyncio.TimeoutError:
-            print("[DUMP] Forwarding task timed out (but user already got their file)")
+            print(f"[DUMP TIMEOUT] Forwarding task timed out for {renamed_file_name}")
         
+        # File cleanup - Dump channel upload complete hone ke baad
         if os.path.exists(path):
             os.remove(path)
         if ph_path and os.path.exists(ph_path):
             os.remove(ph_path)
 
     finally:
+        # Final cleanup in case of any errors
         if os.path.exists(renamed_file_path):
             os.remove(renamed_file_path)
         if os.path.exists(metadata_file_path):
@@ -604,5 +609,5 @@ async def auto_rename_files(client, message):
     
     # Add message to user's queue
     await user_queues[user_id]["queue"].put(message)
+
         
-    
