@@ -435,7 +435,7 @@ async def rename_worker(worker_id):
             rename_queue.task_done()
 
 # Start 5 workers for parallel processing
-for i in range(500):
+for i in range(5):
     asyncio.create_task(rename_worker(i))
 
 @Client.on_message(filters.private & (filters.document | filters.video | filters.audio))
