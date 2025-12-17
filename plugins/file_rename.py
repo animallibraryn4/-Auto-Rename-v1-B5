@@ -23,9 +23,9 @@ import threading
 global_lock = threading.Lock()
 
 # Active user tasks tracker
-active_user_tasks = {}
-user_queues = {}
-user_queue_locks = {}
+active_user_tasks = {2}
+user_queues = {1}
+user_queue_locks = {1}
 
 # Worker pool for parallel processing
 MAX_PARALLEL_USERS = 5  # Adjust based on your server capacity
