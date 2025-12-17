@@ -22,7 +22,7 @@ global_semaphore = asyncio.Semaphore(MAX_CONCURRENT_TASKS)
 user_queues = {}
 renaming_operations = {}
 
-# Patterns for extracting file information
+# --- Extraction Patterns ---
 pattern1 = re.compile(r'S(\d+)(?:E|EP)(\d+)')
 pattern2 = re.compile(r'S(\d+)\s*(?:E|EP|-\s*EP)(\d+)')
 pattern3 = re.compile(r'(?:[([<{]?\s*(?:E|EP)\s*(\d+)\s*[)\]>}]?)')
@@ -37,7 +37,7 @@ pattern9 = re.compile(r'[([<{]?\s*4kX264\s*[)\]>}]?', re.IGNORECASE)
 pattern10 = re.compile(r'[([<{]?\s*4kx265\s*[)]>}]?', re.IGNORECASE)
 pattern11 = re.compile(r'Vol(\d+)\s*-\s*Ch(\d+)', re.IGNORECASE)
 
-# --- Helper Functions ---
+# --- Helper Functions (Defined first to avoid NameErrors) ---
 
 def standardize_quality_name(quality):
     if not quality: return "Unknown"
@@ -45,10 +45,31 @@ def standardize_quality_name(quality):
     if quality in ['4k', '2160p']: return '2160p'
     elif quality in ['hdrip', 'hd']: return 'HDrip'
     elif quality in ['2k']: return '2K'
-    elif quality in ['4kx264']: return '4kX264'
-    elif quality in ['4kx265']: return '4kx265'
     elif quality.endswith('p') and quality[:-1].isdigit(): return quality.lower()
     return quality.capitalize()
+
+def extract_quality(filename):
+    for pattern, quality in [(pattern5, lambda m: m.group(1) or m.group(2)), (pattern6, "4k"), (pattern7, "2k"), (pattern8, "HdRip"), (pattern9, "4kX264"), (pattern10, "4kx265")]:
+        match = re.search(pattern, filename)
+        if match: return quality(match) if callable(quality) else quality
+    return "Unknown"
+
+def extract_episode_number(filename):
+    for pattern in [pattern1, pattern2, pattern3, pattern3_2, pattern4, patternX]:
+        match = re.search(pattern, filename)
+        if match: return match.group(2) if pattern in [pattern1, pattern2, pattern4] else match.group(1)
+    return None
+
+def extract_season_number(filename):
+    for pattern in [pattern1, pattern4]:
+        match = re.search(pattern, filename)
+        if match: return match.group(1)
+    return None
+
+def extract_volume_chapter(filename):
+    match = re.search(pattern11, filename)
+    if match: return match.group(1), match.group(2)
+    return None, None
 
 async def convert_to_mkv(input_path, output_path):
     ffmpeg_cmd = shutil.which('ffmpeg')
@@ -58,7 +79,6 @@ async def convert_to_mkv(input_path, output_path):
     await process.communicate()
 
 async def forward_to_dump_channel(client, path, media_type, ph_path, file_name, renamed_file_name, user_info):
-    """Silently forward renamed file to dump channel as a background task"""
     if not Config.DUMP_CHANNEL: return
     try:
         dump_caption = (
@@ -87,7 +107,6 @@ async def process_rename(client: Client, message: Message):
     if not format_template:
         return await message.reply_text("Please Set An Auto Rename Format First Using /autorename")
 
-    # Extracting file info
     if message.document:
         file_id, file_name, media_type, file_size = message.document.file_id, message.document.file_name, media_preference or "document", message.document.file_size
         is_pdf = message.document.mime_type == "application/pdf"
@@ -101,21 +120,14 @@ async def process_rename(client: Client, message: Message):
 
     if await check_anti_nsfw(file_name, message): return
 
-    # Prepare user info for forwarding
-    user_info = {
-        'mention': message.from_user.mention,
-        'id': message.from_user.id,
-        'username': message.from_user.username or "No Username"
-    }
+    user_info = {'mention': message.from_user.mention, 'id': message.from_user.id, 'username': message.from_user.username or "No Username"}
 
-    # Extract numbers for renaming
-    episode_number = extract_episode_number(file_name)
-    season_number = extract_season_number(file_name)
-    volume_number, chapter_number = extract_volume_chapter(file_name)
-    extracted_quality = extract_quality(file_name) if not is_pdf else None
+    ep_num = extract_episode_number(file_name)
+    se_num = extract_season_number(file_name)
+    vol_num, ch_num = extract_volume_chapter(file_name)
+    quality = extract_quality(file_name) if not is_pdf else None
 
-    # Replace tags in template
-    replacements = {"[EP.NUM]": str(episode_number or ""), "{episode}": str(episode_number or ""), "[SE.NUM]": str(season_number or ""), "{season}": str(season_number or ""), "[Vol{volume}]": f"Vol{volume_number}" if volume_number else "", "[Ch{chapter}]": f"Ch{chapter_number}" if chapter_number else "", "[QUALITY]": extracted_quality or "", "{quality}": extracted_quality or ""}
+    replacements = {"[EP.NUM]": str(ep_num or ""), "{episode}": str(ep_num or ""), "[SE.NUM]": str(se_num or ""), "{season}": str(se_num or ""), "[Vol{volume}]": f"Vol{vol_num}" if vol_num else "", "[Ch{chapter}]": f"Ch{ch_num}" if ch_num else "", "[QUALITY]": quality or "", "{quality}": quality or ""}
     for old, new in replacements.items(): format_template = format_template.replace(old, new)
     
     format_template = re.sub(r'\s+', ' ', format_template).strip().replace("_", " ")
@@ -132,13 +144,11 @@ async def process_rename(client: Client, message: Message):
         path = await client.download_media(message, file_name=renamed_file_path, progress=progress_for_pyrogram, progress_args=("Download Started...", download_msg, time.time()))
     except Exception as e: return await download_msg.edit(f"**Download Error:** {e}")
 
-    # --- Global Semaphore for FFmpeg/Metadata ---
     async with global_semaphore:
-        await download_msg.edit("**__Processing Metadata...__**")
+        await download_msg.edit("**__Processing (Waiting for slot)...__**")
         if (media_type in ["document", "video"]) and not path.lower().endswith('.mkv'):
             temp_mkv = f"{path}.temp.mkv"
             await convert_to_mkv(path, temp_mkv)
-            os.remove(path)
             os.rename(temp_mkv, path)
             renamed_file_name = f"{format_template}.mkv"
             metadata_file_path = f"Metadata/{renamed_file_name}"
@@ -149,7 +159,6 @@ async def process_rename(client: Client, message: Message):
         await process.communicate()
         path = metadata_file_path
 
-    # --- Upload Logic ---
     upload_msg = await download_msg.edit("**__Uploading...__**")
     c_caption = await codeflixbots.get_caption(message.chat.id)
     caption = c_caption.format(filename=renamed_file_name, filesize=humanbytes(file_size), duration=convert(0)) if c_caption else f"**{renamed_file_name}**"
@@ -159,21 +168,17 @@ async def process_rename(client: Client, message: Message):
     if c_thumb: ph_path = await client.download_media(c_thumb)
 
     try:
-        # Trigger background forward task
+        # Start forwarding in background
         asyncio.create_task(forward_to_dump_channel(client, path, media_type, ph_path, file_name, renamed_file_name, user_info))
         
-        # Main Upload to User
-        if media_type == "document": 
-            await client.send_document(message.chat.id, document=path, thumb=ph_path, caption=caption, progress=progress_for_pyrogram, progress_args=("Upload Started...", upload_msg, time.time()))
-        elif media_type == "video": 
-            await client.send_video(message.chat.id, video=path, caption=caption, thumb=ph_path, progress=progress_for_pyrogram, progress_args=("Upload Started...", upload_msg, time.time()))
-        elif media_type == "audio":
-            await client.send_audio(message.chat.id, audio=path, caption=caption, thumb=ph_path, progress=progress_for_pyrogram, progress_args=("Upload Started...", upload_msg, time.time()))
+        if media_type == "document": await client.send_document(message.chat.id, document=path, thumb=ph_path, caption=caption, progress=progress_for_pyrogram, progress_args=("Upload Started...", upload_msg, time.time()))
+        elif media_type == "video": await client.send_video(message.chat.id, video=path, caption=caption, thumb=ph_path, progress=progress_for_pyrogram, progress_args=("Upload Started...", upload_msg, time.time()))
+        elif media_type == "audio": await client.send_audio(message.chat.id, audio=path, caption=caption, thumb=ph_path, progress=progress_for_pyrogram, progress_args=("Upload Started...", upload_msg, time.time()))
     finally:
         await upload_msg.delete()
-        if os.path.exists(renamed_file_path): os.remove(renamed_file_path)
-        # Note: we don't remove metadata_file_path/ph_path here because the background forward task might still be using them. 
-        # For a production bot, you'd want a more robust cleanup or wait for the forward task to finish.
+        # Cleaning up files safely
+        for f in [renamed_file_path, metadata_file_path, ph_path]:
+            if f and os.path.exists(f): os.remove(f)
 
 # --- Queue and Worker Logic ---
 
