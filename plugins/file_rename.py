@@ -19,9 +19,7 @@ from plugins import is_user_verified, send_verification
 # ===== Global + Per-User Queue System =====
 MAX_CONCURRENT_TASKS = 3  # server capacity ke hisaab se change kar sakte ho
 global_semaphore = asyncio.Semaphore(MAX_CONCURRENT_TASKS)
-
 user_queues = {}
-# =========================================
 
 # Global dictionary to prevent duplicate renaming within a short time
 renaming_operations = {}
@@ -40,6 +38,33 @@ pattern8 = re.compile(r'[([<{]?\s*HdRip\s*[)\]>}]?|\bHdRip\b', re.IGNORECASE)
 pattern9 = re.compile(r'[([<{]?\s*4kX264\s*[)\]>}]?', re.IGNORECASE)
 pattern10 = re.compile(r'[([<{]?\s*4kx265\s*[)]>}]?', re.IGNORECASE)
 pattern11 = re.compile(r'Vol(\d+)\s*-\s*Ch(\d+)', re.IGNORECASE)
+
+async def user_worker(user_id, client):
+    """Worker to process files for a specific user"""
+    queue = user_queues[user_id]["queue"]
+    while True:
+        try:
+            # Wait for message from user's queue with timeout
+            message = await asyncio.wait_for(queue.get(), timeout=300)
+            
+            # Acquire global semaphore to limit concurrent tasks
+            async with global_semaphore:
+                await process_rename(client, message)
+                
+            queue.task_done()
+            
+        except asyncio.TimeoutError:
+            # Clean up inactive user queue
+            if user_id in user_queues:
+                del user_queues[user_id]
+            break
+        except Exception as e:
+            print(f"Error in user_worker for user {user_id}: {e}")
+            if user_id in user_queues:
+                try:
+                    queue.task_done()
+                except ValueError:
+                    pass
 
 def standardize_quality_name(quality):
     """Standardize quality names for consistent storage"""
@@ -277,11 +302,13 @@ async def process_rename(client: Client, message: Message):
     format_template = format_template.replace("_", " ")
     format_template = re.sub(r'\[\s*\]', '', format_template)
 
-    # Prepare file paths
+    # Prepare file paths with message ID for uniqueness
     _, file_extension = os.path.splitext(file_name)
     renamed_file_name = f"{format_template}{file_extension}"
-    renamed_file_path = f"downloads/{renamed_file_name}"
-    metadata_file_path = f"Metadata/{renamed_file_name}"
+    msg_id = message.id
+    download_path = f"downloads/{msg_id}_{renamed_file_name}"
+    renamed_file_path = download_path
+    metadata_file_path = f"Metadata/{msg_id}_{renamed_file_name}"
     os.makedirs(os.path.dirname(renamed_file_path), exist_ok=True)
     os.makedirs(os.path.dirname(metadata_file_path), exist_ok=True)
 
@@ -318,7 +345,7 @@ async def process_rename(client: Client, message: Message):
                 os.remove(path)
                 os.rename(temp_mkv_path, path)
                 renamed_file_name = f"{format_template}.mkv"
-                metadata_file_path = f"Metadata/{renamed_file_name}"
+                metadata_file_path = f"Metadata/{msg_id}_{renamed_file_name}"
             except Exception as e:
                 await download_msg.edit(f"**MKV Conversion Error:** {e}")
                 return
@@ -553,60 +580,6 @@ async def process_rename(client: Client, message: Message):
             os.remove(ph_path)
         del renaming_operations[file_id]
 
-async def process_user_queue(user_id, client, message):
-    """Process files from a specific user's queue"""
-    # Wait for global semaphore (limits concurrent tasks)
-    async with global_semaphore:
-        # Get user's queue
-        if user_id not in user_queues:
-            user_queues[user_id] = asyncio.Queue()
-        
-        user_queue = user_queues[user_id]
-        
-        # Process files from user's queue
-        while True:
-            try:
-                # Get next task from user's queue (with timeout to prevent blocking)
-                task_client, task_message = await asyncio.wait_for(user_queue.get(), timeout=1.0)
-                
-                try:
-                    await process_rename(task_client, task_message)
-                except Exception as e:
-                    print(f"Error processing rename task for user {user_id}: {e}")
-                finally:
-                    user_queue.task_done()
-                    
-            except asyncio.TimeoutError:
-                # No more tasks in user's queue
-                break
-            except asyncio.QueueEmpty:
-                # Queue is empty
-                break
-
-async def user_queue_worker():
-    """Worker to manage user queues"""
-    while True:
-        try:
-            # Process each user's queue
-            for user_id in list(user_queues.keys()):
-                if user_id in user_queues and not user_queues[user_id].empty():
-                    # Get the first task from user's queue to process
-                    task_client, task_message = await user_queues[user_id].get()
-                    
-                    # Process this task
-                    try:
-                        await process_rename(task_client, task_message)
-                    except Exception as e:
-                        print(f"Error processing rename task for user {user_id}: {e}")
-                    finally:
-                        user_queues[user_id].task_done()
-            
-            # Sleep briefly to prevent CPU overload
-            await asyncio.sleep(0.1)
-        except Exception as e:
-            print(f"Error in user_queue_worker: {e}")
-            await asyncio.sleep(1)
-
 @Client.on_message(filters.private & (filters.document | filters.video | filters.audio))
 async def auto_rename_files(client, message):
     # Check if user is verified
@@ -617,19 +590,12 @@ async def auto_rename_files(client, message):
     
     user_id = message.from_user.id
     
-    # Initialize user queue if it doesn't exist
+    # Create per-user queue if it doesn't exist
     if user_id not in user_queues:
-        user_queues[user_id] = asyncio.Queue()
+        user_queues[user_id] = {
+            "queue": asyncio.Queue(),
+            "task": asyncio.create_task(user_worker(user_id, client))
+        }
     
-    # Add task to user's queue
-    await user_queues[user_id].put((client, message))
-    
-    # Notify user about queue position
-    queue_size = user_queues[user_id].qsize()
-    if queue_size > 1:
-        await message.reply_text(f"📁 **File added to queue.**\n\n"
-                                f"📊 **Your position in queue:** {queue_size}\n"
-                                f"⏳ **Processing will start soon...**")
-
-# Start queue worker on bot startup
-asyncio.create_task(user_queue_worker())
+    # Add message to user's queue
+    await user_queues[user_id]["queue"].put(message)
