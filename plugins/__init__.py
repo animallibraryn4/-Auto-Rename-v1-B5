@@ -34,11 +34,12 @@ Your premium plan will be activated after verification.</b>"""
 PREPLANS_TXT = """<b><pre>🎖️Available Plans:</pre>
 
  Pricing:
-➜ Monthly Premium: ₹50/month
-➜ Daily Premium: ₹5/day
-➜ For bot hosting: contact @Anime_Library_N4
+➜ Monthly Premium: ₹109/month
+➜ weekly Premium: ₹49/month
+➜ Daily Premium: ₹19/day
+➜ Contact: @Anime_Library_N4
 
-➲ UPI ID - <code>@</code>
+➲ UPI ID - <code>bbc@</code>
 
 ‼️ Upload the payment screenshot here and reply with the /bought command.</b>"""
 
