@@ -33,13 +33,13 @@ Your premium plan will be activated after verification.</b>"""
 
 PREPLANS_TXT = """<b>🎖️Available Plans:</b>
 
-<b><pre>Pricing:
+<pre>Pricing:
 ➜ Monthly Premium: ₹109/month
 ➜ weekly Premium: ₹49/month
 ➜ Daily Premium: ₹19/day
 ➜ Contact: @Anime_Library_N4</pre>
 
-➲ UPI ID - <code>bbc@</code>
+<b>➲ UPI ID - <code>bbc@</code>
 
 ‼️ Upload the payment screenshot here and reply with the /bought command.</b>"""
 
