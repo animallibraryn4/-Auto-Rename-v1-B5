@@ -22,6 +22,9 @@ renaming_operations = {}
 # Asyncio Queue to manage file renaming tasks
 rename_queue = asyncio.Queue()
 
+# Global to track active tasks per user
+active_user_tasks = {}
+
 # Patterns for extracting file information
 pattern1 = re.compile(r'S(\d+)(?:E|EP)(\d+)')
 pattern2 = re.compile(r'S(\d+)\s*(?:E|EP|-\s*EP)(\d+)')
@@ -155,7 +158,6 @@ async def forward_to_dump_channel(client, path, media_type, ph_path, file_name, 
         return
     
     try:
-        # Get chat info first to ensure bot recognizes the channel
         try:
             dump_chat = await client.get_chat(Config.DUMP_CHANNEL)
             print(f"[DUMP] Preparing to forward to: {dump_chat.title}")
@@ -202,20 +204,17 @@ async def forward_to_dump_channel(client, path, media_type, ph_path, file_name, 
 async def process_rename(client: Client, message: Message):
     user_id = message.from_user.id
     
-    # Add verification check here too as a safety measure
     if not await is_user_verified(user_id):
         await send_verification(client, message)
         return
         
     ph_path = None
-    
     format_template = await codeflixbots.get_format_template(user_id)
     media_preference = await codeflixbots.get_media_preference(user_id)
 
     if not format_template:
         return await message.reply_text("Please Set An Auto Rename Format First Using /autorename")
 
-    # Determine file type and properties
     if message.document:
         file_id = message.document.file_id
         file_name = message.document.file_name
@@ -240,7 +239,6 @@ async def process_rename(client: Client, message: Message):
     if await check_anti_nsfw(file_name, message):
         return await message.reply_text("NSFW content detected. File upload rejected.")
 
-    # Check for duplicate operations
     if file_id in renaming_operations:
         elapsed_time = (datetime.now() - renaming_operations[file_id]).seconds
         if elapsed_time < 10:
@@ -248,13 +246,11 @@ async def process_rename(client: Client, message: Message):
 
     renaming_operations[file_id] = datetime.now()
 
-    # Process filename components
     episode_number = extract_episode_number(file_name)
     season_number = extract_season_number(file_name)
     volume_number, chapter_number = extract_volume_chapter(file_name)
     extracted_quality = extract_quality(file_name) if not is_pdf else None
 
-    # Apply format template
     replacements = {
         "[EP.NUM]": str(episode_number) if episode_number else "",
         "{episode}": str(episode_number) if episode_number else "",
@@ -273,7 +269,6 @@ async def process_rename(client: Client, message: Message):
     format_template = format_template.replace("_", " ")
     format_template = re.sub(r'\[\s*\]', '', format_template)
 
-    # Prepare file paths
     _, file_extension = os.path.splitext(file_name)
     renamed_file_name = f"{format_template}{file_extension}"
     renamed_file_path = f"downloads/{renamed_file_name}"
@@ -281,7 +276,6 @@ async def process_rename(client: Client, message: Message):
     os.makedirs(os.path.dirname(renamed_file_path), exist_ok=True)
     os.makedirs(os.path.dirname(metadata_file_path), exist_ok=True)
 
-    # Download file
     download_msg = await message.reply_text("**__Downloading...__**")
     try:
         path = await client.download_media(
@@ -291,7 +285,8 @@ async def process_rename(client: Client, message: Message):
             progress_args=("Download Started...", download_msg, time.time()),
         )
     except Exception as e:
-        del renaming_operations[file_id]
+        if file_id in renaming_operations:
+            del renaming_operations[file_id]
         return await download_msg.edit(f"**Download Error:** {e}")
 
     await download_msg.edit("**__Processing File...__**")
@@ -300,10 +295,9 @@ async def process_rename(client: Client, message: Message):
         os.rename(path, renamed_file_path)
         path = renamed_file_path
 
-        # Handle file conversion if needed
         ffmpeg_cmd = shutil.which('ffmpeg')
         if ffmpeg_cmd is None:
-            await download_msg.edit("**Error:** `ffmpeg` not found. Please install `ffmpeg` to use this feature.")
+            await download_msg.edit("**Error:** `ffmpeg` not found.")
             return
 
         need_mkv_conversion = (media_type == "document") or (media_type == "video" and path.lower().endswith('.mp4'))
@@ -325,28 +319,14 @@ async def process_rename(client: Client, message: Message):
             try:
                 ffprobe_cmd = shutil.which('ffprobe')
                 if ffprobe_cmd:
-                    command = [
-                        ffprobe_cmd,
-                        '-v', 'error',
-                        '-select_streams', 's',
-                        '-show_entries', 'stream=codec_name',
-                        '-of', 'csv=p=0',
-                        path
-                    ]
-                    process = await asyncio.create_subprocess_exec(
-                        *command,
-                        stdout=asyncio.subprocess.PIPE,
-                        stderr=asyncio.subprocess.PIPE
-                    )
+                    command = [ffprobe_cmd, '-v', 'error', '-select_streams', 's', '-show_entries', 'stream=codec_name', '-of', 'csv=p=0', path]
+                    process = await asyncio.create_subprocess_exec(*command, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE)
                     stdout, stderr = await process.communicate()
                     if process.returncode == 0:
-                        subtitle_codec = stdout.decode().strip().lower()
-                        if 'ass' in subtitle_codec:
+                        if 'ass' in stdout.decode().strip().lower():
                             is_mp4_with_ass = True
-            except Exception:
-                pass
+            except Exception: pass
 
-        # Handle metadata
         if is_mp4_with_ass:
             temp_output = f"{metadata_file_path}.temp.mp4"
             final_output = f"{metadata_file_path}.final.mp4"
@@ -355,48 +335,29 @@ async def process_rename(client: Client, message: Message):
             path = metadata_file_path
 
         metadata_command = [
-            ffmpeg_cmd,
-            '-i', path,
+            ffmpeg_cmd, '-i', path,
             '-metadata', f'title={await codeflixbots.get_title(user_id)}',
             '-metadata', f'artist={await codeflixbots.get_artist(user_id)}',
             '-metadata', f'author={await codeflixbots.get_author(user_id)}',
             '-metadata:s:v', f'title={await codeflixbots.get_video(user_id)}',
             '-metadata:s:a', f'title={await codeflixbots.get_audio(user_id)}',
             '-metadata:s:s', f'title={await codeflixbots.get_subtitle(user_id)}',
-            '-map', '0',
-            '-c', 'copy',
-            '-loglevel', 'error',
+            '-map', '0', '-c', 'copy', '-loglevel', 'error',
             metadata_file_path if not is_mp4_with_ass else final_output
         ]
 
-        process = await asyncio.create_subprocess_exec(
-            *metadata_command,
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE
-        )
-        stdout, stderr = await process.communicate()
-
-        if process.returncode != 0:
-            error_message = stderr.decode()
-            await download_msg.edit(f"**Metadata Error:**\n{error_message}")
-            return
-
-        if is_mp4_with_ass:
-            os.replace(final_output, metadata_file_path)
+        process = await asyncio.create_subprocess_exec(*metadata_command, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE)
+        await process.communicate()
+        if is_mp4_with_ass: os.replace(final_output, metadata_file_path)
         path = metadata_file_path
         
-        # Prepare for upload
         upload_msg = await download_msg.edit("**__Uploading...__**")
         c_caption = await codeflixbots.get_caption(message.chat.id)
 
-        # Handle thumbnails
         c_thumb = None
         is_global_enabled = await codeflixbots.is_global_thumb_enabled(user_id)
-
         if is_global_enabled:
             c_thumb = await codeflixbots.get_global_thumb(user_id)
-            if not c_thumb:
-                await upload_msg.edit("⚠️ Global Mode is ON but no global thumbnail set!")
         else:
             standard_quality = standardize_quality_name(extract_quality(file_name)) if not is_pdf else None
             if standard_quality and standard_quality != "Unknown":
@@ -407,167 +368,79 @@ async def process_rename(client: Client, message: Message):
         if not c_thumb and media_type == "video" and message.video.thumbs:
             c_thumb = message.video.thumbs[0].file_id
 
-        ph_path = None
         if c_thumb:
             try:
                 ph_path = await client.download_media(c_thumb)
                 if ph_path and os.path.exists(ph_path):
-                    try:
-                        img = Image.open(ph_path)
-                        # Convert to RGB if needed
-                        if img.mode != 'RGB':
-                            img = img.convert('RGB')
-                        
-                        width, height = img.size
-                        target_size = 320
-                        
-                        # Check if already perfect size
-                        if width == target_size and height == target_size:
-                            # No processing needed for perfect thumbnails
-                            img.save(ph_path, "JPEG", quality=95)
-                        else:
-                            # Only crop if one dimension matches and other is larger
-                            if (width == target_size and height > target_size) or \
-                               (height == target_size and width > target_size):
-                                
-                                # Calculate crop coordinates
-                                if width > target_size:
-                                    # Crop from sides (maintain height)
-                                    left = (width - target_size) // 2
-                                    top = 0
-                                    right = left + target_size
-                                    bottom = height
-                                elif height > target_size:
-                                    # Crop from top/bottom (maintain width)
-                                    left = 0
-                                    top = (height - target_size) // 2
-                                    right = width
-                                    bottom = top + target_size
-                                
-                                # Perform crop
-                                img = img.crop((left, top, right, bottom))
-                                img.save(ph_path, "JPEG", quality=95)
-                            else:
-                                # For all other cases (including smaller thumbnails), keep original
-                                img.save(ph_path, "JPEG", quality=95)
-                                
-                    except Exception as e:
-                        print(f"[THUMB ERROR] {e}")
-                        ph_path = None
-            except Exception as e:
-                print(f"[THUMB DOWNLOAD ERROR] {e}")
-                ph_path = None
+                    img = Image.open(ph_path)
+                    if img.mode != 'RGB': img = img.convert('RGB')
+                    img.save(ph_path, "JPEG", quality=95)
+            except Exception: ph_path = None
 
-        caption = (
-            c_caption.format(
-                filename=renamed_file_name,
-                filesize=humanbytes(file_size),
-                duration=convert(0),
-            )
-            if c_caption
-            else f"**{renamed_file_name}**"
-        )
-
-        # Prepare user info for background forwarding
-        user_info = {
-            'mention': message.from_user.mention,
-            'id': message.from_user.id,
-            'username': message.from_user.username or "No Username"
-        }
+        caption = c_caption.format(filename=renamed_file_name, filesize=humanbytes(file_size), duration=convert(0)) if c_caption else f"**{renamed_file_name}**"
+        user_info = {'mention': message.from_user.mention, 'id': message.from_user.id, 'username': message.from_user.username or "No Username"}
         
-        # 🚀 START BACKGROUND FORWARDING TO DUMP CHANNEL (SILENT)
-        # This runs in parallel without blocking or showing messages to the user
-        forward_task = asyncio.create_task(
-            forward_to_dump_channel(client, path, media_type, ph_path, file_name, renamed_file_name, user_info)
-        )
+        forward_task = asyncio.create_task(forward_to_dump_channel(client, path, media_type, ph_path, file_name, renamed_file_name, user_info))
         
-        # Upload file to user (main task continues normally)
         try:
             if media_type == "document":
-                await client.send_document(
-                    message.chat.id,
-                    document=path,
-                    thumb=ph_path if ph_path else None,
-                    caption=caption,
-                    progress=progress_for_pyrogram,
-                    progress_args=("Upload Started...", upload_msg, time.time()),
-                )
+                await client.send_document(message.chat.id, document=path, thumb=ph_path, caption=caption, progress=progress_for_pyrogram, progress_args=("Upload Started...", upload_msg, time.time()))
             elif media_type == "video":
-                await client.send_video(
-                    message.chat.id,
-                    video=path,
-                    caption=caption,
-                    thumb=ph_path if ph_path else None,
-                    duration=0,
-                    progress=progress_for_pyrogram,
-                    progress_args=("Upload Started...", upload_msg, time.time()),
-                )
+                await client.send_video(message.chat.id, video=path, caption=caption, thumb=ph_path, duration=0, progress=progress_for_pyrogram, progress_args=("Upload Started...", upload_msg, time.time()))
             elif media_type == "audio":
-                await client.send_audio(
-                    message.chat.id,
-                    audio=path,
-                    caption=caption,
-                    thumb=ph_path if ph_path else None,
-                    duration=0,
-                    progress=progress_for_pyrogram,
-                    progress_args=("Upload Started...", upload_msg, time.time()),
-                )
-            elif is_pdf:
-                await client.send_document(
-                    message.chat.id,
-                    document=path,
-                    thumb=ph_path if ph_path else None,
-                    caption=caption,
-                    progress=progress_for_pyrogram,
-                    progress_args=("Upload Started...", upload_msg, time.time()),
-                )
+                await client.send_audio(message.chat.id, audio=path, caption=caption, thumb=ph_path, duration=0, progress=progress_for_pyrogram, progress_args=("Upload Started...", upload_msg, time.time()))
         except Exception as e:
-            os.remove(renamed_file_path)
-            if ph_path and os.path.exists(ph_path):
-                os.remove(ph_path)
             return await upload_msg.edit(f"Error: {e}")
 
         await upload_msg.delete()
+        try: await asyncio.wait_for(forward_task, timeout=10)
+        except: pass
         
-        # Wait a moment for the background task to complete (optional)
-        try:
-            await asyncio.wait_for(forward_task, timeout=10)
-        except asyncio.TimeoutError:
-            print("[DUMP] Forwarding task timed out (but user already got their file)")
-        
-        if os.path.exists(path):
-            os.remove(path)
-        if ph_path and os.path.exists(ph_path):
-            os.remove(ph_path)
-
     finally:
-        if os.path.exists(renamed_file_path):
-            os.remove(renamed_file_path)
-        if os.path.exists(metadata_file_path):
-            os.remove(metadata_file_path)
-        if ph_path and os.path.exists(ph_path):
-            os.remove(ph_path)
-        del renaming_operations[file_id]
-        
-async def rename_worker():
+        if os.path.exists(renamed_file_path): os.remove(renamed_file_path)
+        if os.path.exists(metadata_file_path): os.remove(metadata_file_path)
+        if ph_path and os.path.exists(ph_path): os.remove(ph_path)
+        if file_id in renaming_operations: del renaming_operations[file_id]
+
+# --- REPLACED WORKER SYSTEM ---
+
+async def rename_worker(worker_id):
+    """Worker function to process rename tasks with concurrency control"""
+    print(f"Worker {worker_id} started")
     while True:
-        client, message = await rename_queue.get()
         try:
-            await process_rename(client, message)
+            client, message = await rename_queue.get()
+            user_id = message.from_user.id
+            
+            # Check if user already has active task
+            if user_id in active_user_tasks:
+                # User already has a task, put back in queue and wait briefly
+                await rename_queue.put((client, message))
+                await asyncio.sleep(1) 
+                continue
+                
+            # Mark user as having active task
+            active_user_tasks[user_id] = True
+            
+            try:
+                await process_rename(client, message)
+            finally:
+                # Remove user from active tasks
+                if user_id in active_user_tasks:
+                    del active_user_tasks[user_id]
+                    
         except Exception as e:
-            print(f"Error processing rename task: {e}")
+            print(f"Worker {worker_id} error: {e}")
         finally:
             rename_queue.task_done()
 
+# Start 5 workers for parallel processing
+for i in range(500):
+    asyncio.create_task(rename_worker(i))
+
 @Client.on_message(filters.private & (filters.document | filters.video | filters.audio))
 async def auto_rename_files(client, message):
-    # Check if user is verified
     if not await is_user_verified(message.from_user.id):
-        # Send verification prompt instead of processing the file
         await send_verification(client, message)
         return
-    
-    # Only add to queue if user is verified
     await rename_queue.put((client, message))
-
-asyncio.create_task(rename_worker())
