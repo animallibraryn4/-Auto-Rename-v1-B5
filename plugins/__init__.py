@@ -38,7 +38,7 @@ VERIFY_PHOTO = os.environ.get(
     "https://images8.alphacoders.com/138/1384114.png"
 )
 
-VERIFY_EXPIRE = int(os.environ.get("VERIFY_EXPIRE", 0))
+VERIFY_EXPIRE = int(os.environ.get("VERIFY_EXPIRE", 10))
 DATABASE_URL = Config.DB_URL
 COLLECTION_NAME = os.environ.get("COLLECTION_NAME", "Token1")
 PREMIUM_USERS = list(map(int, os.environ.get("PREMIUM_USERS", "").split()))
