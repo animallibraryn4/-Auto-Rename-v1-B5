@@ -5,18 +5,23 @@ from time import time
 from urllib3 import disable_warnings
 
 from pyrogram import Client, filters
-from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton, Message, CallbackQuery
+from pyrogram.types import (
+    InlineKeyboardMarkup,
+    InlineKeyboardButton,
+    Message,
+    CallbackQuery
+)
 
 from cloudscraper import create_scraper
 from motor.motor_asyncio import AsyncIOMotorClient
 from config import Config, Txt
 
 # =====================================================
-# MEMORY
+# MEMORY (SAFE)
 # =====================================================
 
 verify_dict = {}              # user_id -> {token, short_url, generated_at}
-last_verify_message = {}      # user_id -> last verification message time
+last_verify_message = {}      # user_id -> last verification msg time
 
 VERIFY_MESSAGE_COOLDOWN = 5   # seconds
 SHORTLINK_REUSE_TIME = 600    # seconds
@@ -30,7 +35,7 @@ VERIFY_PHOTO = os.environ.get(
     "https://images8.alphacoders.com/138/1384114.png"
 )
 SHORTLINK_SITE = os.environ.get("SHORTLINK_SITE", "gplinks.com")
-SHORTLINK_API = os.environ.get("SHORTLINK_API", "596f423cdf22b174e43d0b48a36a8274759ec2a3")
+SHORTLINK_API = os.environ.get("SHORTLINK_API", "")
 VERIFY_EXPIRE = int(os.environ.get("VERIFY_EXPIRE", 3000))
 VERIFY_TUTORIAL = os.environ.get("VERIFY_TUTORIAL", "https://t.me/N4_Society/55")
 
@@ -146,11 +151,19 @@ def premium_back_welcome():
     ])
 
 # =====================================================
-# CORE VERIFICATION
+# CORE VERIFICATION (MESSAGE + CALLBACK SAFE)
 # =====================================================
 
 async def send_verification(client, message):
-    user_id = message.from_user.id
+    # message can be Message OR CallbackQuery
+    if isinstance(message, CallbackQuery):
+        msg = message.message
+        user = message.from_user
+    else:
+        msg = message
+        user = message.from_user
+
+    user_id = user.id
 
     if await is_user_verified(user_id):
         return
@@ -165,13 +178,13 @@ async def send_verification(client, message):
     link = await get_verify_token(client, user_id, f"https://t.me/{bot.username}?start=")
 
     text = (
-        f"Hi 👋 {message.from_user.mention}\n\n"
+        f"Hi 👋 {user.mention}\n\n"
         f"To start using this bot, please complete Ads Token verification.\n\n"
         f"Validity: {get_readable_time(VERIFY_EXPIRE)}"
     )
 
     await client.send_photo(
-        chat_id=message.chat.id,
+        chat_id=msg.chat.id,
         photo=VERIFY_PHOTO,
         caption=text,
         reply_markup=verify_markup(link)
