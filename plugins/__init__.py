@@ -2,7 +2,6 @@ import os
 import sys
 import string
 import random
-import asyncio
 
 from time import time
 from urllib.parse import quote
@@ -15,8 +14,9 @@ from cloudscraper import create_scraper
 from motor.motor_asyncio import AsyncIOMotorClient
 from config import Config 
 
+# This dictionary will store one token per user
+# Format: {user_id: {"token": "abc123", "short_url": "https://...", "generated_at": timestamp}}
 verify_dict = {}
-pending_verifications = {}
 
 # --- PREMIUM TEXTS (Added back for context) ---
 PREMIUM_TXT = """<b>ᴜᴘɢʀᴀᴅᴇ ᴛᴏ ᴏᴜʀ ᴘʀᴇᴍɪᴜᴍ sᴇʀᴠɪᴄᴇ ᴀɴᴅ ᴇɴJᴏʏ ᴇxᴄʟᴜsɪᴠᴇ ғᴇᴀᴛᴜʀᴇs:
@@ -49,7 +49,7 @@ Pricing:
 VERIFY_PHOTO = os.environ.get('VERIFY_PHOTO', 'https://images8.alphacoders.com/138/1384114.png')  # YOUR VERIFY PHOTO LINK
 SHORTLINK_SITE = os.environ.get('SHORTLINK_SITE', 'gplinks.com') # YOUR SHORTLINK URL LIKE:- site.com
 SHORTLINK_API = os.environ.get('SHORTLINK_API', '596f423cdf22b174e43d0b48a36a8274759ec2a3') # YOUR SHORTLINK API LIKE:- ma82owowjd9hw6_js7
-VERIFY_EXPIRE = os.environ.get('VERIFY_EXPIRE', 7260) # VERIFY EXPIRE TIME IN SECONDS. LIKE:- 0 (ZERO) TO OFF VERIFICATION 
+VERIFY_EXPIRE = os.environ.get('VERIFY_EXPIRE', 0) # VERIFY EXPIRE TIME IN SECONDS. LIKE:- 0 (ZERO) TO OFF VERIFICATION 
 VERIFY_TUTORIAL = os.environ.get('VERIFY_TUTORIAL', 'https://t.me/N4_Society/55') # LINK OF TUTORIAL TO VERIFY 
 # DATABASE_URL now uses Config.DB_URL
 DATABASE_URL = Config.DB_URL
@@ -194,73 +194,94 @@ async def is_user_verified(user_id):
         return False
     return True
 
+# Dictionary to track verification messages sent to users
+verification_messages = {}  # Format: {user_id: {"message_id": message_id, "sent_at": timestamp}}
+
 async def send_verification(client, message, text=None, buttons=None):
+    username = (await client.get_me()).username
     user_id = message.from_user.id
     
-    # Check if verification is already pending for this user
-    if user_id in pending_verifications:
-        return  # Already sent, don't send again
+    # Check if user is already verified
+    if await is_user_verified(user_id):
+        text = f'<b>Hi 👋 {message.from_user.mention},\nYou Are Already Verified Enjoy 😄</b>'
+        await client.send_photo(
+            chat_id=message.chat.id,
+            photo=VERIFY_PHOTO,
+            caption=text,
+            reply_to_message_id=message.id if isinstance(message, Message) else None,
+        )
+        return
     
-    username = (await client.get_me()).username
+    # Check if we've already sent a verification message to this user recently (within 1 minute)
+    current_time = time()
+    if user_id in verification_messages:
+        sent_data = verification_messages[user_id]
+        if current_time - sent_data.get("sent_at", 0) < 60:  # 60 seconds = 1 minute
+            # Already sent a verification recently, don't send another one
+            return
     
     isveri = await verifydb.get_verify_status(user_id)
-
-    if done := await is_user_verified(user_id):
-        text = f'<b>Hi 👋 {message.from_user.mention},\nYou Are Already Verified Enjoy 😄</b>'
-    else:
-        verify_token = await get_verify_token(client, user_id, f"https://telegram.me/{username}?start=")
-        buttons = get_verification_markup(verify_token, username)
-        
-        # NEW FORMAT AND FONT
-        if not isveri:
-            text = f"""ʜɪ 👋 {message.from_user.mention},
+    verify_token = await get_verify_token(client, user_id, f"https://telegram.me/{username}?start=")
+    buttons = get_verification_markup(verify_token, username)
+    
+    # NEW FORMAT AND FONT
+    if not isveri:
+        # Verification message for first-time users
+        text = f"""ʜɪ 👋 {message.from_user.mention},
 
 ᴛᴏ ꜱᴛᴀʀᴛ ᴜꜱɪɴɢ ᴛʜɪꜱ ʙᴏᴛ, ᴘʟᴇᴀꜱᴇ ɢᴇɴᴇʀᴀᴛᴇ ᴀ ᴛᴇᴍᴘᴏʀᴀʀʏ ᴀᴅꜱ ᴛᴏᴋᴇɴ.
 
 ᴠᴀʟɪᴅɪᴛʏ: {get_readable_time(VERIFY_EXPIRE)}"""
-        else:
-            text = f"""ʜɪ 👋 {message.from_user.mention},
-
-ʏᴏᴜʀ ᴀᴅꜱ ᴛᴏᴋᴇɴ ʜᴀꜱ ʙᴇᴇɴ ᴇxᴘɪʀᴇᴅ, ᴋɪɴᴅʟʏ ɢᴇᴛ ᴀ ɴᴇᴡ ᴛᴏᴋᴇɴ ᴛᴏ ᴄᴏɴᴛɪɴᴜᴇ ᴜꜱɪɴɢ ᴛʜɪꜱ ʙᴏᴛ.
-
-ᴠᴀʟɪᴅɪᴛʏ: {get_readable_time(VERIFY_EXPIRE)}"""
-
-    if not text:
+    else:
+        # Verification message for expired token
         text = f"""ʜɪ 👋 {message.from_user.mention},
 
 ʏᴏᴜʀ ᴀᴅꜱ ᴛᴏᴋᴇɴ ʜᴀꜱ ʙᴇᴇɴ ᴇxᴘɪʀᴇᴅ, ᴋɪɴᴅʟʏ ɢᴇᴛ ᴀ ɴᴇᴡ ᴛᴏᴋᴇɴ ᴛᴏ ᴄᴏɴᴛɪɴᴜᴇ ᴜꜱɪɴɢ ᴛʜɪꜱ ʙᴏᴛ.
 
 ᴠᴀʟɪᴅɪᴛʏ: {get_readable_time(VERIFY_EXPIRE)}"""
 
-    # Mark this user as having pending verification
-    pending_verifications[user_id] = True
-    
-    # Send verification message
-    msg = await client.send_photo(
-        chat_id=message.chat.id,
+    message_obj = message if isinstance(message, Message) else message.message
+    sent_message = await client.send_photo(
+        chat_id=message_obj.chat.id,
         photo=VERIFY_PHOTO,
         caption=text,
         reply_markup=buttons,
+        reply_to_message_id=message_obj.id,
     )
     
-    # Set a timer to remove from pending list (e.g., after 30 seconds)
-    async def remove_pending():
-        await asyncio.sleep(30)
-        if user_id in pending_verifications:
-            del pending_verifications[user_id]
+    # Store the message info to prevent duplicate verification messages
+    verification_messages[user_id] = {
+        "message_id": sent_message.id,
+        "sent_at": current_time
+    }
     
-    asyncio.create_task(remove_pending())
-    
-    return msg
+    # Schedule cleanup of old verification messages
+    await cleanup_old_verification_messages()
  
 async def get_verify_token(bot, userid, link):
-    vdict = verify_dict.setdefault(userid, {})
-    short_url = vdict.get('short_url')
-    if not short_url:
-        token = ''.join(random.choices(string.ascii_letters + string.digits, k=9))
-        long_link = f"{link}verify-{userid}-{token}"
-        short_url = await get_short_url(long_link)
-        vdict.update({'token': token, 'short_url': short_url})
+    vdict = verify_dict.get(userid, {})
+    
+    # Check if token already exists and is not expired (e.g., within 10 minutes)
+    if vdict and vdict.get('token'):
+        generated_at = vdict.get('generated_at', 0)
+        current_time = time()
+        
+        # Token will be valid for 10 minutes (600 seconds)
+        if current_time - generated_at < 600:
+            return vdict['short_url']
+    
+    # Generate new token
+    token = ''.join(random.choices(string.ascii_letters + string.digits, k=9))
+    long_link = f"{link}verify-{userid}-{token}"
+    short_url = await get_short_url(long_link)
+    
+    # Store in verify_dict with timestamp
+    verify_dict[userid] = {
+        'token': token,
+        'short_url': short_url,
+        'generated_at': time()
+    }
+    
     return short_url
 
 async def get_short_url(longurl, shortener_site = SHORTLINK_SITE, shortener_api = SHORTLINK_API):
@@ -280,25 +301,23 @@ async def get_short_url(longurl, shortener_site = SHORTLINK_SITE, shortener_api 
             res = cget('GET', url, params=params)
             res = res.json()
             if res.status_code == 200:
-                return res.get('shortenedUrl', long_url)
+                return res.get('shortenedUrl', longurl)
     except Exception as e:
         print(e)
         return longurl
 
 async def validate_token(client, message, data):
     user_id = message.from_user.id
-    
-    # Remove from pending verifications when user verifies
-    if user_id in pending_verifications:
-        del pending_verifications[user_id]
-    
-    vdict = verify_dict.setdefault(user_id, {})
+    vdict = verify_dict.get(user_id, {})
     dict_token = vdict.get('token', None)
+    
     if await is_user_verified(user_id):
         return await message.reply("<b>Sɪʀ, Yᴏᴜ Aʀᴇ Aʟʀᴇᴀᴅʏ Vᴇʀɪғɪᴇᴅ 🤓...</b>")
+    
     if not dict_token:
         # The verification will be sent without replying to the file message
         return await send_verification(client, message, text="<b>Tʜᴀᴛ's Nᴏᴛ Yᴏᴜʀ Vᴇʀɪғʏ Tᴏᴋᴇɴ 🥲...\n\n\nTᴀᴘ Oɴ Vᴇʀɪғʏ Tᴏ Gᴇɴᴇʀᴀᴛᴇ Yᴏᴜʀs...</b>")  
+    
     _, uid, token = data.split("-")
     if uid != str(user_id):
         # The verification will be sent without replying to the file message
@@ -306,13 +325,18 @@ async def validate_token(client, message, data):
     elif dict_token != token:
         # The verification will be sent without replying to the file message
         return await send_verification(client, message, text="<b>Iɴᴠᴀʟɪᴅ Oʀ Exᴘɪʀᴇᴅ Tᴏᴋᴇɴ 🔗...</b>")
+    
+    # Remove user from verification tracking since they are now verified
     verify_dict.pop(user_id, None)
+    verification_messages.pop(user_id, None)
+    
     await verifydb.update_verify_status(user_id)
-    await client.send_photo(chat_id=message.from_user.id,
-                            photo=VERIFY_PHOTO,
-                            caption=f'<b>Wᴇʟᴄᴏᴍᴇ Bᴀᴄᴋ 😁, Nᴏᴡ Yᴏᴜ Cᴀɴ Usᴇ Mᴇ Fᴏʀ {get_readable_time(VERIFY_EXPIRE)}.\n\n\nEɴᴊᴏʏʏʏ...❤️</b>',
-                            # reply_to_message_id=message.id, IS REMOVED
-                            )
+    await client.send_photo(
+        chat_id=message.from_user.id,
+        photo=VERIFY_PHOTO,
+        caption=f'<b>Wᴇʟᴄᴏᴍᴇ Bᴀᴄᴋ 😁, Nᴏᴡ Yᴏᴜ Cᴀɴ Usᴇ Mᴇ Fᴏʀ {get_readable_time(VERIFY_EXPIRE)}.\n\n\nEɴᴊᴏʏʏʏ...❤️</b>',
+        reply_to_message_id=message.id,
+    )
     
 def get_readable_time(seconds):
     periods = [('ᴅ', 86400), ('ʜ', 3600), ('ᴍ', 60), ('s', 1)]
@@ -322,5 +346,31 @@ def get_readable_time(seconds):
             period_value, seconds = divmod(seconds, period_seconds)
             result += f'{int(period_value)}{period_name}'
     return result
+
+async def cleanup_old_verification_messages():
+    """Remove old verification messages from tracking dictionary"""
+    current_time = time()
+    expired_users = []
+    
+    for user_id, sent_data in verification_messages.items():
+        sent_at = sent_data.get("sent_at", 0)
+        if current_time - sent_at >= 300:  # 5 minutes
+            expired_users.append(user_id)
+    
+    for user_id in expired_users:
+        verification_messages.pop(user_id, None)
+
+async def cleanup_expired_tokens():
+    """Remove expired tokens from verify_dict"""
+    current_time = time()
+    expired_users = []
+    
+    for user_id, vdict in verify_dict.items():
+        generated_at = vdict.get('generated_at', 0)
+        if current_time - generated_at >= 600:  # 10 minutes
+            expired_users.append(user_id)
+    
+    for user_id in expired_users:
+        verify_dict.pop(user_id, None)
 
 verifydb = VerifyDB()
