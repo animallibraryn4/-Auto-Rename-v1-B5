@@ -5,36 +5,30 @@ from time import time
 from urllib3 import disable_warnings
 
 from pyrogram import Client, filters
-from pyrogram.types import (
-    InlineKeyboardMarkup,
-    InlineKeyboardButton,
-    Message,
-    CallbackQuery
-)
+from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton, Message, CallbackQuery
 
 from cloudscraper import create_scraper
 from motor.motor_asyncio import AsyncIOMotorClient
 from config import Config, Txt
 
-# ======================================================
-# MEMORY (STABLE)
-# ======================================================
+# =====================================================
+# MEMORY (SIMPLE & STABLE)
+# =====================================================
 
-verify_dict = {}            # user_id -> token data
-last_verify_msg = {}        # user_id -> timestamp
+verify_dict = {}              # user_id → {token, short_url, generated_at}
+last_verify_message = {}      # user_id → last sent time (anti spam)
 
-VERIFY_MSG_COOLDOWN = 5     # seconds
-SHORTLINK_REUSE_TIME = 600  # 10 minutes
+VERIFY_MESSAGE_COOLDOWN = 5   # seconds
+SHORTLINK_REUSE_TIME = 600    # 10 minutes
 
-# ======================================================
+# =====================================================
 # CONFIG
-# ======================================================
+# =====================================================
 
 VERIFY_PHOTO = os.environ.get(
     "VERIFY_PHOTO",
     "https://images8.alphacoders.com/138/1384114.png"
 )
-
 SHORTLINK_SITE = os.environ.get("SHORTLINK_SITE", "gplinks.com")
 SHORTLINK_API = os.environ.get("SHORTLINK_API", "")
 VERIFY_EXPIRE = int(os.environ.get("VERIFY_EXPIRE", 3000))
@@ -42,14 +36,11 @@ VERIFY_TUTORIAL = os.environ.get("VERIFY_TUTORIAL", "https://t.me/N4_Society/55"
 
 DATABASE_URL = Config.DB_URL
 COLLECTION_NAME = os.environ.get("COLLECTION_NAME", "Token1")
+PREMIUM_USERS = list(map(int, os.environ.get("PREMIUM_USERS", "").split())) if os.environ.get("PREMIUM_USERS") else []
 
-PREMIUM_USERS = list(
-    map(int, os.environ.get("PREMIUM_USERS", "").split())
-) if os.environ.get("PREMIUM_USERS") else []
-
-# ======================================================
+# =====================================================
 # DATABASE
-# ======================================================
+# =====================================================
 
 class VerifyDB:
     def __init__(self):
@@ -70,9 +61,9 @@ class VerifyDB:
 
 verifydb = VerifyDB()
 
-# ======================================================
+# =====================================================
 # HELPERS
-# ======================================================
+# =====================================================
 
 def get_readable_time(seconds):
     m, s = divmod(seconds, 60)
@@ -89,9 +80,9 @@ async def is_user_verified(user_id):
     last = await verifydb.get_verify_status(user_id)
     return bool(last and (time() - last) < VERIFY_EXPIRE)
 
-# ======================================================
+# =====================================================
 # SHORTLINK
-# ======================================================
+# =====================================================
 
 async def get_short_url(longurl):
     cget = create_scraper().request
@@ -100,24 +91,20 @@ async def get_short_url(longurl):
         res = cget(
             "GET",
             f"https://{SHORTLINK_SITE}/api",
-            params={
-                "api": SHORTLINK_API,
-                "url": longurl,
-                "format": "text"
-            }
+            params={"api": SHORTLINK_API, "url": longurl, "format": "text"}
         )
         return res.text if res.status_code == 200 else longurl
     except:
         return longurl
 
-async def get_verify_token(bot, user_id):
+async def get_verify_token(bot, user_id, base):
     data = verify_dict.get(user_id)
 
     if data and (time() - data["generated_at"] < SHORTLINK_REUSE_TIME):
         return data["short_url"]
 
     token = "".join(random.choices(string.ascii_letters + string.digits, k=9))
-    long_link = f"https://t.me/{bot.username}?start=verify-{user_id}-{token}"
+    long_link = f"{base}verify-{user_id}-{token}"
     short_url = await get_short_url(long_link)
 
     verify_dict[user_id] = {
@@ -127,35 +114,35 @@ async def get_verify_token(bot, user_id):
     }
     return short_url
 
-# ======================================================
+# =====================================================
 # MARKUPS
-# ======================================================
+# =====================================================
 
 def verify_markup(link):
     return InlineKeyboardMarkup([
         [
-            InlineKeyboardButton("📖 Tutorial", url=VERIFY_TUTORIAL),
-            InlineKeyboardButton("⭐ Premium", callback_data="premium_page")
+            InlineKeyboardButton("Tutorial", url=VERIFY_TUTORIAL),
+            InlineKeyboardButton("Premium", callback_data="premium_page")
         ],
-        [InlineKeyboardButton("🔑 Get Token", url=link)]
+        [InlineKeyboardButton("Get Token", url=link)]
     ])
 
 def welcome_markup():
     return InlineKeyboardMarkup([
         [
-            InlineKeyboardButton("❌ Close", callback_data="close_message"),
-            InlineKeyboardButton("⭐ Premium", callback_data="premium_page")
+            InlineKeyboardButton("❌ Cancel", callback_data="close_message"),
+            InlineKeyboardButton("⭐ Premium", callback_data="DONATE_TXT")
         ]
     ])
 
 def premium_markup():
     return InlineKeyboardMarkup([
-        [InlineKeyboardButton("⬅ Back", callback_data="premium_back")]
+        [InlineKeyboardButton("⬅ Back", callback_data="back_to_welcome")]
     ])
 
-# ======================================================
-# CORE VERIFICATION
-# ======================================================
+# =====================================================
+# CORE VERIFICATION (STABLE)
+# =====================================================
 
 async def send_verification(client, message):
     user_id = message.from_user.id
@@ -164,16 +151,19 @@ async def send_verification(client, message):
         return
 
     now = time()
-    if now - last_verify_msg.get(user_id, 0) < VERIFY_MSG_COOLDOWN:
+    last = last_verify_message.get(user_id, 0)
+
+    # hard anti-spam
+    if now - last < VERIFY_MESSAGE_COOLDOWN:
         return
 
     bot = await client.get_me()
-    link = await get_verify_token(bot, user_id)
+    link = await get_verify_token(client, user_id, f"https://t.me/{bot.username}?start=")
 
     text = (
-        f"<b>Hi 👋 {message.from_user.mention}\n\n"
+        f"Hi 👋 {message.from_user.mention}\n\n"
         f"To start using this bot, please complete Ads Token verification.\n\n"
-        f"Validity: {get_readable_time(VERIFY_EXPIRE)}</b>"
+        f"Validity: {get_readable_time(VERIFY_EXPIRE)}"
     )
 
     await client.send_photo(
@@ -183,7 +173,7 @@ async def send_verification(client, message):
         reply_markup=verify_markup(link)
     )
 
-    last_verify_msg[user_id] = now
+    last_verify_message[user_id] = now
 
 async def validate_token(client, message, data):
     user_id = message.from_user.id
@@ -199,7 +189,7 @@ async def validate_token(client, message, data):
 
     if uid == str(user_id) and token == stored["token"]:
         verify_dict.pop(user_id, None)
-        last_verify_msg.pop(user_id, None)
+        last_verify_message.pop(user_id, None)
 
         await verifydb.update_verify_status(user_id)
 
@@ -217,9 +207,9 @@ async def validate_token(client, message, data):
     else:
         await send_verification(client, message)
 
-# ======================================================
+# =====================================================
 # CALLBACKS
-# ======================================================
+# =====================================================
 
 @Client.on_callback_query(filters.regex("^premium_page$"))
 async def premium_cb(client, query: CallbackQuery):
@@ -229,32 +219,27 @@ async def premium_cb(client, query: CallbackQuery):
         disable_web_page_preview=True
     )
 
-@Client.on_callback_query(filters.regex("^premium_back$"))
-async def premium_back_cb(client, query: CallbackQuery):
-    user_id = query.from_user.id
-
-    if await is_user_verified(user_id):
-        await query.message.edit_caption(
-            caption=(
-                f"<b>Welcome Back 😊\n"
-                f"You can now use me for {get_readable_time(VERIFY_EXPIRE)}.\n\n"
-                f"Enjoy ❤️</b>"
-            ),
-            reply_markup=welcome_markup()
-        )
-    else:
-        await send_verification(client, query.message)
+@Client.on_callback_query(filters.regex("^back_to_welcome$"))
+async def back_cb(client, query: CallbackQuery):
+    await query.message.edit_caption(
+        caption=(
+            f"<b>Welcome Back 😊\n"
+            f"You can now use me for {get_readable_time(VERIFY_EXPIRE)}.\n\n"
+            f"Enjoy ❤️</b>"
+        ),
+        reply_markup=welcome_markup()
+    )
 
 @Client.on_callback_query(filters.regex("^close_message$"))
 async def close_cb(client, query: CallbackQuery):
     await query.message.delete()
 
-# ======================================================
+# =====================================================
 # VERIFY COMMAND
-# ======================================================
+# =====================================================
 
 @Client.on_message(filters.private & filters.command("verify"))
-async def verify_cmd(client, message: Message):
+async def verify_cmd(client, message):
     if len(message.command) == 2 and message.command[1].startswith("verify"):
         await validate_token(client, message, message.command[1])
     else:
