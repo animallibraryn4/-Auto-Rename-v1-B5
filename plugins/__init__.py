@@ -12,7 +12,7 @@ from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton, Message, 
 
 from cloudscraper import create_scraper
 from motor.motor_asyncio import AsyncIOMotorClient
-from config import Config 
+from config import Config, Txt  # Added Txt import
 
 # --- DATA TRACKING ---
 verify_dict = {}
@@ -170,37 +170,34 @@ def get_verification_markup(verify_token, username):
     ])
 
 def get_premium_markup():
+    """Updated buttons for premium page"""
     return InlineKeyboardMarkup([
-        [InlineKeyboardButton('ᴄᴀɴᴄᴇʟ', callback_data="cancel_premium")],
-        [InlineKeyboardButton('ʙᴀᴄᴋ', callback_data="back_to_verify")]
+        [InlineKeyboardButton('❌ Cancel', callback_data="close_message")],
+        [InlineKeyboardButton('🔙 Back', callback_data="back_to_verification")]
     ])
 
 # --- HANDLERS ---
 @Client.on_callback_query(filters.regex("premium_page"))
 async def premium_cb(client, query):
+    """Show premium text from config.py with Cancel and Back buttons"""
     await query.message.edit_text(
-        Config.PREMIUM_TXT, 
+        Txt.PREMIUM_TXT, 
         reply_markup=get_premium_markup(), 
         disable_web_page_preview=True
     )
 
-@Client.on_callback_query(filters.regex("cancel_premium"))
-async def cancel_premium_cb(client, query):
-    await query.message.delete()
-
-@Client.on_callback_query(filters.regex("back_to_verify"))
-async def back_to_verify_cb(client, query):
+@Client.on_callback_query(filters.regex("back_to_verification"))
+async def back_to_verification_cb(client, query):
+    """Go back to the verification screen"""
     await query.message.delete()
     await send_verification(client, query)
 
 @Client.on_callback_query(filters.regex("plan_command"))
 async def plan_command_cb(client, query):
-    # Send the /plan command as a message
     await client.send_message(
         chat_id=query.message.chat.id,
         text="/plan"
     )
-    # Optionally delete the previous message
     await query.message.delete()
 
 @Client.on_callback_query(filters.regex("home_page"))
@@ -211,3 +208,4 @@ async def home_cb(client, query):
 @Client.on_callback_query(filters.regex("close_message"))
 async def close_cb(client, query):
     await query.message.delete()
+    
