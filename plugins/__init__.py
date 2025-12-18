@@ -13,10 +13,18 @@ from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton, Message, 
 from cloudscraper import create_scraper
 from motor.motor_asyncio import AsyncIOMotorClient
 from config import Config 
+import asyncio
 
 # This dictionary will store one token per user
 # Format: {user_id: {"token": "abc123", "short_url": "https://...", "generated_at": timestamp}}
 verify_dict = {}
+
+# Dictionary to track verification messages sent to users
+# Format: {user_id: {"message_id": message_id, "sent_at": timestamp}}
+verification_messages = {}
+
+# Lock dictionary to prevent concurrent verification sends for the same user
+verification_locks = {}
 
 # --- PREMIUM TEXTS (Added back for context) ---
 PREMIUM_TXT = """<b>ᴜᴘɢʀᴀᴅᴇ ᴛᴏ ᴏᴜʀ ᴘʀᴇᴍɪᴜᴍ sᴇʀᴠɪᴄᴇ ᴀɴᴅ ᴇɴJᴏʏ ᴇxᴄʟᴜsɪᴠᴇ ғᴇᴀᴛᴜʀᴇs:
@@ -49,7 +57,7 @@ Pricing:
 VERIFY_PHOTO = os.environ.get('VERIFY_PHOTO', 'https://images8.alphacoders.com/138/1384114.png')  # YOUR VERIFY PHOTO LINK
 SHORTLINK_SITE = os.environ.get('SHORTLINK_SITE', 'gplinks.com') # YOUR SHORTLINK URL LIKE:- site.com
 SHORTLINK_API = os.environ.get('SHORTLINK_API', '596f423cdf22b174e43d0b48a36a8274759ec2a3') # YOUR SHORTLINK API LIKE:- ma82owowjd9hw6_js7
-VERIFY_EXPIRE = os.environ.get('VERIFY_EXPIRE', 3000) # VERIFY EXPIRE TIME IN SECONDS. LIKE:- 0 (ZERO) TO OFF VERIFICATION 
+VERIFY_EXPIRE = os.environ.get('VERIFY_EXPIRE', 0) # VERIFY EXPIRE TIME IN SECONDS. LIKE:- 0 (ZERO) TO OFF VERIFICATION 
 VERIFY_TUTORIAL = os.environ.get('VERIFY_TUTORIAL', 'https://t.me/N4_Society/55') # LINK OF TUTORIAL TO VERIFY 
 # DATABASE_URL now uses Config.DB_URL
 DATABASE_URL = Config.DB_URL
@@ -194,11 +202,7 @@ async def is_user_verified(user_id):
         return False
     return True
 
-# Dictionary to track verification messages sent to users
-verification_messages = {}  # Format: {user_id: {"message_id": message_id, "sent_at": timestamp}}
-
 async def send_verification(client, message, text=None, buttons=None):
-    username = (await client.get_me()).username
     user_id = message.from_user.id
     
     # Check if user is already verified
@@ -212,51 +216,67 @@ async def send_verification(client, message, text=None, buttons=None):
         )
         return
     
-    # Check if we've already sent a verification message to this user recently (within 1 minute)
-    current_time = time()
-    if user_id in verification_messages:
-        sent_data = verification_messages[user_id]
-        if current_time - sent_data.get("sent_at", 0) < 60:  # 60 seconds = 1 minute
-            # Already sent a verification recently, don't send another one
+    # Create or get a lock for this user to prevent concurrent verification sends
+    if user_id not in verification_locks:
+        verification_locks[user_id] = asyncio.Lock()
+    
+    async with verification_locks[user_id]:
+        # Check again inside the lock to avoid race conditions
+        if await is_user_verified(user_id):
             return
-    
-    isveri = await verifydb.get_verify_status(user_id)
-    verify_token = await get_verify_token(client, user_id, f"https://telegram.me/{username}?start=")
-    buttons = get_verification_markup(verify_token, username)
-    
-    # NEW FORMAT AND FONT
-    if not isveri:
-        # Verification message for first-time users
-        text = f"""ʜɪ 👋 {message.from_user.mention},
+        
+        # Double-check if verification was already sent very recently (within 3 seconds)
+        current_time = time()
+        if user_id in verification_messages:
+            sent_data = verification_messages[user_id]
+            # If a verification was sent within the last 3 seconds, don't send another one
+            if current_time - sent_data.get("sent_at", 0) < 3:
+                return
+        
+        # Proceed to send verification message
+        username = (await client.get_me()).username
+        isveri = await verifydb.get_verify_status(user_id)
+        verify_token = await get_verify_token(client, user_id, f"https://telegram.me/{username}?start=")
+        buttons = get_verification_markup(verify_token, username)
+        
+        # NEW FORMAT AND FONT
+        if not isveri:
+            # Verification message for first-time users
+            text = f"""ʜɪ 👋 {message.from_user.mention},
 
 ᴛᴏ ꜱᴛᴀʀᴛ ᴜꜱɪɴɢ ᴛʜɪꜱ ʙᴏᴛ, ᴘʟᴇᴀꜱᴇ ɢᴇɴᴇʀᴀᴛᴇ ᴀ ᴛᴇᴍᴘᴏʀᴀʀʏ ᴀᴅꜱ ᴛᴏᴋᴇɴ.
 
 ᴠᴀʟɪᴅɪᴛʏ: {get_readable_time(VERIFY_EXPIRE)}"""
-    else:
-        # Verification message for expired token
-        text = f"""ʜɪ 👋 {message.from_user.mention},
+        else:
+            # Verification message for expired token
+            text = f"""ʜɪ 👋 {message.from_user.mention},
 
 ʏᴏᴜʀ ᴀᴅꜱ ᴛᴏᴋᴇɴ ʜᴀꜱ ʙᴇᴇɴ ᴇxᴘɪʀᴇᴅ, ᴋɪɴᴅʟʏ ɢᴇᴛ ᴀ ɴᴇᴡ ᴛᴏᴋᴇɴ ᴛᴏ ᴄᴏɴᴛɪɴᴜᴇ ᴜꜱɪɴɢ ᴛʜɪꜱ ʙᴏᴛ.
 
 ᴠᴀʟɪᴅɪᴛʏ: {get_readable_time(VERIFY_EXPIRE)}"""
 
-    message_obj = message if isinstance(message, Message) else message.message
-    sent_message = await client.send_photo(
-        chat_id=message_obj.chat.id,
-        photo=VERIFY_PHOTO,
-        caption=text,
-        reply_markup=buttons,
-        reply_to_message_id=message_obj.id,
-    )
-    
-    # Store the message info to prevent duplicate verification messages
-    verification_messages[user_id] = {
-        "message_id": sent_message.id,
-        "sent_at": current_time
-    }
-    
-    # Schedule cleanup of old verification messages
-    await cleanup_old_verification_messages()
+        message_obj = message if isinstance(message, Message) else message.message
+        
+        try:
+            sent_message = await client.send_photo(
+                chat_id=message_obj.chat.id,
+                photo=VERIFY_PHOTO,
+                caption=text,
+                reply_markup=buttons,
+                reply_to_message_id=message_obj.id,
+            )
+            
+            # Store the message info to prevent duplicate verification messages
+            verification_messages[user_id] = {
+                "message_id": sent_message.id,
+                "sent_at": current_time
+            }
+            
+            # Schedule cleanup of old verification messages
+            asyncio.create_task(cleanup_old_verification_messages())
+            
+        except Exception as e:
+            print(f"[VERIFICATION ERROR] Failed to send verification for user {user_id}: {e}")
  
 async def get_verify_token(bot, userid, link):
     vdict = verify_dict.get(userid, {})
@@ -329,6 +349,7 @@ async def validate_token(client, message, data):
     # Remove user from verification tracking since they are now verified
     verify_dict.pop(user_id, None)
     verification_messages.pop(user_id, None)
+    verification_locks.pop(user_id, None)
     
     await verifydb.update_verify_status(user_id)
     await client.send_photo(
@@ -359,6 +380,7 @@ async def cleanup_old_verification_messages():
     
     for user_id in expired_users:
         verification_messages.pop(user_id, None)
+        verification_locks.pop(user_id, None)
 
 async def cleanup_expired_tokens():
     """Remove expired tokens from verify_dict"""
