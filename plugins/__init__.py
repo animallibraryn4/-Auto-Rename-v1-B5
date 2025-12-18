@@ -5,26 +5,21 @@ from time import time
 from urllib3 import disable_warnings
 
 from pyrogram import Client, filters
-from pyrogram.types import (
-    InlineKeyboardMarkup,
-    InlineKeyboardButton,
-    Message,
-    CallbackQuery
-)
+from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton, Message, CallbackQuery
 
 from cloudscraper import create_scraper
 from motor.motor_asyncio import AsyncIOMotorClient
 from config import Config, Txt
 
 # =====================================================
-# MEMORY (SAFE)
+# MEMORY (SIMPLE & STABLE)
 # =====================================================
 
-verify_dict = {}              # user_id -> {token, short_url, generated_at}
-last_verify_message = {}      # user_id -> last verification msg time
+verify_dict = {}              # user_id → {token, short_url, generated_at}
+last_verify_message = {}      # user_id → last sent time (anti spam)
 
 VERIFY_MESSAGE_COOLDOWN = 5   # seconds
-SHORTLINK_REUSE_TIME = 600    # seconds
+SHORTLINK_REUSE_TIME = 600    # 10 minutes
 
 # =====================================================
 # CONFIG
@@ -127,7 +122,7 @@ def verify_markup(link):
     return InlineKeyboardMarkup([
         [
             InlineKeyboardButton("Tutorial", url=VERIFY_TUTORIAL),
-            InlineKeyboardButton("Premium", callback_data="premium_from_verify")
+            InlineKeyboardButton("Premium", callback_data="premium_page")
         ],
         [InlineKeyboardButton("Get Token", url=link)]
     ])
@@ -136,34 +131,21 @@ def welcome_markup():
     return InlineKeyboardMarkup([
         [
             InlineKeyboardButton("❌ Cancel", callback_data="close_message"),
-            InlineKeyboardButton("⭐ Premium", callback_data="premium_from_welcome")
+            InlineKeyboardButton("⭐ Premium", callback_data="premium_page")
         ]
     ])
 
-def premium_back_verify():
-    return InlineKeyboardMarkup([
-        [InlineKeyboardButton("⬅ Back", callback_data="back_to_verify")]
-    ])
-
-def premium_back_welcome():
+def premium_markup():
     return InlineKeyboardMarkup([
         [InlineKeyboardButton("⬅ Back", callback_data="back_to_welcome")]
     ])
 
 # =====================================================
-# CORE VERIFICATION (MESSAGE + CALLBACK SAFE)
+# CORE VERIFICATION (STABLE)
 # =====================================================
 
 async def send_verification(client, message):
-    # message can be Message OR CallbackQuery
-    if isinstance(message, CallbackQuery):
-        msg = message.message
-        user = message.from_user
-    else:
-        msg = message
-        user = message.from_user
-
-    user_id = user.id
+    user_id = message.from_user.id
 
     if await is_user_verified(user_id):
         return
@@ -171,6 +153,7 @@ async def send_verification(client, message):
     now = time()
     last = last_verify_message.get(user_id, 0)
 
+    # hard anti-spam
     if now - last < VERIFY_MESSAGE_COOLDOWN:
         return
 
@@ -178,13 +161,13 @@ async def send_verification(client, message):
     link = await get_verify_token(client, user_id, f"https://t.me/{bot.username}?start=")
 
     text = (
-        f"Hi 👋 {user.mention}\n\n"
+        f"Hi 👋 {message.from_user.mention}\n\n"
         f"To start using this bot, please complete Ads Token verification.\n\n"
         f"Validity: {get_readable_time(VERIFY_EXPIRE)}"
     )
 
     await client.send_photo(
-        chat_id=msg.chat.id,
+        chat_id=message.chat.id,
         photo=VERIFY_PHOTO,
         caption=text,
         reply_markup=verify_markup(link)
@@ -215,6 +198,7 @@ async def validate_token(client, message, data):
             photo=VERIFY_PHOTO,
             caption=(
                 f"<b>Welcome Back 😊\n"
+                f"Your token has been successfully verified.\n"
                 f"You can now use me for {get_readable_time(VERIFY_EXPIRE)}.\n\n"
                 f"Enjoy ❤️</b>"
             ),
@@ -227,28 +211,16 @@ async def validate_token(client, message, data):
 # CALLBACKS
 # =====================================================
 
-@Client.on_callback_query(filters.regex("^premium_from_verify$"))
-async def premium_from_verify(client, query: CallbackQuery):
+@Client.on_callback_query(filters.regex("^premium_page$"))
+async def premium_cb(client, query: CallbackQuery):
     await query.message.edit_text(
         Txt.PREMIUM_TXT,
-        reply_markup=premium_back_verify(),
+        reply_markup=premium_markup(),
         disable_web_page_preview=True
     )
-
-@Client.on_callback_query(filters.regex("^premium_from_welcome$"))
-async def premium_from_welcome(client, query: CallbackQuery):
-    await query.message.edit_text(
-        Txt.PREMIUM_TXT,
-        reply_markup=premium_back_welcome(),
-        disable_web_page_preview=True
-    )
-
-@Client.on_callback_query(filters.regex("^back_to_verify$"))
-async def back_to_verify(client, query: CallbackQuery):
-    await send_verification(client, query)
 
 @Client.on_callback_query(filters.regex("^back_to_welcome$"))
-async def back_to_welcome(client, query: CallbackQuery):
+async def back_cb(client, query: CallbackQuery):
     await query.message.edit_caption(
         caption=(
             f"<b>Welcome Back 😊\n"
