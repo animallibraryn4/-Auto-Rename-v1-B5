@@ -34,18 +34,6 @@ PREMIUM_TXT = """<b>ᴜᴘɢʀᴀᴅᴇ ᴛᴏ ᴏᴜʀ ᴘʀᴇᴍɪᴜᴍ sᴇ
 
 Your premium plan will be activated after verification.</b>"""
 
-PREPLANS_TXT = """<b><pre>🎖️Available Plans:</pre>
-
-Pricing:
-➜ Monthly Premium: ₹109/month
-➜ weekly Premium: ₹49/month
-➜ Daily Premium: ₹19/day
-➜ Contact: @Anime_Library_N4
-
-➲ UPI ID - <code>bbc@</code>
-
-‼️ Upload the payment screenshot here and reply with the /bought command.</b>"""
-
 # --- CONFIG VARIABLES ---
 VERIFY_PHOTO = os.environ.get('VERIFY_PHOTO', 'https://images8.alphacoders.com/138/1384114.png')
 SHORTLINK_SITE = os.environ.get('SHORTLINK_SITE', 'gplinks.com')
@@ -197,19 +185,25 @@ def get_verification_markup(verify_token, username):
     ])
 
 def get_premium_markup():
-    return InlineKeyboardMarkup([[InlineKeyboardButton('ʙᴀᴄᴋ', callback_data="home_page"), InlineKeyboardButton('ᴘʟᴀɴ', callback_data="plan_page")]])
-
-def get_plan_markup():
-    return InlineKeyboardMarkup([[InlineKeyboardButton('ʙᴀᴄᴋ', callback_data="premium_page"), InlineKeyboardButton('ᴄᴀɴᴄᴇʟ', callback_data="close_message")], [InlineKeyboardButton('ʜᴏᴍᴇ', callback_data="home_page")]])
+    return InlineKeyboardMarkup([
+        [InlineKeyboardButton('ʙᴀᴄᴋ', callback_data="home_page"), InlineKeyboardButton('ᴘʟᴀɴ', callback_data="plan_command")],
+        [InlineKeyboardButton('ᴄʟᴏsᴇ', callback_data="close_message")]
+    ])
 
 # --- HANDLERS ---
 @Client.on_callback_query(filters.regex("premium_page"))
 async def premium_cb(client, query):
     await query.message.edit_text(PREMIUM_TXT, reply_markup=get_premium_markup(), disable_web_page_preview=True)
 
-@Client.on_callback_query(filters.regex("plan_page"))
-async def plan_cb(client, query):
-    await query.message.edit_text(PREPLANS_TXT, reply_markup=get_plan_markup(), disable_web_page_preview=True)
+@Client.on_callback_query(filters.regex("plan_command"))
+async def plan_command_cb(client, query):
+    # Send the /plan command as a message
+    await client.send_message(
+        chat_id=query.message.chat.id,
+        text="/plan"
+    )
+    # Optionally delete the previous message
+    await query.message.delete()
 
 @Client.on_callback_query(filters.regex("home_page"))
 async def home_cb(client, query):
