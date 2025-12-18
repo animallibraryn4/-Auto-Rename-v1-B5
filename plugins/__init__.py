@@ -16,20 +16,38 @@ from config import Config
 
 verify_dict = {}
 
-# 🔹 Track verification state
-verification_in_progress = set()
-# 🔹 Store last verification message ID for deletion
-last_verify_msg_id = {}
+# --- PREMIUM TEXTS (Added back for context) ---
+PREMIUM_TXT = """<b>ᴜᴘɢʀᴀᴅᴇ ᴛᴏ ᴏᴜʀ ᴘʀᴇᴍɪᴜᴍ sᴇʀᴠɪᴄᴇ ᴀɴᴅ ᴇɴJᴏʏ ᴇxᴄʟᴜsɪᴠᴇ ғᴇᴀᴛᴜʀᴇs:
+○ ᴜɴʟɪᴍɪᴛᴇᴅ Rᴇɴᴀᴍɪɴɢ: ʀᴇɴᴀᴍᴇ ᴀs ᴍᴀɴʏ ғɪʟᴇs ᴀs ʏᴏᴜ ᴡᴀɴᴛ ᴡɪᴛʜᴏᴜᴛ ᴀɴʏ ʀᴇsᴛʀɪᴄᴛɪᴏɴs.
+○ ᴇᴀʀʟʏ Aᴄᴄᴇss: ʙᴇ ᴛʜᴇ ғɪʀsᴛ ᴛᴏ ᴛᴇsᴛ ᴀɴᴅ ᴜsᴇ ᴏᴜʀ ʟᴀᴛᴇsᴛ ғᴇᴀᴛᴜʀᴇs ʙᴇғᴏʀᴇ ᴀɴʏᴏɴᴇ ᴇʟsᴇ.
 
-# --- PREMIUM TEXT (Plans removed) ---
-PREMIUM_TXT = """<b>ᴜᴘɢʀᴀᴅᴇ ᴛᴏ ᴘʀᴇᴍɪᴜᴍ ᴀɴᴅ ᴇɴᴊᴏʏ ᴇxᴄʟᴜsɪᴠᴇ ғᴇᴀᴛᴜʀᴇs.
-ғᴏʀ ᴘʀᴇᴍɪᴜᴍ ᴀᴄᴄᴇss, ᴄᴏɴᴛᴀᴄᴛ ᴀᴅᴍɪɴ.</b>"""
+• ᴜꜱᴇ /plan ᴛᴏ ꜱᴇᴇ ᴀʟʟ ᴏᴜʀ ᴘʟᴀɴꜱ ᴀᴛ ᴏɴᴄᴇ.
+
+➲ ғɪʀsᴛ sᴛᴇᴘ : ᴘᴀʏ ᴛʜᴇ ᴀᴍᴏᴜɴᴛ ᴀᴄᴄᴏʀᴅɪɴɢ ᴛᴏ ʏᴏᴜʀ ғᴀᴠᴏʀɪᴛᴇ ᴘʟᴀɴ ᴛᴏ ᴛʜɪs fam ᴜᴘɪ ɪᴅ.
+
+➲ sᴇᴄᴏɴᴅ sᴛᴇᴘ : ᴛᴀᴋᴇ ᴀ sᴄʀᴇᴇɴsʜᴏᴛ ᴏғ ʏᴏᴜʀ ᴘᴀʏᴍᴇɴᴛ ᴀɴᴅ sʜᴀʀᴇ ɪᴛ ᴅɪʀᴇᴄᴛʟʏ ʜᴇʀᴇ: @ 
+
+➲ ᴀʟᴛᴇʀɴᴀᴛɪᴠᴇ sᴛᴇᴘ : ᴏʀ ᴜᴘʟᴏᴀᴅ ᴛʜᴇ sᴄʀᴇᴇɴsʜᴏᴛ ʜᴇʀᴇ ᴀɴᴅ ʀᴇᴘʟʏ ᴡɪᴛʜ ᴛʜᴇ /bought ᴄᴏᴍᴍᴀɴᴅ.
+
+Your premium plan will be activated after verification.</b>"""
+
+PREPLANS_TXT = """<b><pre>🎖️Available Plans:</pre>
+
+Pricing:
+➜ Monthly Premium: ₹109/month
+➜ weekly Premium: ₹49/month
+➜ Daily Premium: ₹19/day
+➜ Contact: @Anime_Library_N4
+
+➲ UPI ID - <code>bbc@</code>
+
+‼️ Upload the payment screenshot here and reply with the /bought command.</b>"""
 
 # CONFIG VARIABLES 😄
 VERIFY_PHOTO = os.environ.get('VERIFY_PHOTO', 'https://images8.alphacoders.com/138/1384114.png')  # YOUR VERIFY PHOTO LINK
 SHORTLINK_SITE = os.environ.get('SHORTLINK_SITE', 'gplinks.com') # YOUR SHORTLINK URL LIKE:- site.com
 SHORTLINK_API = os.environ.get('SHORTLINK_API', '596f423cdf22b174e43d0b48a36a8274759ec2a3') # YOUR SHORTLINK API LIKE:- ma82owowjd9hw6_js7
-VERIFY_EXPIRE = os.environ.get('VERIFY_EXPIRE', 2000) # VERIFY EXPIRE TIME IN SECONDS. LIKE:- 0 (ZERO) TO OFF VERIFICATION 
+VERIFY_EXPIRE = os.environ.get('VERIFY_EXPIRE', 7000) # VERIFY EXPIRE TIME IN SECONDS. LIKE:- 0 (ZERO) TO OFF VERIFICATION 
 VERIFY_TUTORIAL = os.environ.get('VERIFY_TUTORIAL', 'https://t.me/N4_Society/55') # LINK OF TUTORIAL TO VERIFY 
 # DATABASE_URL now uses Config.DB_URL
 DATABASE_URL = Config.DB_URL
@@ -72,16 +90,16 @@ async def verify_command_handler(client, message):
 # --- INLINE KEYBOARD MARKUPS ---
 
 def get_verification_markup(verify_token, username):
-    # Buttons: Tutorial, Premium, Get Token
+    # CHANGED: Get Token is now the first button in the first row
     return InlineKeyboardMarkup([
-        [
-            InlineKeyboardButton('ᴛᴜᴛᴏʀɪᴀʟ', url=VERIFY_TUTORIAL),
-            InlineKeyboardButton('ᴘʀᴇᴍɪᴜᴍ', callback_data="premium_page")
-        ],
-        [
-            InlineKeyboardButton('ɢᴇᴛ ᴛᴏᴋᴇɴ', url=verify_token)
-        ]
-    ])
+    [
+        InlineKeyboardButton('ᴛᴜᴛᴏʀɪᴀʟ', url='https://t.me/N4_Society/55'),
+        InlineKeyboardButton('ᴘʀᴇᴍɪᴜᴍ', callback_data="premium_page")
+    ],
+    [
+        InlineKeyboardButton('ɢᴇᴛ ᴛᴏᴋᴇɴ', url=verify_token)
+    ]
+])
 
 def get_welcome_markup():
     """Markup for Welcome message after successful verification"""
@@ -95,12 +113,19 @@ def get_welcome_markup():
 def get_premium_markup():
     """Markup for Premium page - only Back button"""
     return InlineKeyboardMarkup([
-        [InlineKeyboardButton('ʙᴀᴄᴋ', callback_data="back_verify")]
+        [InlineKeyboardButton('ʙᴀᴄᴋ', callback_data="welcome_back_page")]
+    ])
+
+def get_plan_markup():
+    return InlineKeyboardMarkup([
+        [InlineKeyboardButton('ʙᴀᴄᴋ', callback_data="premium_page"),
+         InlineKeyboardButton('ᴄᴀɴᴄᴇʟ', callback_data="close_message")],
+        [InlineKeyboardButton('ʜᴏᴍᴇ', callback_data="home_page")]
     ])
 
 # --- NEW CALLBACK QUERY HANDLERS ---
 
-# Handler for 'Premium' button (opens Premium page with only Back button)
+# Handler for 'Premium' button (opens Premium page)
 @Client.on_callback_query(filters.regex("premium_page"))
 async def premium_callback_handler(client, callback_query: CallbackQuery):
     await callback_query.message.edit_text(
@@ -110,26 +135,61 @@ async def premium_callback_handler(client, callback_query: CallbackQuery):
     )
     await callback_query.answer()
 
-# Handler for 'Back' button from Premium page (returns to verification message)
-@Client.on_callback_query(filters.regex("back_verify"))
-async def back_verify_callback_handler(client, callback_query: CallbackQuery):
+# Handler for 'Back' button from Premium page
+@Client.on_callback_query(filters.regex("welcome_back_page"))
+async def welcome_back_callback_handler(client, callback_query: CallbackQuery):
+    user_id = callback_query.from_user.id
+    
+    # Welcome message after verification
+    text = f'<b>Wᴇʟᴄᴏᴍᴇ Bᴀᴄᴋ 😁, Nᴏᴡ Yᴏᴜ Cᴀɴ Usᴇ Mᴇ Fᴏʀ {get_readable_time(VERIFY_EXPIRE)}.\n\n\nEɴᴊᴏʏʏʏ...❤️</b>'
+    
+    # Edit message content
+    if callback_query.message.photo:
+        await callback_query.message.edit_caption(
+            text,
+            reply_markup=get_welcome_markup()
+        )
+    else:
+        await callback_query.message.edit_text(
+            text,
+            reply_markup=get_welcome_markup()
+        )
+    
+    await callback_query.answer()
+
+# Handler for 'Plan' button (opens Plans page)
+@Client.on_callback_query(filters.regex("plan_page"))
+async def plan_callback_handler(client, callback_query: CallbackQuery):
+    await callback_query.message.edit_text(
+        PREPLANS_TXT,
+        reply_markup=get_plan_markup(),
+        disable_web_page_preview=True
+    )
+    await callback_query.answer()
+
+# Handler for 'Back' and 'Home' buttons (returns to Verification page)
+@Client.on_callback_query(filters.regex("home_page"))
+async def home_callback_handler(client, callback_query: CallbackQuery):
     user_id = callback_query.from_user.id
     username = (await client.get_me()).username
+    verify_token = await get_verify_token(client, user_id, f"https://telegram.me/{username}?start=")
+
+    isveri = await verifydb.get_verify_status(user_id)
     
-    # Get existing verification token (don't generate new one)
-    vdict = verify_dict.get(user_id, {})
-    verify_token = vdict.get('short_url')
-    
-    if not verify_token:
-        # Generate new token if doesn't exist
-        verify_token = await get_verify_token(client, user_id, f"https://telegram.me/{username}?start=")
-    
-    text = f"""ʜɪ 👋 {callback_query.from_user.mention},
+    # NEW FORMAT AND FONT
+    if not isveri: # First time/No record found
+        text = f"""ʜɪ 👋 {callback_query.from_user.mention},
 
 ᴛᴏ ꜱᴛᴀʀᴛ ᴜꜱɪɴɢ ᴛʜɪꜱ ʙᴏᴛ, ᴘʟᴇᴀꜱᴇ ɢᴇɴᴇʀᴀᴛᴇ ᴀ ᴛᴇᴍᴘᴏʀᴀʀʏ ᴀᴅꜱ ᴛᴏᴋᴇɴ.
 
 ᴠᴀʟɪᴅɪᴛʏ: {get_readable_time(VERIFY_EXPIRE)}"""
-    
+    else: # Subsequent visit, token is likely expired since we are showing the verification
+        text = f"""ʜɪ 👋 {callback_query.from_user.mention},
+
+ʏᴏᴜʀ ᴀᴅꜱ ᴛᴏᴋᴇɴ ʜᴀꜱ ʙᴇᴇɴ ᴇxᴘɪʀᴇᴅ, ᴋɪɴᴅʟʏ ɢᴇᴛ ᴀ ɴᴇᴡ ᴛᴏᴋᴇɴ ᴛᴏ ᴄᴏɴᴛɪɴᴜᴇ ᴜꜱɪɴɢ ᴛʜɪꜱ ʙᴏᴛ.
+
+ᴠᴀʟɪᴅɪᴛʏ: {get_readable_time(VERIFY_EXPIRE)}"""
+        
     # Edit message content
     if callback_query.message.photo:
         await callback_query.message.edit_caption(
@@ -141,10 +201,10 @@ async def back_verify_callback_handler(client, callback_query: CallbackQuery):
             text,
             reply_markup=get_verification_markup(verify_token, username)
         )
-    
+
     await callback_query.answer()
 
-# Handler for 'Cancel' button (closes the message)
+# Handler for 'Cancel' button (closes the message or sends an alert)
 @Client.on_callback_query(filters.regex("close_message"))
 async def close_callback_handler(client, callback_query: CallbackQuery):
     try:
@@ -164,54 +224,51 @@ async def is_user_verified(user_id):
     return True
 
 async def send_verification(client, message, text=None, buttons=None):
-    user_id = message.from_user.id
-
-    # ✅ Agar pehle hi verification message ja chuka hai
-    if user_id in verification_in_progress:
-        return  # kuch bhi mat karo
-
-    # ✅ Mark verification as in progress
-    verification_in_progress.add(user_id)
-
     username = (await client.get_me()).username
+    user_id = message.from_user.id
+    
     isveri = await verifydb.get_verify_status(user_id)
 
-    if await is_user_verified(user_id):
-        verification_in_progress.discard(user_id)
-        return
-
-    verify_token = await get_verify_token(
-        client,
-        user_id,
-        f"https://telegram.me/{username}?start="
-    )
-
-    buttons = get_verification_markup(verify_token, username)
-
-    if not isveri:
-        text = f"""ʜɪ 👋 {message.from_user.mention},
+    if done := await is_user_verified(user_id):
+        text = f'<b>Wᴇʟᴄᴏᴍᴇ Bᴀᴄᴋ 😁, Nᴏᴡ Yᴏᴜ Cᴀɴ Usᴇ Mᴇ Fᴏʀ {get_readable_time(VERIFY_EXPIRE)}.\n\n\nEɴᴊᴏʏʏʏ...❤️</b>'
+        buttons = get_welcome_markup()
+    else:
+        verify_token = await get_verify_token(client, user_id, f"https://telegram.me/{username}?start=")
+        buttons = get_verification_markup(verify_token, username)
+        
+        # NEW FORMAT AND FONT
+        if not isveri:
+            # Verification message for first-time users
+            text = f"""ʜɪ 👋 {message.from_user.mention},
 
 ᴛᴏ ꜱᴛᴀʀᴛ ᴜꜱɪɴɢ ᴛʜɪꜱ ʙᴏᴛ, ᴘʟᴇᴀꜱᴇ ɢᴇɴᴇʀᴀᴛᴇ ᴀ ᴛᴇᴍᴘᴏʀᴀʀʏ ᴀᴅꜱ ᴛᴏᴋᴇɴ.
 
 ᴠᴀʟɪᴅɪᴛʏ: {get_readable_time(VERIFY_EXPIRE)}"""
-    else:
-        text = f"""ʜɪ 👋 {message.from_user.mention},
+        # ELSE: User record exists but token is expired
+        else:
+            # Verification message for expired token
+            text = f"""ʜɪ 👋 {message.from_user.mention},
 
-ʏᴏᴜʀ ᴀᴅꜱ ᴛᴏᴋᴇɴ ʜᴀꜱ ʙᴇᴇɴ ᴇxᴘɪʀᴇᴅ.
-ᴋɪɴᴅʟʏ ɢᴇᴛ ᴀ ɴᴇᴡ ᴛᴏᴋᴇɴ.
+ʏᴏᴜʀ ᴀᴅꜱ ᴛᴏᴋᴇɴ ʜᴀꜱ ʙᴇᴇɴ ᴇxᴘɪʀᴇᴅ, ᴋɪɴᴅʟʏ ɢᴇᴛ ᴀ ɴᴇᴡ ᴛᴏᴋᴇɴ ᴛᴏ ᴄᴏɴᴛɪɴᴜᴇ ᴜꜱɪɴɢ ᴛʜɪꜱ ʙᴏᴛ.
 
 ᴠᴀʟɪᴅɪᴛʏ: {get_readable_time(VERIFY_EXPIRE)}"""
 
-    # Send verification message and store its ID
-    msg = await client.send_photo(
+    if not text:
+        # Fallback to the expired message
+        text = f"""ʜɪ 👋 {message.from_user.mention},
+
+ʏᴏᴜʀ ᴀᴅꜱ ᴛᴏᴋᴇɴ ʜᴀꜱ ʙᴇᴇɴ ᴇxᴘɪʀᴇᴅ, ᴋɪɴᴅʟʏ ɢᴇᴛ ᴀ ɴᴇᴡ ᴛᴏᴋᴇɴ ᴛᴏ ᴄᴏɴᴛɪɴᴜᴇ ᴜꜱɪɴɢ ᴛʜɪꜱ ʙᴏᴛ.
+
+ᴠᴀʟɪᴅɪᴛʏ: {get_readable_time(VERIFY_EXPIRE)}"""
+
+    message = message if isinstance(message, Message) else message.message
+    await client.send_photo(
         chat_id=message.chat.id,
         photo=VERIFY_PHOTO,
         caption=text,
-        reply_markup=buttons
+        reply_markup=buttons,
+        # reply_to_message_id=message.id, IS REMOVED
     )
-    
-    # Store message ID for later deletion
-    last_verify_msg_id[user_id] = msg.id
  
 async def get_verify_token(bot, userid, link):
     vdict = verify_dict.setdefault(userid, {})
@@ -261,53 +318,25 @@ async def validate_token(client, message, data):
     elif dict_token != token:
         # The verification will be sent without replying to the file message
         return await send_verification(client, message, text="<b>Iɴᴠᴀʟɪᴅ Oʀ Exᴘɪʀᴇᴅ Tᴏᴋᴇɴ 🔗...</b>")
-    
-    # ✅ Cleanup
     verify_dict.pop(user_id, None)
-    verification_in_progress.discard(user_id)
-    
-    # ✅ Delete old verification message if exists
-    if user_id in last_verify_msg_id:
-        try:
-            await client.delete_messages(
-                chat_id=message.chat.id,
-                message_ids=last_verify_msg_id[user_id]
-            )
-        except Exception:
-            pass  # If message already deleted, ignore
-    
     await verifydb.update_verify_status(user_id)
     
-    # ✅ Send NEW Welcome Back message with updated text
-    welcome_text = f"""ᴡᴇʟᴄᴏᴍᴇ ʙᴀᴄᴋ 😊  
-ʏᴏᴜʀ ᴛᴏᴋᴇɴ ʜᴀꜱ ʙᴇᴇɴ ꜱᴜᴄᴄᴇꜱꜰᴜʟʟʏ ᴠᴇʀɪꜰɪᴇᴅ.
-ʏᴏᴜ ᴄᴀɴ ɴᴏᴡ ᴜꜱᴇ ᴍᴇ ꜰᴏʀ {get_readable_time(VERIFY_EXPIRE)}.
-
-ɪꜰ ʏᴏᴜ ꜰɪɴᴅ ᴀɴʏ ᴛᴇᴄʜɴɪᴄᴀʟ ɪꜱꜱᴜᴇ, ᴘʟᴇᴀꜱᴇ ʀᴇᴘᴏʀᴛ ɪᴛ ᴛᴏ ᴜꜱ.
-ᴡᴇ'ʟʟ ꜰɪx ɪᴛ ᴀꜱ ꜱᴏᴏɴ ᴀꜱ ᴘᴏꜱꜱɪʙʟᴇ ᴛᴏ ᴍᴀᴋᴇ ʏᴏᴜʀ ᴇxᴘᴇʀɪᴇɴᴄᴇ ʙᴇᴛᴛᴇʀ.
-
-ᴇɴᴊᴏʏ ʏᴏᴜʀ ᴛɪᴍᴇ ❤️"""
-    
+    # Send Welcome message with Cancel | Premium buttons
     await client.send_photo(
         chat_id=message.from_user.id,
         photo=VERIFY_PHOTO,
-        caption=welcome_text,
+        caption=f'<b>Wᴇʟᴄᴏᴍᴇ Bᴀᴄᴋ 😁, Nᴏᴡ Yᴏᴜ Cᴀɴ Usᴇ Mᴇ Fᴏʀ {get_readable_time(VERIFY_EXPIRE)}.\n\n\nEɴᴊᴏʏʏʏ...❤️</b>',
         reply_markup=get_welcome_markup()
     )
     
 def get_readable_time(seconds):
-    if not seconds or int(seconds) == 0:
-        return "∞"
-    
-    seconds = int(seconds)
     periods = [('ᴅ', 86400), ('ʜ', 3600), ('ᴍ', 60), ('s', 1)]
     result = ''
-    
     for period_name, period_seconds in periods:
         if seconds >= period_seconds:
             period_value, seconds = divmod(seconds, period_seconds)
             result += f'{int(period_value)}{period_name}'
-    
-    return result if result else '0s'
+    return result
 
 verifydb = VerifyDB()
+
