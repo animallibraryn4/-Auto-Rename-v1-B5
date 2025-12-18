@@ -29,21 +29,6 @@ DATABASE_URL = Config.DB_URL
 COLLECTION_NAME = os.environ.get('COLLECTION_NAME', 'Token1')
 PREMIUM_USERS = list(map(int, os.environ.get('PREMIUM_USERS', '').split())) if os.environ.get('PREMIUM_USERS') else []
 
-# --- PREMIUM TEXT ---
-PREMIUM_TXT = """<b>ᴜᴘɢʀᴀᴅᴇ ᴛᴏ ᴏᴜʀ ᴘʀᴇᴍɪᴜᴍ sᴇʀᴠɪᴄᴇ ᴀɴᴅ ᴇɴJᴏʏ ᴇxᴄʟᴜsɪᴠᴇ ғᴇᴀᴛᴜʀᴇs:
-○ ᴜɴʟɪᴍɪᴛᴇᴅ Rᴇɴᴀᴍɪɴɢ: ʀᴇɴᴀᴍᴇ ᴀs ᴍᴀɴʏ ғɪʟᴇs ᴀs ʏᴏᴜ ᴡᴀɴᴛ ᴡɪᴛʜᴏᴜᴛ ᴀɴʏ ʀᴇsᴛʀɪᴄᴛɪᴏɴs.
-○ ᴇᴀʀʟʏ Aᴄᴄᴇss: ʙᴇ ᴛʜᴇ ғɪʀsᴛ ᴛᴏ ᴛᴇsᴛ ᴀɴᴅ ᴜsᴇ ᴏᴜʀ ʟᴀᴛᴇsᴛ ғᴇᴀᴛᴜʀᴇs ʙᴇғᴏʀᴇ ᴀɴʏᴏɴᴇ ᴇʟsᴇ.
-
-• ᴜꜱᴇ /plan ᴛᴏ ꜱᴇᴇ ᴀʟʟ ᴏᴜʀ ᴘʟᴀɴꜱ ᴀᴛ ᴏɴᴄᴇ.
-
-➲ ғɪʀsᴛ sᴛᴇᴘ : ᴘᴀʏ ᴛʜᴇ ᴀᴍᴏᴜɴᴛ ᴀᴄᴄᴏʀᴅɪɴɢ ᴛᴏ ʏᴏᴜʀ ғᴀᴠᴏʀɪᴛᴇ ᴘʟᴀɴ ᴛᴏ ᴛʜɪs fam ᴜᴘɪ ɪᴅ.
-
-➲ sᴇᴄᴏɴᴅ sᴛᴇᴘ : ᴛᴀᴋᴇ ᴀ sᴄʀᴇᴇɴsʜᴏᴛ ᴏғ ʏᴏᴜʀ ᴘᴀʏᴍᴇɴᴛ ᴀɴᴅ sʜᴀʀᴇ ɪᴛ ᴅɪʀᴇᴄᴛʟʏ ʜᴇʀᴇ: @ 
-
-➲ ᴀʟᴛᴇʀɴᴀᴛɪᴠᴇ sᴛᴇᴘ : ᴏʀ ᴜᴘʟᴏᴀᴅ ᴛʜᴇ sᴄʀᴇᴇɴsʜᴏᴛ ʜᴇʀᴇ ᴀɴᴅ ʀᴇᴘʟʏ ᴡɪᴛʜ ᴛʜᴇ /bought ᴄᴏᴍᴍᴀɴᴅ.
-
-Your premium plan will be activated after verification.</b>"""
-
 # --- DATABASE CLASS ---
 class VerifyDB():
     def __init__(self):
@@ -169,14 +154,10 @@ async def validate_token(client, message, data):
         verify_dict.pop(user_id, None)
         await verifydb.update_verify_status(user_id)
         
-        # Send "Welcome Back" message with buttons in order: Close | Premium → Back → Welcome Back
-        welcome_text = f'<b>Wᴇʟᴄᴏᴍᴇ Bᴀᴄᴋ 😁, Nᴏᴡ Yᴏᴜ Cᴀɴ Usᴇ Mᴇ Fᴏʀ {get_readable_time(VERIFY_EXPIRE)}.\n\nEɴᴊᴏʏʏʏ...❤️</b>'
-        
         await client.send_photo(
             chat_id=user_id,
             photo=VERIFY_PHOTO,
-            caption=welcome_text,
-            reply_markup=get_welcome_markup()
+            caption=f'<b>Wᴇʟᴄᴏᴍᴇ Bᴀᴄᴋ 😁, Nᴏᴡ Yᴏᴜ Cᴀɴ Usᴇ Mᴇ Fᴏʀ {get_readable_time(VERIFY_EXPIRE)}.\n\nEɴᴊᴏʏʏʏ...❤️</b>'
         )
     except:
         await send_verification(client, message)
@@ -190,15 +171,8 @@ def get_verification_markup(verify_token, username):
 
 def get_premium_markup():
     return InlineKeyboardMarkup([
-        [InlineKeyboardButton('❌ Close', callback_data="close_message"), 
-         InlineKeyboardButton('🔙 Back', callback_data="back_to_verification")]
-    ])
-
-def get_welcome_markup():
-    return InlineKeyboardMarkup([
-        [InlineKeyboardButton('❌ Close', callback_data="close_message"),
-         InlineKeyboardButton('ᴘʀᴇᴍɪᴜᴍ', callback_data="premium_page")],
-        [InlineKeyboardButton('🔙 Back', callback_data="back_to_welcome")]
+        [InlineKeyboardButton('❌ Cancel', callback_data="close_message")],
+        [InlineKeyboardButton('🔙 Back', callback_data="back_to_verification")]
     ])
 
 # --- HANDLERS ---
@@ -207,13 +181,13 @@ async def premium_cb(client, query):
     """Edits current message to show Premium text"""
     try:
         await query.message.edit_caption(
-            caption=PREMIUM_TXT,
+            caption=Txt.PREMIUM_TXT,
             reply_markup=get_premium_markup()
         )
     except:
         # If it's not a photo message, edit as text
         await query.message.edit_text(
-            PREMIUM_TXT, 
+            Txt.PREMIUM_TXT, 
             reply_markup=get_premium_markup(), 
             disable_web_page_preview=True
         )
@@ -255,23 +229,6 @@ async def back_to_verification_cb(client, query):
         await query.message.edit_text(
             text,
             reply_markup=get_verification_markup(verify_token, username),
-            disable_web_page_preview=True
-        )
-
-@Client.on_callback_query(filters.regex("back_to_welcome"))
-async def back_to_welcome_cb(client, query):
-    """Go back to welcome message from premium"""
-    welcome_text = f'<b>Wᴇʟᴄᴏᴍᴇ Bᴀᴄᴋ 😁, Nᴏᴡ Yᴏᴜ Cᴀɴ Usᴇ Mᴇ Fᴏʀ {get_readable_time(VERIFY_EXPIRE)}.\n\nEɴᴊᴏʏʏʏ...❤️</b>'
-    
-    try:
-        await query.message.edit_caption(
-            caption=welcome_text,
-            reply_markup=get_welcome_markup()
-        )
-    except:
-        await query.message.edit_text(
-            welcome_text,
-            reply_markup=get_welcome_markup(),
             disable_web_page_preview=True
         )
 
