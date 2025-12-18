@@ -23,8 +23,9 @@ verify_dict = {}
 # Format: {user_id: {"message_id": message_id, "sent_at": timestamp}}
 verification_messages = {}
 
-# Lock dictionary to prevent concurrent verification sends for the same user
-verification_locks = {}
+# Dictionary to track users who are currently being sent verification
+# This prevents multiple concurrent verification sends for the same user
+verification_in_progress = {}
 
 # --- PREMIUM TEXTS (Added back for context) ---
 PREMIUM_TXT = """<b>ᴜᴘɢʀᴀᴅᴇ ᴛᴏ ᴏᴜʀ ᴘʀᴇᴍɪᴜᴍ sᴇʀᴠɪᴄᴇ ᴀɴᴅ ᴇɴJᴏʏ ᴇxᴄʟᴜsɪᴠᴇ ғᴇᴀᴛᴜʀᴇs:
@@ -57,7 +58,7 @@ Pricing:
 VERIFY_PHOTO = os.environ.get('VERIFY_PHOTO', 'https://images8.alphacoders.com/138/1384114.png')  # YOUR VERIFY PHOTO LINK
 SHORTLINK_SITE = os.environ.get('SHORTLINK_SITE', 'gplinks.com') # YOUR SHORTLINK URL LIKE:- site.com
 SHORTLINK_API = os.environ.get('SHORTLINK_API', '596f423cdf22b174e43d0b48a36a8274759ec2a3') # YOUR SHORTLINK API LIKE:- ma82owowjd9hw6_js7
-VERIFY_EXPIRE = os.environ.get('VERIFY_EXPIRE', 3000) # VERIFY EXPIRE TIME IN SECONDS. LIKE:- 0 (ZERO) TO OFF VERIFICATION 
+VERIFY_EXPIRE = os.environ.get('VERIFY_EXPIRE', 0) # VERIFY EXPIRE TIME IN SECONDS. LIKE:- 0 (ZERO) TO OFF VERIFICATION 
 VERIFY_TUTORIAL = os.environ.get('VERIFY_TUTORIAL', 'https://t.me/N4_Society/55') # LINK OF TUTORIAL TO VERIFY 
 # DATABASE_URL now uses Config.DB_URL
 DATABASE_URL = Config.DB_URL
@@ -216,21 +217,26 @@ async def send_verification(client, message, text=None, buttons=None):
         )
         return
     
-    # Create or get a lock for this user to prevent concurrent verification sends
-    if user_id not in verification_locks:
-        verification_locks[user_id] = asyncio.Lock()
+    # Check if verification is already in progress for this user
+    # This is the key fix - prevents multiple concurrent verification sends
+    if user_id in verification_in_progress:
+        # Verification is already being sent for this user, skip
+        return
     
-    async with verification_locks[user_id]:
-        # Check again inside the lock to avoid race conditions
+    # Mark that verification is in progress for this user
+    verification_in_progress[user_id] = True
+    
+    try:
+        # Double-check inside the critical section
         if await is_user_verified(user_id):
             return
         
-        # Double-check if verification was already sent very recently (within 3 seconds)
+        # Check if verification was already sent very recently (within 5 seconds)
         current_time = time()
         if user_id in verification_messages:
             sent_data = verification_messages[user_id]
-            # If a verification was sent within the last 3 seconds, don't send another one
-            if current_time - sent_data.get("sent_at", 0) < 3:
+            # If a verification was sent within the last 5 seconds, don't send another one
+            if current_time - sent_data.get("sent_at", 0) < 5:
                 return
         
         # Proceed to send verification message
@@ -277,6 +283,13 @@ async def send_verification(client, message, text=None, buttons=None):
             
         except Exception as e:
             print(f"[VERIFICATION ERROR] Failed to send verification for user {user_id}: {e}")
+    
+    finally:
+        # Always remove the "in progress" flag when done
+        # Use a small delay to ensure other concurrent requests see the flag
+        await asyncio.sleep(0.1)
+        if user_id in verification_in_progress:
+            del verification_in_progress[user_id]
  
 async def get_verify_token(bot, userid, link):
     vdict = verify_dict.get(userid, {})
@@ -349,7 +362,7 @@ async def validate_token(client, message, data):
     # Remove user from verification tracking since they are now verified
     verify_dict.pop(user_id, None)
     verification_messages.pop(user_id, None)
-    verification_locks.pop(user_id, None)
+    verification_in_progress.pop(user_id, None)
     
     await verifydb.update_verify_status(user_id)
     await client.send_photo(
@@ -380,7 +393,7 @@ async def cleanup_old_verification_messages():
     
     for user_id in expired_users:
         verification_messages.pop(user_id, None)
-        verification_locks.pop(user_id, None)
+        verification_in_progress.pop(user_id, None)
 
 async def cleanup_expired_tokens():
     """Remove expired tokens from verify_dict"""
