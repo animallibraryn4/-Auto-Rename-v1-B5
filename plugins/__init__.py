@@ -12,14 +12,24 @@ from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton, Message, 
 
 from cloudscraper import create_scraper
 from motor.motor_asyncio import AsyncIOMotorClient
-from config import Config 
+from config import Config, Txt 
 
 # --- DATA TRACKING ---
 verify_dict = {}
 verification_messages = {}
 verification_in_progress = {}
 
-# --- PREMIUM TEXTS ---
+# --- CONFIG VARIABLES ---
+VERIFY_PHOTO = os.environ.get('VERIFY_PHOTO', 'https://images8.alphacoders.com/138/1384114.png')
+SHORTLINK_SITE = os.environ.get('SHORTLINK_SITE', 'gplinks.com')
+SHORTLINK_API = os.environ.get('SHORTLINK_API', '596f423cdf22b174e43d0b48a36a8274759ec2a3')
+VERIFY_EXPIRE = int(os.environ.get('VERIFY_EXPIRE', 3000))
+VERIFY_TUTORIAL = os.environ.get('VERIFY_TUTORIAL', 'https://t.me/N4_Society/55')
+DATABASE_URL = Config.DB_URL
+COLLECTION_NAME = os.environ.get('COLLECTION_NAME', 'Token1')
+PREMIUM_USERS = list(map(int, os.environ.get('PREMIUM_USERS', '').split())) if os.environ.get('PREMIUM_USERS') else []
+
+# --- PREMIUM TEXT ---
 PREMIUM_TXT = """<b>ᴜᴘɢʀᴀᴅᴇ ᴛᴏ ᴏᴜʀ ᴘʀᴇᴍɪᴜᴍ sᴇʀᴠɪᴄᴇ ᴀɴᴅ ᴇɴJᴏʏ ᴇxᴄʟᴜsɪᴠᴇ ғᴇᴀᴛᴜʀᴇs:
 ○ ᴜɴʟɪᴍɪᴛᴇᴅ Rᴇɴᴀᴍɪɴɢ: ʀᴇɴᴀᴍᴇ ᴀs ᴍᴀɴʏ ғɪʟᴇs ᴀs ʏᴏᴜ ᴡᴀɴᴛ ᴡɪᴛʜᴏᴜᴛ ᴀɴʏ ʀᴇsᴛʀɪᴄᴛɪᴏɴs.
 ○ ᴇᴀʀʟʏ Aᴄᴄᴇss: ʙᴇ ᴛʜᴇ ғɪʀsᴛ ᴛᴏ ᴛᴇsᴛ ᴀɴᴅ ᴜsᴇ ᴏᴜʀ ʟᴀᴛᴇsᴛ ғᴇᴀᴛᴜʀᴇs ʙᴇғᴏʀᴇ ᴀɴʏᴏɴᴇ ᴇʟsᴇ.
@@ -33,28 +43,6 @@ PREMIUM_TXT = """<b>ᴜᴘɢʀᴀᴅᴇ ᴛᴏ ᴏᴜʀ ᴘʀᴇᴍɪᴜᴍ sᴇ
 ➲ ᴀʟᴛᴇʀɴᴀᴛɪᴠᴇ sᴛᴇᴘ : ᴏʀ ᴜᴘʟᴏᴀᴅ ᴛʜᴇ sᴄʀᴇᴇɴsʜᴏᴛ ʜᴇʀᴇ ᴀɴᴅ ʀᴇᴘʟʏ ᴡɪᴛʜ ᴛʜᴇ /bought ᴄᴏᴍᴍᴀɴᴅ.
 
 Your premium plan will be activated after verification.</b>"""
-
-PREPLANS_TXT = """<b><pre>🎖️Available Plans:</pre>
-
-Pricing:
-➜ Monthly Premium: ₹109/month
-➜ weekly Premium: ₹49/month
-➜ Daily Premium: ₹19/day
-➜ Contact: @Anime_Library_N4
-
-➲ UPI ID - <code>bbc@</code>
-
-‼️ Upload the payment screenshot here and reply with the /bought command.</b>"""
-
-# --- CONFIG VARIABLES ---
-VERIFY_PHOTO = os.environ.get('VERIFY_PHOTO', 'https://images8.alphacoders.com/138/1384114.png')
-SHORTLINK_SITE = os.environ.get('SHORTLINK_SITE', 'gplinks.com')
-SHORTLINK_API = os.environ.get('SHORTLINK_API', '596f423cdf22b174e43d0b48a36a8274759ec2a3')
-VERIFY_EXPIRE = int(os.environ.get('VERIFY_EXPIRE', 3000))
-VERIFY_TUTORIAL = os.environ.get('VERIFY_TUTORIAL', 'https://t.me/N4_Society/55')
-DATABASE_URL = Config.DB_URL
-COLLECTION_NAME = os.environ.get('COLLECTION_NAME', 'Token1')
-PREMIUM_USERS = list(map(int, os.environ.get('PREMIUM_USERS', '').split())) if os.environ.get('PREMIUM_USERS') else []
 
 # --- DATABASE CLASS ---
 class VerifyDB():
@@ -181,10 +169,14 @@ async def validate_token(client, message, data):
         verify_dict.pop(user_id, None)
         await verifydb.update_verify_status(user_id)
         
+        # Send "Welcome Back" message with buttons in order: Close | Premium → Back → Welcome Back
+        welcome_text = f'<b>Wᴇʟᴄᴏᴍᴇ Bᴀᴄᴋ 😁, Nᴏᴡ Yᴏᴜ Cᴀɴ Usᴇ Mᴇ Fᴏʀ {get_readable_time(VERIFY_EXPIRE)}.\n\nEɴᴊᴏʏʏʏ...❤️</b>'
+        
         await client.send_photo(
             chat_id=user_id,
             photo=VERIFY_PHOTO,
-            caption=f'<b>Wᴇʟᴄᴏᴍᴇ Bᴀᴄᴋ 😁, Nᴏᴡ Yᴏᴜ Cᴀɴ Usᴇ Mᴇ Fᴏʀ {get_readable_time(VERIFY_EXPIRE)}.\n\nEɴᴊᴏʏʏʏ...❤️</b>'
+            caption=welcome_text,
+            reply_markup=get_welcome_markup()
         )
     except:
         await send_verification(client, message)
@@ -197,19 +189,96 @@ def get_verification_markup(verify_token, username):
     ])
 
 def get_premium_markup():
-    return InlineKeyboardMarkup([[InlineKeyboardButton('ʙᴀᴄᴋ', callback_data="home_page"), InlineKeyboardButton('ᴘʟᴀɴ', callback_data="plan_page")]])
+    return InlineKeyboardMarkup([
+        [InlineKeyboardButton('❌ Close', callback_data="close_message"), 
+         InlineKeyboardButton('🔙 Back', callback_data="back_to_verification")]
+    ])
 
-def get_plan_markup():
-    return InlineKeyboardMarkup([[InlineKeyboardButton('ʙᴀᴄᴋ', callback_data="premium_page"), InlineKeyboardButton('ᴄᴀɴᴄᴇʟ', callback_data="close_message")], [InlineKeyboardButton('ʜᴏᴍᴇ', callback_data="home_page")]])
+def get_welcome_markup():
+    return InlineKeyboardMarkup([
+        [InlineKeyboardButton('❌ Close', callback_data="close_message"),
+         InlineKeyboardButton('ᴘʀᴇᴍɪᴜᴍ', callback_data="premium_page")],
+        [InlineKeyboardButton('🔙 Back', callback_data="back_to_welcome")]
+    ])
 
 # --- HANDLERS ---
 @Client.on_callback_query(filters.regex("premium_page"))
 async def premium_cb(client, query):
-    await query.message.edit_text(PREMIUM_TXT, reply_markup=get_premium_markup(), disable_web_page_preview=True)
+    """Edits current message to show Premium text"""
+    try:
+        await query.message.edit_caption(
+            caption=PREMIUM_TXT,
+            reply_markup=get_premium_markup()
+        )
+    except:
+        # If it's not a photo message, edit as text
+        await query.message.edit_text(
+            PREMIUM_TXT, 
+            reply_markup=get_premium_markup(), 
+            disable_web_page_preview=True
+        )
 
-@Client.on_callback_query(filters.regex("plan_page"))
-async def plan_cb(client, query):
-    await query.message.edit_text(PREPLANS_TXT, reply_markup=get_plan_markup(), disable_web_page_preview=True)
+@Client.on_callback_query(filters.regex("back_to_verification"))
+async def back_to_verification_cb(client, query):
+    """Go back to verification with fresh token"""
+    user_id = query.from_user.id
+    bot_obj = await client.get_me()
+    username = bot_obj.username
+    
+    # Check if user is already verified
+    if await is_user_verified(user_id):
+        await query.answer("You're already verified!", show_alert=True)
+        await query.message.delete()
+        return
+    
+    # Get fresh verification token
+    isveri = await verifydb.get_verify_status(user_id)
+    verify_token = await get_verify_token(client, user_id, f"https://telegram.me/{username}?start=")
+    
+    # Prepare the verification text
+    text = f"ʜɪ 👋 {query.from_user.mention},\n\n"
+    if not isveri:
+        text += "ᴛᴏ ꜱᴛᴀʀᴛ ᴜꜱɪɴɢ ᴛʜɪꜱ ʙᴏᴛ, ᴘʟᴇᴀꜱᴇ ɢᴇɴᴇʀᴀᴛᴇ ᴀ ᴛᴇᴍᴘᴏʀᴀʀʏ ᴀᴅꜱ ᴛᴏᴋᴇɴ."
+    else:
+        text += "ʏᴏᴜʀ ᴀᴅꜱ ᴛᴏᴋᴇɴ ʜᴀꜱ ʙᴇᴇɴ ᴇxᴘɪʀᴇᴅ, ᴋɪɴᴅʟʏ ɢᴇᴛ ᴀ ɴᴇᴡ ᴛᴏᴋᴇɴ ᴛᴏ ᴄᴏɴᴛɪɴᴜᴇ."
+    
+    text += f"\n\nᴠᴀʟɪᴅɪᴛʏ: {get_readable_time(VERIFY_EXPIRE)}"
+    
+    # Edit the message back to verification
+    try:
+        await query.message.edit_caption(
+            caption=text,
+            reply_markup=get_verification_markup(verify_token, username)
+        )
+    except:
+        # If it's not a photo message, edit as text
+        await query.message.edit_text(
+            text,
+            reply_markup=get_verification_markup(verify_token, username),
+            disable_web_page_preview=True
+        )
+
+@Client.on_callback_query(filters.regex("back_to_welcome"))
+async def back_to_welcome_cb(client, query):
+    """Go back to welcome message from premium"""
+    welcome_text = f'<b>Wᴇʟᴄᴏᴍᴇ Bᴀᴄᴋ 😁, Nᴏᴡ Yᴏᴜ Cᴀɴ Usᴇ Mᴇ Fᴏʀ {get_readable_time(VERIFY_EXPIRE)}.\n\nEɴᴊᴏʏʏʏ...❤️</b>'
+    
+    try:
+        await query.message.edit_caption(
+            caption=welcome_text,
+            reply_markup=get_welcome_markup()
+        )
+    except:
+        await query.message.edit_text(
+            welcome_text,
+            reply_markup=get_welcome_markup(),
+            disable_web_page_preview=True
+        )
+
+@Client.on_callback_query(filters.regex("plan_command"))
+async def plan_command_cb(client, query):
+    await client.send_message(chat_id=query.message.chat.id, text="/plan")
+    await query.message.delete()
 
 @Client.on_callback_query(filters.regex("home_page"))
 async def home_cb(client, query):
@@ -219,4 +288,3 @@ async def home_cb(client, query):
 @Client.on_callback_query(filters.regex("close_message"))
 async def close_cb(client, query):
     await query.message.delete()
-
