@@ -145,8 +145,18 @@ def premium_markup():
 # CORE VERIFICATION (STABLE)
 # =====================================================
 
-async def send_verification(client, message):
-    user_id = message.from_user.id
+async def send_verification(client, message_or_query):
+    """Send verification message"""
+    if isinstance(message_or_query, CallbackQuery):
+        user_id = message_or_query.from_user.id
+        chat_id = message_or_query.message.chat.id
+        mention = message_or_query.from_user.mention
+        message_obj = message_or_query.message
+    else:
+        user_id = message_or_query.from_user.id
+        chat_id = message_or_query.chat.id
+        mention = message_or_query.from_user.mention
+        message_obj = None
 
     if await is_user_verified(user_id):
         return
@@ -162,7 +172,7 @@ async def send_verification(client, message):
     link = await get_verify_token(client, user_id, f"https://t.me/{bot.username}?start=")
 
     text = (
-        f"Hi 👋 {message.from_user.mention}\n\n"
+        f"Hi 👋 {mention}\n\n"
         f"To start using this bot, please complete Ads Token verification.\n\n"
         f"Validity: {get_readable_time(VERIFY_EXPIRE)}"
     )
@@ -170,31 +180,70 @@ async def send_verification(client, message):
     # Store user state as "verification"
     user_state[user_id] = "verification"
     
-    await client.send_photo(
-        chat_id=message.chat.id,
-        photo=VERIFY_PHOTO,
-        caption=text,
-        reply_markup=verify_markup(link)
-    )
+    # If we have a message object (callback query), edit it
+    if message_obj:
+        try:
+            await message_obj.edit_media(
+                media=VERIFY_PHOTO,
+                caption=text,
+                reply_markup=verify_markup(link)
+            )
+        except:
+            # If editing fails, send a new message
+            await message_obj.delete()
+            await client.send_photo(
+                chat_id=chat_id,
+                photo=VERIFY_PHOTO,
+                caption=text,
+                reply_markup=verify_markup(link)
+            )
+    else:
+        # Send new message
+        await client.send_photo(
+            chat_id=chat_id,
+            photo=VERIFY_PHOTO,
+            caption=text,
+            reply_markup=verify_markup(link)
+        )
 
     last_verify_message[user_id] = now
 
-async def send_welcome_message(client, user_id):
+async def send_welcome_message(client, user_id, message_obj=None):
     """Send welcome message to verified users"""
     # Store user state as "verified"
     user_state[user_id] = "verified"
     
-    await client.send_photo(
-        chat_id=user_id,
-        photo=VERIFY_PHOTO,
-        caption=(
-            f"<b>Welcome Back 😊\n"
-            f"Your token has been successfully verified.\n"
-            f"You can now use me for {get_readable_time(VERIFY_EXPIRE)}.\n\n"
-            f"Enjoy ❤️</b>"
-        ),
-        reply_markup=welcome_markup()
+    text = (
+        f"<b>Welcome Back 😊\n"
+        f"Your token has been successfully verified.\n"
+        f"You can now use me for {get_readable_time(VERIFY_EXPIRE)}.\n\n"
+        f"Enjoy ❤️</b>"
     )
+    
+    # If we have a message object, edit it
+    if message_obj:
+        try:
+            await message_obj.edit_caption(
+                caption=text,
+                reply_markup=welcome_markup()
+            )
+        except:
+            # If editing fails, send a new message
+            await message_obj.delete()
+            await client.send_photo(
+                chat_id=user_id,
+                photo=VERIFY_PHOTO,
+                caption=text,
+                reply_markup=welcome_markup()
+            )
+    else:
+        # Send new message
+        await client.send_photo(
+            chat_id=user_id,
+            photo=VERIFY_PHOTO,
+            caption=text,
+            reply_markup=welcome_markup()
+        )
 
 async def validate_token(client, message, data):
     user_id = message.from_user.id
@@ -231,6 +280,7 @@ async def premium_cb(client, query: CallbackQuery):
         # Default to verification if state not set
         user_state[user_id] = "verification"
     
+    # Edit the current message to show premium page
     await query.message.edit_text(
         Txt.PREMIUM_TXT,
         reply_markup=premium_markup(),
@@ -246,22 +296,10 @@ async def back_cb(client, query: CallbackQuery):
     
     if state == "verified":
         # User was already verified, show welcome message
-        await query.message.delete()  # Delete premium message first
-        
-        # Send new welcome message
-        await send_welcome_message(client, user_id)
+        await send_welcome_message(client, user_id, query.message)
     else:
         # User was in verification flow, show verification message
-        await query.message.delete()  # Delete premium message first
-        
-        # Create a message object to pass to send_verification
-        class FakeMessage:
-            def __init__(self, user_id, query):
-                self.from_user = query.from_user
-                self.chat = type('obj', (object,), {'id': user_id})()
-        
-        fake_msg = FakeMessage(user_id, query)
-        await send_verification(client, fake_msg)
+        await send_verification(client, query)
 
 @Client.on_callback_query(filters.regex("^close_message$"))
 async def close_cb(client, query: CallbackQuery):
