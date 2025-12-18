@@ -234,6 +234,20 @@ async def forward_to_dump_channel(client, path, media_type, ph_path, file_name, 
 async def process_rename(client: Client, message: Message):
     user_id = message.from_user.id
     
+    # Add verification check here too as a safety measure
+    if not await is_user_verified(user_id):
+        # Don't send verification here - let the main handler send only one
+        # The queue will be cleared when user sends files while not verified
+        if user_id in user_queues:
+            # Clear the user's queue since they're not verified
+            while not user_queues[user_id]["queue"].empty():
+                try:
+                    user_queues[user_id]["queue"].get_nowait()
+                    user_queues[user_id]["queue"].task_done()
+                except asyncio.QueueEmpty:
+                    break
+        return  # Just return without processing
+        
     ph_path = None
     
     format_template = await codeflixbots.get_format_template(user_id)
@@ -587,13 +601,14 @@ async def process_rename(client: Client, message: Message):
 
 @Client.on_message(filters.private & (filters.document | filters.video | filters.audio))
 async def auto_rename_files(client, message):
-    user_id = message.from_user.id
-    
     # Check if user is verified
-    if not await is_user_verified(user_id):
+    if not await is_user_verified(message.from_user.id):
         # Send verification prompt instead of processing the file
+        # This will now send only ONE verification message even for multiple files
         await send_verification(client, message)
         return
+    
+    user_id = message.from_user.id
     
     # Create per-user queue if it doesn't exist
     if user_id not in user_queues:
