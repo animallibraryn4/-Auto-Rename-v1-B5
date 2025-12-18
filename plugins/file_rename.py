@@ -24,6 +24,10 @@ user_queues = {}
 # Global dictionary to prevent duplicate renaming within a short time
 renaming_operations = {}
 
+# Dictionary to track verification status checks to prevent multiple verifications
+# Format: {user_id: timestamp}
+recent_verification_checks = {}
+
 # Patterns for extracting file information
 pattern1 = re.compile(r'S(\d+)(?:E|EP)(\d+)')
 pattern2 = re.compile(r'S(\d+)\s*(?:E|EP|-\s*EP)(\d+)')
@@ -601,15 +605,46 @@ async def process_rename(client: Client, message: Message):
 
 @Client.on_message(filters.private & (filters.document | filters.video | filters.audio))
 async def auto_rename_files(client, message):
-    # Check if user is verified
-    if not await is_user_verified(message.from_user.id):
-        # Send verification prompt instead of processing the file
-        # This will now send only ONE verification message even for multiple files
-        await send_verification(client, message)
-        return
-    
     user_id = message.from_user.id
     
+    # IMPORTANT: Check verification status BEFORE adding to queue
+    # This prevents multiple verification checks for the same user
+    current_time = time.time()
+    
+    # Only check verification once every 2 seconds per user
+    # This prevents multiple concurrent verification checks
+    if user_id in recent_verification_checks:
+        last_check = recent_verification_checks[user_id]
+        if current_time - last_check < 2:  # 2 seconds cooldown
+            # Skip verification check if we checked recently
+            # This helps when multiple files arrive simultaneously
+            pass
+        else:
+            # Check verification if it's been more than 2 seconds
+            recent_verification_checks[user_id] = current_time
+            if not await is_user_verified(user_id):
+                # Send verification prompt instead of processing the file
+                # This will now send only ONE verification message even for multiple files
+                await send_verification(client, message)
+                return
+    else:
+        # First check for this user
+        recent_verification_checks[user_id] = current_time
+        if not await is_user_verified(user_id):
+            # Send verification prompt instead of processing the file
+            # This will now send only ONE verification message even for multiple files
+            await send_verification(client, message)
+            return
+    
+    # Clean up old verification checks
+    cleanup_users = []
+    for uid, check_time in recent_verification_checks.items():
+        if current_time - check_time > 30:  # Remove entries older than 30 seconds
+            cleanup_users.append(uid)
+    for uid in cleanup_users:
+        del recent_verification_checks[uid]
+    
+    # User is verified, proceed with adding to queue
     # Create per-user queue if it doesn't exist
     if user_id not in user_queues:
         user_queues[user_id] = {
