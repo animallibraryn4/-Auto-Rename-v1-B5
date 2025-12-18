@@ -29,7 +29,7 @@ PREMIUM_TXT = """<b>ᴜᴘɢʀᴀᴅᴇ ᴛᴏ ᴏᴜʀ ᴘʀᴇᴍɪᴜᴍ sᴇ
 
 ➲ ғɪʀsᴛ sᴛᴇᴘ : ᴘᴀʏ ᴛʜᴇ ᴀᴍᴏᴜɴᴛ ᴀᴄᴄᴏʀᴅɪɴɢ ᴛᴏ ʏᴏᴜʀ ғᴀᴠᴏʀɪᴛᴇ ᴘʟᴀɴ ᴛᴏ ᴛʜɪs fam ᴜᴘɪ ɪᴅ.
 
-➲ sᴇᴄᴏɴᴅ sᴛᴇᴘ : ᴛᴀᴋᴇ ᴀ sᴄʀᴇᴇɴsʜᴏᴛ ᴏғ ʏᴏᴜʀ ᴘᴀʏᴍᴇɴᴛ ᴀɴᴅ sʜᴀʀᴇ ɪᴛ ᴅɪʀᴇᴄᴛʟʏ ʜᴇʀᴇ: @ 
+➲ sᴇᴄᴏɴᴅ sᴛᴇᴘ : ᴛᴀᴋᴇ ᴀ sᴄʀᴇᴇɴsʜᴏᴛ ᴏғ ʏᴏᴜʀ ᴘᴀʏᴍᴇɴᴟ ᴀɴᴅ sʜᴀʀᴇ ɪᴛ ᴅɪʀᴇᴄᴛʟʏ ʜᴇʀᴇ: @ 
 
 ➲ ᴀʟᴛᴇʀɴᴀᴛɪᴠᴇ sᴛᴇᴘ : ᴏʀ ᴜᴘʟᴏᴀᴅ ᴛʜᴇ sᴄʀᴇᴇɴsʜᴏᴛ ʜᴇʀᴇ ᴀɴᴅ ʀᴇᴘʟʏ ᴡɪᴛʜ ᴛʜᴇ /bought ᴄᴏᴍᴍᴀɴᴅ.
 
@@ -48,6 +48,7 @@ Pricing:
 ‼️ Upload the payment screenshot here and reply with the /bought command.</b>"""
 
 # ================= CONFIG VARIABLES =================
+# Default values provide karo agar environment variable nahi mile
 VERIFY_PHOTO = os.environ.get('VERIFY_PHOTO', 'https://images8.alphacoders.com/138/1384114.png')
 SHORTLINK_SITE = os.environ.get('SHORTLINK_SITE', 'gplinks.com')
 SHORTLINK_API = os.environ.get('SHORTLINK_API', '596f423cdf22b174e43d0b48a36a8274759ec2a3')
@@ -57,10 +58,27 @@ DATABASE_URL = Config.DB_URL
 COLLECTION_NAME = os.environ.get('COLLECTION_NAME', 'Token1')
 PREMIUM_USERS = list(map(int, os.environ.get('PREMIUM_USERS', '').split()))
 
-# Check required variables
-missing = [v for v in ["COLLECTION_NAME", "VERIFY_PHOTO", "SHORTLINK_SITE", "SHORTLINK_API", "VERIFY_TUTORIAL"] if not os.environ.get(v)]
+# Debug ke liye print karo ki variables set hain ya nahi
+print(f"DEBUG: VERIFY_PHOTO = {VERIFY_PHOTO}")
+print(f"DEBUG: SHORTLINK_SITE = {SHORTLINK_SITE}")
+print(f"DEBUG: SHORTLINK_API = {SHORTLINK_API}")
+print(f"DEBUG: VERIFY_EXPIRE = {VERIFY_EXPIRE}")
+print(f"DEBUG: VERIFY_TUTORIAL = {VERIFY_TUTORIAL}")
+print(f"DEBUG: COLLECTION_NAME = {COLLECTION_NAME}")
+
+# Required variables check - ab exit nahi karenge, default values use karenge
+required_vars = {
+    'VERIFY_PHOTO': VERIFY_PHOTO,
+    'SHORTLINK_SITE': SHORTLINK_SITE,
+    'SHORTLINK_API': SHORTLINK_API,
+    'VERIFY_TUTORIAL': VERIFY_TUTORIAL,
+    'COLLECTION_NAME': COLLECTION_NAME
+}
+
+missing = [k for k, v in required_vars.items() if not v]
 if missing:
-    sys.exit(f"Missing: {', '.join(missing)}")
+    print(f"⚠️ WARNING: Missing variables: {', '.join(missing)}")
+    print("⚠️ Using default values where available")
 
 # ================= DATABASE =================
 class VerifyDB:
@@ -69,9 +87,9 @@ class VerifyDB:
             self._dbclient = AsyncIOMotorClient(DATABASE_URL)
             self._db = self._dbclient['verify-db']
             self._verifydb = self._db[COLLECTION_NAME]
-            print('Database Connected ✅')
+            print('✅ Database Connected')
         except Exception as e:
-            print(f'Failed To Connect To Database ❌. \nError: {str(e)}')
+            print(f'❌ Failed To Connect To Database. \nError: {str(e)}')
     
     async def get_verify_status(self, user_id):
         if status := await self._verifydb.find_one({'id': user_id}):
@@ -91,10 +109,14 @@ def get_readable_time(seconds):
         return "∞"
     m, s = divmod(seconds, 60)
     h, m = divmod(m, 60)
+    d, h = divmod(h, 24)
+    
+    if d:
+        return f"{d}ᴅ{h}ʜ"
     if h:
         return f"{h}ʜ{m}ᴍ"
     if m:
-        return f"{m}ᴍ"
+        return f"{m}ᴍ{s}s"
     return f"{s}s"
 
 async def is_user_verified(user_id):
@@ -138,6 +160,10 @@ def get_plan_markup():
 
 # ================= SHORTLINK =================
 async def get_short_url(longurl, shortener_site=SHORTLINK_SITE, shortener_api=SHORTLINK_API):
+    if not shortener_api or shortener_api == '':
+        print("⚠️ Shortlink API not configured, returning original URL")
+        return longurl
+    
     cget = create_scraper().request
     disable_warnings()
     try:
@@ -221,23 +247,17 @@ async def send_verification(client, message):
     # Try to EDIT existing message first (NO SPAM)
     if last_msg_id:
         try:
-            if message.photo:
-                await client.edit_message_caption(
-                    chat_id=user_id,
-                    message_id=last_msg_id,
-                    caption=text,
-                    reply_markup=markup
-                )
-            else:
-                await client.edit_message_text(
-                    chat_id=user_id,
-                    message_id=last_msg_id,
-                    text=text,
-                    reply_markup=markup
-                )
+            # Always use edit_message_caption for photo messages
+            await client.edit_message_caption(
+                chat_id=user_id,
+                message_id=last_msg_id,
+                caption=text,
+                reply_markup=markup
+            )
             verification_last_sent[user_id] = now
             return
-        except:
+        except Exception as e:
+            print(f"Edit failed: {e}")
             # Message not found, clear and send new
             verification_message_id.pop(user_id, None)
     
@@ -264,7 +284,10 @@ async def validate_token(client, message, data):
     if not dict_token:
         return await send_verification(client, message)
     
-    _, uid, token = data.split("-")
+    try:
+        _, uid, token = data.split("-")
+    except ValueError:
+        return await message.reply("<b>Invalid token format</b>")
     
     if uid != str(user_id):
         return await send_verification(client, message)
@@ -333,17 +356,27 @@ async def home_callback_handler(client, callback_query: CallbackQuery):
 ʏᴏᴜʀ ᴀᴅꜱ ᴛᴏᴋᴇɴ ʜᴀꜱ ʙᴇᴇɴ ᴇxᴘɪʀᴇᴅ, ᴋɪɴᴅʟʏ ɢᴇᴛ ᴀ ɴᴇᴡ ᴛᴏᴋᴇɴ ᴛᴏ ᴄᴏɴᴛɪɴᴜᴇ ᴜꜱɪɴɢ ᴛʜɪꜱ ʙᴏᴛ.
 
 ᴠᴀʟɪᴅɪᴛʏ: {get_readable_time(VERIFY_EXPIRE)}"""
-        
-    if callback_query.message.photo:
-        await callback_query.message.edit_caption(
-            text,
+    
+    try:
+        if callback_query.message.photo:
+            await callback_query.message.edit_caption(
+                text,
+                reply_markup=get_verification_markup(verify_token)
+            )
+        else:
+            await callback_query.message.edit_text(
+                text,
+                reply_markup=get_verification_markup(verify_token)
+            )
+    except Exception as e:
+        print(f"Edit error in callback: {e}")
+        # Try to send new message if edit fails
+        await callback_query.message.reply_photo(
+            photo=VERIFY_PHOTO,
+            caption=text,
             reply_markup=get_verification_markup(verify_token)
         )
-    else:
-        await callback_query.message.edit_text(
-            text,
-            reply_markup=get_verification_markup(verify_token)
-        )
+    
     await callback_query.answer()
 
 @Client.on_callback_query(filters.regex("close_message"))
@@ -354,5 +387,26 @@ async def close_callback_handler(client, callback_query: CallbackQuery):
     except Exception:
         await callback_query.answer("Closed the window.", show_alert=True)
 
+# ================= AUTO VERIFICATION FOR NEW USERS =================
+@Client.on_message(filters.private & filters.command("start") & ~filters.bot)
+async def start_handler(client, message):
+    user_id = message.from_user.id
+    
+    # Check if user sent a verification token
+    if len(message.command) > 1 and message.command[1].startswith("verify"):
+        await validate_token(client, message, message.command[1])
+        return
+    
+    # Check if user is already verified
+    if await is_user_verified(user_id):
+        await message.reply(f"<b>Welcome back {message.from_user.mention}! You're already verified. 😊</b>")
+        return
+    
+    # Send verification for unverified users
+    await send_verification(client, message)
+
 # ================= INITIALIZE =================
 verifydb = VerifyDB()
+print("✅ Verification system initialized")
+print(f"✅ Verification expire time: {get_readable_time(VERIFY_EXPIRE)}")
+print(f"✅ Cooldown time: {get_readable_time(VERIFICATION_COOLDOWN)}")
