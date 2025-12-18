@@ -12,7 +12,7 @@ from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton, Message, 
 
 from cloudscraper import create_scraper
 from motor.motor_asyncio import AsyncIOMotorClient
-from config import Config, Txt 
+from config import Config, Txt  # Added Txt import
 
 # --- DATA TRACKING ---
 verify_dict = {}
@@ -170,6 +170,7 @@ def get_verification_markup(verify_token, username):
     ])
 
 def get_premium_markup():
+    """Updated buttons for premium page"""
     return InlineKeyboardMarkup([
         [InlineKeyboardButton('❌ Cancel', callback_data="close_message")],
         [InlineKeyboardButton('🔙 Back', callback_data="back_to_verification")]
@@ -178,7 +179,7 @@ def get_premium_markup():
 # --- HANDLERS ---
 @Client.on_callback_query(filters.regex("premium_page"))
 async def premium_cb(client, query):
-    """Edits current message to show Premium text"""
+    """Show premium text from config.py with Cancel and Back buttons"""
     await query.message.edit_text(
         Txt.PREMIUM_TXT, 
         reply_markup=get_premium_markup(), 
@@ -187,31 +188,16 @@ async def premium_cb(client, query):
 
 @Client.on_callback_query(filters.regex("back_to_verification"))
 async def back_to_verification_cb(client, query):
-    """Edits Premium text back to Verification content without deleting"""
-    user_id = query.from_user.id
-    bot_obj = await client.get_me()
-    username = bot_obj.username
-    
-    isveri = await verifydb.get_verify_status(user_id)
-    verify_token = await get_verify_token(client, user_id, f"https://telegram.me/{username}?start=")
-    
-    text = f"ʜɪ 👋 {query.from_user.mention},\n\n"
-    if not isveri:
-        text += "ᴛᴏ ꜱᴛᴀʀᴛ ᴜꜱɪɴɢ ᴛʜɪꜱ ʙᴏᴛ, ᴘʟᴇᴀꜱᴇ ɢᴇɴᴇʀᴀᴛᴇ ᴀ ᴛᴇᴍᴘᴏʀᴀʀʏ ᴀᴅꜱ ᴛᴏᴋᴇɴ."
-    else:
-        text += "ʏᴏᴜʀ ᴀᴅꜱ ᴛᴏᴋᴇɴ ʜᴀꜱ ʙᴇᴇɴ ᴇxᴘɪʀᴇᴅ, ᴋɪɴᴅʟʏ ɢᴇᴛ ᴀ ɴᴇᴡ ᴛᴏᴋᴇɴ ᴛᴏ ᴄᴏɴᴛɪɴᴜᴇ."
-    
-    text += f"\n\nᴠᴀʟɪᴅɪᴛʏ: {get_readable_time(VERIFY_EXPIRE)}"
-    
-    await query.message.edit_text(
-        text,
-        reply_markup=get_verification_markup(verify_token, username),
-        disable_web_page_preview=True
-    )
+    """Go back to the verification screen"""
+    await query.message.delete()
+    await send_verification(client, query)
 
 @Client.on_callback_query(filters.regex("plan_command"))
 async def plan_command_cb(client, query):
-    await client.send_message(chat_id=query.message.chat.id, text="/plan")
+    await client.send_message(
+        chat_id=query.message.chat.id,
+        text="/plan"
+    )
     await query.message.delete()
 
 @Client.on_callback_query(filters.regex("home_page"))
@@ -222,4 +208,5 @@ async def home_cb(client, query):
 @Client.on_callback_query(filters.regex("close_message"))
 async def close_cb(client, query):
     await query.message.delete()
-        
+    
+
