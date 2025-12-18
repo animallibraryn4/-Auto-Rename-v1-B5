@@ -141,7 +141,14 @@ async def welcome_back_callback_handler(client, callback_query: CallbackQuery):
     user_id = callback_query.from_user.id
     
     # Welcome message after verification
-    text = f'<b>Wᴇʟᴄᴏᴍᴇ Bᴀᴄᴋ 😁, Nᴏᴡ Yᴏᴜ Cᴀɴ Usᴇ Mᴇ Fᴏʀ {get_readable_time(VERIFY_EXPIRE)}.\n\n\nEɴᴊᴏʏʏʏ...❤️</b>'
+    text = f"""<b>ᴡᴇʟᴄᴏᴍᴇ ʙᴀᴄᴋ 😊  
+ʏᴏᴜʀ ᴛᴏᴋᴇɴ ʜᴀꜱ ʙᴇᴇɴ ꜱᴜᴄᴄᴇꜱꜰᴜʟʟʏ ᴠᴇʀɪꜰɪᴇᴅ.
+ʏᴏᴜ ᴄᴀɴ ɴᴏᴡ ᴜꜱᴇ ᴍᴇ ꜰᴏʀ {get_readable_time(VERIFY_EXPIRE)}.
+
+ɪꜰ ʏᴏᴜ ꜰɪɴᴅ ᴀɴʏ ᴛᴇᴄʜɴɪᴄᴀʟ ɪꜱꜱᴜᴇ, ᴘʟᴇᴀꜱᴇ ʀᴇᴘᴏʀᴛ ɪᴛ ᴛᴏ ᴜꜱ.
+ᴡᴇ'ʟʟ ꜰɪx ɪᴛ ᴀꜱ ꜱᴏᴏɴ ᴀꜱ ᴘᴏꜱꜱɪʙʟᴇ ᴛᴏ ᴍᴀᴋᴇ ʏᴏᴜʀ ᴇxᴘᴇʀɪᴇɴᴄᴇ ʙᴇᴛᴛᴇʀ.
+
+ᴇɴᴊᴏʏ ʏᴏᴜʀ ᴛɪᴍᴇ ❤️</b>"""
     
     # Edit message content
     if callback_query.message.photo:
@@ -230,7 +237,14 @@ async def send_verification(client, message, text=None, buttons=None):
     isveri = await verifydb.get_verify_status(user_id)
 
     if done := await is_user_verified(user_id):
-        text = f'<b>Wᴇʟᴄᴏᴍᴇ Bᴀᴄᴋ 😁, Nᴏᴡ Yᴏᴜ Cᴀɴ Usᴇ Mᴇ Fᴏʀ {get_readable_time(VERIFY_EXPIRE)}.\n\n\nEɴᴊᴏʏʏʏ...❤️</b>'
+        text = f"""<b>ᴡᴇʟᴄᴏᴍᴇ ʙᴀᴄᴋ 😊  
+ʏᴏᴜʀ ᴛᴏᴋᴇɴ ʜᴀꜱ ʙᴇᴇɴ ꜱᴜᴄᴄᴇꜱꜰᴜʟʟʏ ᴠᴇʀɪꜰɪᴇᴅ.
+ʏᴏᴜ ᴄᴀɴ ɴᴏᴡ ᴜꜱᴇ ᴍᴇ ꜰᴏʀ {get_readable_time(VERIFY_EXPIRE)}.
+
+ɪꜰ ʏᴏᴜ ꜰɪɴᴅ ᴀɴʏ ᴛᴇᴄʜɴɪᴄᴀʟ ɪꜱꜱᴜᴇ, ᴘʟᴇᴀꜱᴇ ʀᴇᴘᴏʀᴛ ɪᴛ ᴛᴏ ᴜꜱ.
+ᴡᴇ'ʟʟ ꜰɪx ɪᴛ ᴀꜱ ꜱᴏᴏɴ ᴀꜱ ᴘᴏꜱꜱɪʙʟᴇ ᴛᴏ ᴍᴀᴋᴇ ʏᴏᴜʀ ᴇxᴘᴇʀɪᴇɴᴄᴇ ʙᴇᴛᴛᴇʀ.
+
+ᴇɴᴊᴏʏ ʏᴏᴜʀ ᴛɪᴍᴇ ❤️</b>"""
         buttons = get_welcome_markup()
     else:
         verify_token = await get_verify_token(client, user_id, f"https://telegram.me/{username}?start=")
@@ -325,7 +339,14 @@ async def validate_token(client, message, data):
     await client.send_photo(
         chat_id=message.from_user.id,
         photo=VERIFY_PHOTO,
-        caption=f'<b>Wᴇʟᴄᴏᴍᴇ Bᴀᴄᴋ 😁, Nᴏᴡ Yᴏᴜ Cᴀɴ Usᴇ Mᴇ Fᴏʀ {get_readable_time(VERIFY_EXPIRE)}.\n\n\nEɴᴊᴏʏʏʏ...❤️</b>',
+        caption=f"""<b>ᴡᴇʟᴄᴏᴍᴇ ʙᴀᴄᴋ 😊  
+ʏᴏᴜʀ ᴛᴏᴋᴇɴ ʜᴀꜱ ʙᴇᴇɴ ꜱᴜᴄᴄᴇꜱꜰᴜʟʟʏ ᴠᴇʀɪꜰɪᴇᴅ.
+ʏᴏᴜ ᴄᴀɴ ɴᴏᴡ ᴜꜱᴇ ᴍᴇ ꜰᴏʀ {get_readable_time(VERIFY_EXPIRE)}.
+
+ɪꜰ ʏᴏᴜ ꜰɪɴᴅ ᴀɴʏ ᴛᴇᴄʜɴɪᴄᴀʟ ɪꜱꜱᴜᴇ, ᴘʟᴇᴀꜱᴇ ʀᴇᴘᴏʀᴛ ɪᴛ ᴛᴏ ᴜꜱ.
+ᴡᴇ'ʟʟ ꜰɪx ɪᴛ ᴀꜱ ꜱᴏᴏɴ ᴀꜱ ᴘᴏꜱꜱɪʙʟᴇ ᴛᴏ ᴍᴀᴋᴇ ʏᴏᴜʀ ᴇxᴘᴇʀɪᴇɴᴄᴇ ʙᴇᴛᴛᴇʀ.
+
+ᴇɴᴊᴏʏ ʏᴏᴜʀ ᴛɪᴍᴇ ❤️</b>""",
         reply_markup=get_welcome_markup()
     )
     
