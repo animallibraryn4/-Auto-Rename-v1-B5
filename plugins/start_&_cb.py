@@ -16,8 +16,18 @@ async def start(client, message: Message):
        if data.split("-")[0] == 'verify':
            await validate_token(client, message, data)
            return
+    
     user = message.from_user
     await codeflixbots.add_user(client, message)
+
+    # Check if user is verified before showing the start message
+    from plugins import is_user_verified
+    
+    if not await is_user_verified(user.id):
+        # User is not verified, send verification message
+        from plugins import send_verification
+        await send_verification(client, message)
+        return
 
     # Initial interactive text and sticker sequence
     m = await message.reply_text("ᴏɴᴇᴇ-ᴄʜᴀɴ!, ʜᴏᴡ ᴀʀᴇ ʏᴏᴜ \nᴡᴀɪᴛ ᴀ ᴍᴏᴍᴇɴᴛ. . .")
@@ -102,8 +112,8 @@ async def cb_handler(client, query: CallbackQuery):
         )
 
     elif data == "meta":
-        await query.message.edit_text(  # Change edit_caption to edit_text
-            text=Txt.SEND_METADATA,  # Changed from caption to text
+        await query.message.edit_text(
+            text=Txt.SEND_METADATA,
             reply_markup=InlineKeyboardMarkup([
                 [InlineKeyboardButton("ᴄʟᴏsᴇ", callback_data="close"), InlineKeyboardButton("ʙᴀᴄᴋ", callback_data="help")]
             ])
@@ -232,11 +242,9 @@ async def bought(client, message):
 
 @Client.on_message(filters.private & filters.command("help"))
 async def help_command(client, message):
-    # Await get_me to get the bot's user object
     bot = await client.get_me()
     mention = bot.mention
 
-    # Send the help message with inline buttons
     await message.reply_text(
         text=Txt.HELP_TXT.format(mention=mention),
         disable_web_page_preview=True,
@@ -246,4 +254,5 @@ async def help_command(client, message):
             [InlineKeyboardButton('ᴍᴇᴛᴀᴅᴀᴛᴀ', callback_data='meta'), InlineKeyboardButton('ᴅᴏɴᴀᴛᴇ', callback_data='donate')],
             [InlineKeyboardButton('ʜᴏᴍᴇ', callback_data='home')]
         ])
-    )
+)
+    
