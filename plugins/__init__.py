@@ -12,12 +12,39 @@ from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton, Message, 
 
 from cloudscraper import create_scraper
 from motor.motor_asyncio import AsyncIOMotorClient
-from config import Config, Txt  # Added Txt import
+from config import Config 
 
 # --- DATA TRACKING ---
 verify_dict = {}
 verification_messages = {}
 verification_in_progress = {}
+
+# --- PREMIUM TEXTS ---
+PREMIUM_TXT = """<b>ᴜᴘɢʀᴀᴅᴇ ᴛᴏ ᴏᴜʀ ᴘʀᴇᴍɪᴜᴍ sᴇʀᴠɪᴄᴇ ᴀɴᴅ ᴇɴJᴏʏ ᴇxᴄʟᴜsɪᴠᴇ ғᴇᴀᴛᴜʀᴇs:
+○ ᴜɴʟɪᴍɪᴛᴇᴅ Rᴇɴᴀᴍɪɴɢ: ʀᴇɴᴀᴍᴇ ᴀs ᴍᴀɴʏ ғɪʟᴇs ᴀs ʏᴏᴜ ᴡᴀɴᴛ ᴡɪᴛʜᴏᴜᴛ ᴀɴʏ ʀᴇsᴛʀɪᴄᴛɪᴏɴs.
+○ ᴇᴀʀʟʏ Aᴄᴄᴇss: ʙᴇ ᴛʜᴇ ғɪʀsᴛ ᴛᴏ ᴛᴇsᴛ ᴀɴᴅ ᴜsᴇ ᴏᴜʀ ʟᴀᴛᴇsᴛ ғᴇᴀᴛᴜʀᴇs ʙᴇғᴏʀᴇ ᴀɴʏᴏɴᴇ ᴇʟsᴇ.
+
+• ᴜꜱᴇ /plan ᴛᴏ ꜱᴇᴇ ᴀʟʟ ᴏᴜʀ ᴘʟᴀɴꜱ ᴀᴛ ᴏɴᴄᴇ.
+
+➲ ғɪʀsᴛ sᴛᴇᴘ : ᴘᴀʏ ᴛʜᴇ ᴀᴍᴏᴜɴᴛ ᴀᴄᴄᴏʀᴅɪɴɢ ᴛᴏ ʏᴏᴜʀ ғᴀᴠᴏʀɪᴛᴇ ᴘʟᴀɴ ᴛᴏ ᴛʜɪs fam ᴜᴘɪ ɪᴅ.
+
+➲ sᴇᴄᴏɴᴅ sᴛᴇᴘ : ᴛᴀᴋᴇ ᴀ sᴄʀᴇᴇɴsʜᴏᴛ ᴏғ ʏᴏᴜʀ ᴘᴀʏᴍᴇɴᴛ ᴀɴᴅ sʜᴀʀᴇ ɪᴛ ᴅɪʀᴇᴄᴛʟʏ ʜᴇʀᴇ: @ 
+
+➲ ᴀʟᴛᴇʀɴᴀᴛɪᴠᴇ sᴛᴇᴘ : ᴏʀ ᴜᴘʟᴏᴀᴅ ᴛʜᴇ sᴄʀᴇᴇɴsʜᴏᴛ ʜᴇʀᴇ ᴀɴᴅ ʀᴇᴘʟʏ ᴡɪᴛʜ ᴛʜᴇ /bought ᴄᴏᴍᴍᴀɴᴅ.
+
+Your premium plan will be activated after verification.</b>"""
+
+PREPLANS_TXT = """<b><pre>🎖️Available Plans:</pre>
+
+Pricing:
+➜ Monthly Premium: ₹109/month
+➜ weekly Premium: ₹49/month
+➜ Daily Premium: ₹19/day
+➜ Contact: @Anime_Library_N4
+
+➲ UPI ID - <code>bbc@</code>
+
+‼️ Upload the payment screenshot here and reply with the /bought command.</b>"""
 
 # --- CONFIG VARIABLES ---
 VERIFY_PHOTO = os.environ.get('VERIFY_PHOTO', 'https://images8.alphacoders.com/138/1384114.png')
@@ -170,35 +197,19 @@ def get_verification_markup(verify_token, username):
     ])
 
 def get_premium_markup():
-    """Updated buttons for premium page"""
-    return InlineKeyboardMarkup([
-        [InlineKeyboardButton('❌ Cancel', callback_data="close_message")],
-        [InlineKeyboardButton('🔙 Back', callback_data="back_to_verification")]
-    ])
+    return InlineKeyboardMarkup([[InlineKeyboardButton('ʙᴀᴄᴋ', callback_data="home_page"), InlineKeyboardButton('ᴘʟᴀɴ', callback_data="plan_page")]])
+
+def get_plan_markup():
+    return InlineKeyboardMarkup([[InlineKeyboardButton('ʙᴀᴄᴋ', callback_data="premium_page"), InlineKeyboardButton('ᴄᴀɴᴄᴇʟ', callback_data="close_message")], [InlineKeyboardButton('ʜᴏᴍᴇ', callback_data="home_page")]])
 
 # --- HANDLERS ---
 @Client.on_callback_query(filters.regex("premium_page"))
 async def premium_cb(client, query):
-    """Show premium text from config.py with Cancel and Back buttons"""
-    await query.message.edit_text(
-        Txt.PREMIUM_TXT, 
-        reply_markup=get_premium_markup(), 
-        disable_web_page_preview=True
-    )
+    await query.message.edit_text(PREMIUM_TXT, reply_markup=get_premium_markup(), disable_web_page_preview=True)
 
-@Client.on_callback_query(filters.regex("back_to_verification"))
-async def back_to_verification_cb(client, query):
-    """Go back to the verification screen"""
-    await query.message.delete()
-    await send_verification(client, query)
-
-@Client.on_callback_query(filters.regex("plan_command"))
-async def plan_command_cb(client, query):
-    await client.send_message(
-        chat_id=query.message.chat.id,
-        text="/plan"
-    )
-    await query.message.delete()
+@Client.on_callback_query(filters.regex("plan_page"))
+async def plan_cb(client, query):
+    await query.message.edit_text(PREPLANS_TXT, reply_markup=get_plan_markup(), disable_web_page_preview=True)
 
 @Client.on_callback_query(filters.regex("home_page"))
 async def home_cb(client, query):
@@ -208,5 +219,4 @@ async def home_cb(client, query):
 @Client.on_callback_query(filters.regex("close_message"))
 async def close_cb(client, query):
     await query.message.delete()
-    
 
