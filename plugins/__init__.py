@@ -19,21 +19,6 @@ verify_dict = {}
 verification_messages = {}
 verification_in_progress = {}
 
-# --- PREMIUM TEXTS ---
-PREMIUM_TXT = """<b>ᴜᴘɢʀᴀᴅᴇ ᴛᴏ ᴏᴜʀ ᴘʀᴇᴍɪᴜᴍ sᴇʀᴠɪᴄᴇ ᴀɴᴅ ᴇɴJᴏʏ ᴇxᴄʟᴜsɪᴠᴇ ғᴇᴀᴛᴜʀᴇs:
-○ ᴜɴʟɪᴍɪᴛᴇᴅ Rᴇɴᴀᴍɪɴɢ: ʀᴇɴᴀᴍᴇ ᴀs ᴍᴀɴʏ ғɪʟᴇs ᴀs ʏᴏᴜ ᴡᴀɴᴛ ᴡɪᴛʜᴏᴜᴛ ᴀɴʏ ʀᴇsᴛʀɪᴄᴛɪᴏɴs.
-○ ᴇᴀʀʟʏ Aᴄᴄᴇss: ʙᴇ ᴛʜᴇ ғɪʀsᴛ ᴛᴏ ᴛᴇsᴛ ᴀɴᴅ ᴜsᴇ ᴏᴜʀ ʟᴀᴛᴇsᴛ ғᴇᴀᴛᴜʀᴇs ʙᴇғᴏʀᴇ ᴀɴʏᴏɴᴇ ᴇʟsᴇ.
-
-• ᴜꜱᴇ /plan ᴛᴏ ꜱᴇᴇ ᴀʟʟ ᴏᴜʀ ᴘʟᴀɴꜱ ᴀᴛ ᴏɴᴄᴇ.
-
-➲ ғɪʀsᴛ sᴛᴇᴘ : ᴘᴀʏ ᴛʜᴇ ᴀᴍᴏᴜɴᴛ ᴀᴄᴄᴏʀᴅɪɴɢ ᴛᴏ ʏᴏᴜʀ ғᴀᴠᴏʀɪᴛᴇ ᴘʟᴀɴ ᴛᴏ ᴛʜɪs fam ᴜᴘɪ ɪᴅ.
-
-➲ sᴇᴄᴏɴᴅ sᴛᴇᴘ : ᴛᴀᴋᴇ ᴀ sᴄʀᴇᴇɴsʜᴏᴛ ᴏғ ʏᴏᴜʀ ᴘᴀʏᴍᴇɴᴛ ᴀɴᴅ sʜᴀʀᴇ ɪᴛ ᴅɪʀᴇᴄᴛʟʏ ʜᴇʀᴇ: @ 
-
-➲ ᴀʟᴛᴇʀɴᴀᴛɪᴠᴇ sᴛᴇᴘ : ᴏʀ ᴜᴘʟᴏᴀᴅ ᴛʜᴇ sᴄʀᴇᴇɴsʜᴏᴛ ʜᴇʀᴇ ᴀɴᴅ ʀᴇᴘʟʏ ᴡɪᴛʜ ᴛʜᴇ /bought ᴄᴏᴍᴍᴀɴᴅ.
-
-Your premium plan will be activated after verification.</b>"""
-
 # --- CONFIG VARIABLES ---
 VERIFY_PHOTO = os.environ.get('VERIFY_PHOTO', 'https://images8.alphacoders.com/138/1384114.png')
 SHORTLINK_SITE = os.environ.get('SHORTLINK_SITE', 'gplinks.com')
@@ -186,14 +171,27 @@ def get_verification_markup(verify_token, username):
 
 def get_premium_markup():
     return InlineKeyboardMarkup([
-        [InlineKeyboardButton('ʙᴀᴄᴋ', callback_data="home_page"), InlineKeyboardButton('ᴘʟᴀɴ', callback_data="plan_command")],
-        [InlineKeyboardButton('ᴄʟᴏsᴇ', callback_data="close_message")]
+        [InlineKeyboardButton('ᴄᴀɴᴄᴇʟ', callback_data="cancel_premium")],
+        [InlineKeyboardButton('ʙᴀᴄᴋ', callback_data="back_to_verify")]
     ])
 
 # --- HANDLERS ---
 @Client.on_callback_query(filters.regex("premium_page"))
 async def premium_cb(client, query):
-    await query.message.edit_text(PREMIUM_TXT, reply_markup=get_premium_markup(), disable_web_page_preview=True)
+    await query.message.edit_text(
+        Config.PREMIUM_TXT, 
+        reply_markup=get_premium_markup(), 
+        disable_web_page_preview=True
+    )
+
+@Client.on_callback_query(filters.regex("cancel_premium"))
+async def cancel_premium_cb(client, query):
+    await query.message.delete()
+
+@Client.on_callback_query(filters.regex("back_to_verify"))
+async def back_to_verify_cb(client, query):
+    await query.message.delete()
+    await send_verification(client, query)
 
 @Client.on_callback_query(filters.regex("plan_command"))
 async def plan_command_cb(client, query):
