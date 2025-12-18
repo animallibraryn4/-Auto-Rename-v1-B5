@@ -2,6 +2,7 @@ import os
 import sys
 import string
 import random
+import asyncio
 
 from time import time
 from urllib.parse import quote
@@ -18,7 +19,47 @@ from config import Config
 verify_dict = {}
 verification_last_sent = {}
 verification_message_id = {}
+# Cooldown after which a new token should be generated
 VERIFICATION_COOLDOWN = 21600  # 6 hours
+# Rate limiting for file uploads (seconds between verification checks)
+FILE_UPLOAD_RATE_LIMIT = 5
+
+# ================= USER VERIFICATION STATE =================
+class UserVerificationState:
+    """Tracks verification state per user to prevent spam"""
+    def __init__(self):
+        self.verification_in_progress = {}
+        self.last_file_check = {}
+        self.locks = {}
+    
+    def get_lock(self, user_id):
+        """Get or create an asyncio lock for user"""
+        if user_id not in self.locks:
+            self.locks[user_id] = asyncio.Lock()
+        return self.locks[user_id]
+    
+    def should_check_verification(self, user_id):
+        """Rate limit verification checks for file uploads"""
+        now = time()
+        last_check = self.last_file_check.get(user_id, 0)
+        
+        # If less than rate limit time has passed, skip verification check
+        if now - last_check < FILE_UPLOAD_RATE_LIMIT:
+            return False
+        
+        self.last_file_check[user_id] = now
+        return True
+    
+    def set_verification_in_progress(self, user_id, value=True):
+        """Track if verification is already being sent for this user"""
+        self.verification_in_progress[user_id] = value
+    
+    def is_verification_in_progress(self, user_id):
+        """Check if verification is already being sent"""
+        return self.verification_in_progress.get(user_id, False)
+
+# Initialize verification state tracker
+user_verification_state = UserVerificationState()
 
 # ================= PREMIUM TEXTS =================
 PREMIUM_TXT = """<b>ᴜᴘɢʀᴀᴅᴇ ᴛᴏ ᴏᴜʀ ᴘʀᴇᴍɪᴜᴍ sᴇʀᴠɪᴄᴇ ᴀɴᴅ ᴇɴJᴏʏ ᴇxᴄʟᴜsɪᴠᴇ ғᴇᴀᴛᴜʀᴇs:
@@ -48,7 +89,6 @@ Pricing:
 ‼️ Upload the payment screenshot here and reply with the /bought command.</b>"""
 
 # ================= CONFIG VARIABLES =================
-# Default values provide karo agar environment variable nahi mile
 VERIFY_PHOTO = os.environ.get('VERIFY_PHOTO', 'https://images8.alphacoders.com/138/1384114.png')
 SHORTLINK_SITE = os.environ.get('SHORTLINK_SITE', 'gplinks.com')
 SHORTLINK_API = os.environ.get('SHORTLINK_API', '596f423cdf22b174e43d0b48a36a8274759ec2a3')
@@ -58,7 +98,6 @@ DATABASE_URL = Config.DB_URL
 COLLECTION_NAME = os.environ.get('COLLECTION_NAME', 'Token1')
 PREMIUM_USERS = list(map(int, os.environ.get('PREMIUM_USERS', '').split()))
 
-# Debug ke liye print karo ki variables set hain ya nahi
 print(f"DEBUG: VERIFY_PHOTO = {VERIFY_PHOTO}")
 print(f"DEBUG: SHORTLINK_SITE = {SHORTLINK_SITE}")
 print(f"DEBUG: SHORTLINK_API = {SHORTLINK_API}")
@@ -66,26 +105,12 @@ print(f"DEBUG: VERIFY_EXPIRE = {VERIFY_EXPIRE}")
 print(f"DEBUG: VERIFY_TUTORIAL = {VERIFY_TUTORIAL}")
 print(f"DEBUG: COLLECTION_NAME = {COLLECTION_NAME}")
 
-# Required variables check - ab exit nahi karenge, default values use karenge
-required_vars = {
-    'VERIFY_PHOTO': VERIFY_PHOTO,
-    'SHORTLINK_SITE': SHORTLINK_SITE,
-    'SHORTLINK_API': SHORTLINK_API,
-    'VERIFY_TUTORIAL': VERIFY_TUTORIAL,
-    'COLLECTION_NAME': COLLECTION_NAME
-}
-
-missing = [k for k, v in required_vars.items() if not v]
-if missing:
-    print(f"⚠️ WARNING: Missing variables: {', '.join(missing)}")
-    print("⚠️ Using default values where available")
-
 # ================= DATABASE =================
 class VerifyDB:
     def __init__(self):
         try:
             self._dbclient = AsyncIOMotorClient(DATABASE_URL)
-            self._db = self._dbclient['verify-db']
+            self._db = self._client['verify-db']
             self._verifydb = self._db[COLLECTION_NAME]
             print('✅ Database Connected')
         except Exception as e:
@@ -187,14 +212,16 @@ async def get_short_url(longurl, shortener_site=SHORTLINK_SITE, shortener_api=SH
         return longurl
 
 async def get_verify_token(bot, userid, link):
+    """Get or generate verification token with cooldown"""
     vdict = verify_dict.setdefault(userid, {})
     short_url = vdict.get('short_url')
     
-    # Check if cooldown expired
+    # Check if cooldown expired (6 hours)
     last_sent = verification_last_sent.get(userid, 0)
     if last_sent and (time() - last_sent) > VERIFICATION_COOLDOWN:
         # Clear old data for new token
         verify_dict.pop(userid, None)
+        verification_message_id.pop(userid, None)
         vdict = verify_dict.setdefault(userid, {})
         short_url = None
     
@@ -203,74 +230,114 @@ async def get_verify_token(bot, userid, link):
         long_link = f"{link}verify-{userid}-{token}"
         short_url = await get_short_url(long_link)
         vdict.update({'token': token, 'short_url': short_url})
+    
     return short_url
 
 # ================= CORE VERIFICATION (ANTI-SPAM) =================
-async def send_verification(client, message):
-    user_id = message.from_user.id
+async def send_verification(client, message_or_user_id, force_new=False):
+    """
+    Send verification message with anti-spam protection
+    
+    Args:
+        force_new: If True, force sending new message even if one exists
+    """
+    if isinstance(message_or_user_id, Message):
+        user_id = message_or_user_id.from_user.id
+        mention = message_or_user_id.from_user.mention
+    else:
+        user_id = message_or_user_id
+        # Try to get user info
+        try:
+            user = await client.get_users(user_id)
+            mention = user.mention
+        except:
+            mention = f"User {user_id}"
+    
     now = time()
     
+    # Check if user is already verified
     if await is_user_verified(user_id):
-        text = f'<b>Hi 👋 {message.from_user.mention},\nYou Are Already Verified Enjoy 😄</b>'
-        await client.send_message(user_id, text)
-        return
+        return True
     
-    # Get last message info
-    last_msg_id = verification_message_id.get(user_id)
-    last_sent_time = verification_last_sent.get(user_id, 0)
+    # Prevent concurrent verification sending for same user
+    if user_verification_state.is_verification_in_progress(user_id):
+        return False
     
-    # 6 hours passed? Generate new token
-    if last_sent_time and (now - last_sent_time) > VERIFICATION_COOLDOWN:
-        verify_dict.pop(user_id, None)
-        last_msg_id = None
-    
-    username = (await client.get_me()).username
-    verify_token = await get_verify_token(client, user_id, f"https://telegram.me/{username}?start=")
-    
-    # Check verification status for text
-    isveri = await verifydb.get_verify_status(user_id)
-    if not isveri:
-        text = f"""ʜɪ 👋 {message.from_user.mention},
+    async with user_verification_state.get_lock(user_id):
+        user_verification_state.set_verification_in_progress(user_id, True)
+        
+        try:
+            username = (await client.get_me()).username
+            verify_token = await get_verify_token(client, user_id, f"https://telegram.me/{username}?start=")
+            
+            # Check verification status for text
+            isveri = await verifydb.get_verify_status(user_id)
+            if not isveri:
+                text = f"""ʜɪ 👋 {mention},
 
 ᴛᴏ ꜱᴛᴀʀᴛ ᴜꜱɪɴɢ ᴛʜɪꜱ ʙᴏᴛ, ᴘʟᴇᴀꜱᴇ ɢᴇɴᴇʀᴀᴛᴇ ᴀ ᴛᴇᴍᴘᴏʀᴀʀʏ ᴀᴅꜱ ᴛᴏᴋᴇɴ.
 
 ᴠᴀʟɪᴅɪᴛʏ: {get_readable_time(VERIFY_EXPIRE)}"""
-    else:
-        text = f"""ʜɪ 👋 {message.from_user.mention},
+            else:
+                text = f"""ʜɪ 👋 {mention},
 
 ʏᴏᴜʀ ᴀᴅꜱ ᴛᴏᴋᴇɴ ʜᴀꜱ ʙᴇᴇɴ ᴇxᴘɪʀᴇᴅ, ᴋɪɴᴅʟʏ ɢᴇᴛ ᴀ ɴᴇᴡ ᴛᴏᴋᴇɴ ᴛᴏ ᴄᴏɴᴛɪɴᴜᴇ ᴜꜱɪɴɢ ᴛʜɪꜱ ʙᴏᴛ.
 
 ᴠᴀʟɪᴅɪᴛʏ: {get_readable_time(VERIFY_EXPIRE)}"""
-    
-    markup = get_verification_markup(verify_token)
-    
-    # Try to EDIT existing message first (NO SPAM)
-    if last_msg_id:
-        try:
-            # Always use edit_message_caption for photo messages
-            await client.edit_message_caption(
+            
+            markup = get_verification_markup(verify_token)
+            last_msg_id = verification_message_id.get(user_id)
+            
+            # If we have a previous message and not forcing new, EDIT it
+            if last_msg_id and not force_new:
+                try:
+                    # Try to edit existing message
+                    await client.edit_message_caption(
+                        chat_id=user_id,
+                        message_id=last_msg_id,
+                        caption=text,
+                        reply_markup=markup
+                    )
+                    verification_last_sent[user_id] = now
+                    return True
+                except Exception as e:
+                    print(f"Edit failed, sending new message: {e}")
+                    # Message not found, clear and send new
+                    verification_message_id.pop(user_id, None)
+                    last_msg_id = None
+            
+            # Send NEW message only if needed
+            sent = await client.send_photo(
                 chat_id=user_id,
-                message_id=last_msg_id,
+                photo=VERIFY_PHOTO,
                 caption=text,
                 reply_markup=markup
             )
+            
+            verification_message_id[user_id] = sent.id
             verification_last_sent[user_id] = now
-            return
+            return True
+            
         except Exception as e:
-            print(f"Edit failed: {e}")
-            # Message not found, clear and send new
-            verification_message_id.pop(user_id, None)
+            print(f"Error in send_verification: {e}")
+            return False
+        finally:
+            user_verification_state.set_verification_in_progress(user_id, False)
+
+async def check_and_send_verification(client, message):
+    """Check if user needs verification and send/update if needed"""
+    user_id = message.from_user.id
     
-    # Send NEW message only if no existing message
-    sent = await client.send_photo(
-        chat_id=user_id,
-        photo=VERIFY_PHOTO,
-        caption=text,
-        reply_markup=markup
-    )
+    # Skip if user is already verified
+    if await is_user_verified(user_id):
+        return True
     
-    verification_message_id[user_id] = sent.id
-    verification_last_sent[user_id] = now
+    # Rate limit verification checks for file uploads
+    if not user_verification_state.should_check_verification(user_id):
+        return False
+    
+    # Send or update verification message
+    return await send_verification(client, message)
 
 # ================= TOKEN VALIDATION =================
 async def validate_token(client, message, data):
@@ -282,7 +349,7 @@ async def validate_token(client, message, data):
         return await message.reply("<b>Sɪʀ, Yᴏᴜ Aʀᴇ Aʟʀᴇᴀᴅʏ Vᴇʀɪғɪᴇᴅ 🤓...</b>")
     
     if not dict_token:
-        return await send_verification(client, message)
+        return await send_verification(client, message, force_new=True)
     
     try:
         _, uid, token = data.split("-")
@@ -290,14 +357,17 @@ async def validate_token(client, message, data):
         return await message.reply("<b>Invalid token format</b>")
     
     if uid != str(user_id):
-        return await send_verification(client, message)
+        return await send_verification(client, message, force_new=True)
     elif dict_token != token:
-        return await message.reply("<b>Iɴᴠᴀʟɪᴅ Oʀ Exᴘɪʀᴇᴅ Tᴏᴋᴇɴ 🔗...</b>")
+        return await message.reply("<b>Iɴᴠᴀʟɪᴕ Oʀ Exᴘɪʀᴇᴅ Tᴏᴋᴇɴ 🔗...</b>")
     
     # ✅ VALID TOKEN - VERIFY USER
+    # Cleanup all stored data
     verify_dict.pop(user_id, None)
     verification_last_sent.pop(user_id, None)
     verification_message_id.pop(user_id, None)
+    user_verification_state.last_file_check.pop(user_id, None)
+    user_verification_state.verification_in_progress.pop(user_id, None)
     
     await verifydb.update_verify_status(user_id)
     
@@ -316,7 +386,7 @@ async def verify_command_handler(client, message):
         if data.startswith("verify"):
             await validate_token(client, message, data)
     else:
-        await send_verification(client, message)
+        await send_verification(client, message, force_new=True)
 
 @Client.on_callback_query(filters.regex("premium_page"))
 async def premium_callback_handler(client, callback_query: CallbackQuery):
@@ -370,12 +440,13 @@ async def home_callback_handler(client, callback_query: CallbackQuery):
             )
     except Exception as e:
         print(f"Edit error in callback: {e}")
-        # Try to send new message if edit fails
-        await callback_query.message.reply_photo(
+        # Send new message if edit fails
+        sent = await callback_query.message.reply_photo(
             photo=VERIFY_PHOTO,
             caption=text,
             reply_markup=get_verification_markup(verify_token)
         )
+        verification_message_id[user_id] = sent.id
     
     await callback_query.answer()
 
@@ -386,6 +457,22 @@ async def close_callback_handler(client, callback_query: CallbackQuery):
         await callback_query.answer("Closed the window.")
     except Exception:
         await callback_query.answer("Closed the window.", show_alert=True)
+
+# ================= FILE UPLOAD HANDLER (MAIN FIX) =================
+@Client.on_message(filters.private & filters.document & ~filters.bot)
+async def file_upload_handler(client, message):
+    """Handle file uploads with anti-spam verification"""
+    await check_and_send_verification(client, message)
+
+@Client.on_message(filters.private & filters.video & ~filters.bot)
+async def video_upload_handler(client, message):
+    """Handle video uploads with anti-spam verification"""
+    await check_and_send_verification(client, message)
+
+@Client.on_message(filters.private & filters.audio & ~filters.bot)
+async def audio_upload_handler(client, message):
+    """Handle audio uploads with anti-spam verification"""
+    await check_and_send_verification(client, message)
 
 # ================= AUTO VERIFICATION FOR NEW USERS =================
 @Client.on_message(filters.private & filters.command("start") & ~filters.bot)
@@ -403,10 +490,11 @@ async def start_handler(client, message):
         return
     
     # Send verification for unverified users
-    await send_verification(client, message)
+    await send_verification(client, message, force_new=True)
 
 # ================= INITIALIZE =================
 verifydb = VerifyDB()
 print("✅ Verification system initialized")
 print(f"✅ Verification expire time: {get_readable_time(VERIFY_EXPIRE)}")
 print(f"✅ Cooldown time: {get_readable_time(VERIFICATION_COOLDOWN)}")
+print(f"✅ File upload rate limit: {FILE_UPLOAD_RATE_LIMIT} seconds")
