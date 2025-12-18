@@ -17,6 +17,7 @@ from config import Config, Txt
 
 verify_dict = {}              # user_id → {token, short_url, generated_at}
 last_verify_message = {}      # user_id → last sent time (anti spam)
+user_state = {}               # Track user's previous state for back button
 
 VERIFY_MESSAGE_COOLDOWN = 5   # seconds
 SHORTLINK_REUSE_TIME = 600    # 10 minutes
@@ -166,6 +167,9 @@ async def send_verification(client, message):
         f"Validity: {get_readable_time(VERIFY_EXPIRE)}"
     )
 
+    # Store user state as "verification"
+    user_state[user_id] = "verification"
+    
     await client.send_photo(
         chat_id=message.chat.id,
         photo=VERIFY_PHOTO,
@@ -174,6 +178,23 @@ async def send_verification(client, message):
     )
 
     last_verify_message[user_id] = now
+
+async def send_welcome_message(client, user_id):
+    """Send welcome message to verified users"""
+    # Store user state as "verified"
+    user_state[user_id] = "verified"
+    
+    await client.send_photo(
+        chat_id=user_id,
+        photo=VERIFY_PHOTO,
+        caption=(
+            f"<b>Welcome Back 😊\n"
+            f"Your token has been successfully verified.\n"
+            f"You can now use me for {get_readable_time(VERIFY_EXPIRE)}.\n\n"
+            f"Enjoy ❤️</b>"
+        ),
+        reply_markup=welcome_markup()
+    )
 
 async def validate_token(client, message, data):
     user_id = message.from_user.id
@@ -192,18 +213,9 @@ async def validate_token(client, message, data):
         last_verify_message.pop(user_id, None)
 
         await verifydb.update_verify_status(user_id)
-
-        await client.send_photo(
-            chat_id=user_id,
-            photo=VERIFY_PHOTO,
-            caption=(
-                f"<b>Welcome Back 😊\n"
-                f"Your token has been successfully verified.\n"
-                f"You can now use me for {get_readable_time(VERIFY_EXPIRE)}.\n\n"
-                f"Enjoy ❤️</b>"
-            ),
-            reply_markup=welcome_markup()
-        )
+        
+        # Send welcome message
+        await send_welcome_message(client, user_id)
     else:
         await send_verification(client, message)
 
@@ -213,6 +225,12 @@ async def validate_token(client, message, data):
 
 @Client.on_callback_query(filters.regex("^premium_page$"))
 async def premium_cb(client, query: CallbackQuery):
+    user_id = query.from_user.id
+    # Store current state before going to premium
+    if user_id not in user_state:
+        # Default to verification if state not set
+        user_state[user_id] = "verification"
+    
     await query.message.edit_text(
         Txt.PREMIUM_TXT,
         reply_markup=premium_markup(),
@@ -221,17 +239,35 @@ async def premium_cb(client, query: CallbackQuery):
 
 @Client.on_callback_query(filters.regex("^back_to_welcome$"))
 async def back_cb(client, query: CallbackQuery):
-    await query.message.edit_caption(
-        caption=(
-            f"<b>Welcome Back 😊\n"
-            f"You can now use me for {get_readable_time(VERIFY_EXPIRE)}.\n\n"
-            f"Enjoy ❤️</b>"
-        ),
-        reply_markup=welcome_markup()
-    )
+    user_id = query.from_user.id
+    
+    # Check user's previous state
+    state = user_state.get(user_id, "verification")
+    
+    if state == "verified":
+        # User was already verified, show welcome message
+        await query.message.delete()  # Delete premium message first
+        
+        # Send new welcome message
+        await send_welcome_message(client, user_id)
+    else:
+        # User was in verification flow, show verification message
+        await query.message.delete()  # Delete premium message first
+        
+        # Create a message object to pass to send_verification
+        class FakeMessage:
+            def __init__(self, user_id, query):
+                self.from_user = query.from_user
+                self.chat = type('obj', (object,), {'id': user_id})()
+        
+        fake_msg = FakeMessage(user_id, query)
+        await send_verification(client, fake_msg)
 
 @Client.on_callback_query(filters.regex("^close_message$"))
 async def close_cb(client, query: CallbackQuery):
+    user_id = query.from_user.id
+    # Clear user state when closing
+    user_state.pop(user_id, None)
     await query.message.delete()
 
 # =====================================================
@@ -243,4 +279,37 @@ async def verify_cmd(client, message):
     if len(message.command) == 2 and message.command[1].startswith("verify"):
         await validate_token(client, message, message.command[1])
     else:
+        await send_verification(client, message)
+
+# =====================================================
+# START COMMAND (ADDED FOR COMPLETENESS)
+# =====================================================
+
+@Client.on_message(filters.private & filters.command("start"))
+async def start_cmd(client, message):
+    user_id = message.from_user.id
+    
+    # Check if user sent a verify link
+    if len(message.command) == 2 and message.command[1].startswith("verify"):
+        await validate_token(client, message, message.command[1])
+        return
+    
+    # Check if user is already verified
+    if await is_user_verified(user_id):
+        # Store user state as verified
+        user_state[user_id] = "verified"
+        
+        # Send welcome message
+        await client.send_photo(
+            chat_id=user_id,
+            photo=VERIFY_PHOTO,
+            caption=(
+                f"<b>Welcome Back 😊\n"
+                f"You can now use me for {get_readable_time(VERIFY_EXPIRE)}.\n\n"
+                f"Enjoy ❤️</b>"
+            ),
+            reply_markup=welcome_markup()
+        )
+    else:
+        # Send verification message
         await send_verification(client, message)
