@@ -206,4 +206,4 @@ async def close_cb(client, query):
 async def plan_command_cb(client, query):
     await client.send_message(chat_id=query.message.chat.id, text="/plan")
     await query.message.delete()
-
+    
