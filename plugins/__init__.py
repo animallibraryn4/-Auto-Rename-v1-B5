@@ -157,7 +157,8 @@ async def validate_token(client, message, data):
         await client.send_photo(
             chat_id=user_id,
             photo=VERIFY_PHOTO,
-            caption=f'<b>Wᴇʟᴄᴏᴍᴇ Bᴀᴄᴋ 😁, Nᴏᴡ Yᴏᴜ Cᴀɴ Usᴇ Mᴇ Fᴏʀ {get_readable_time(VERIFY_EXPIRE)}.\n\nEɴᴊᴏʏʏʏ...❤️</b>'
+            caption=f'<b>Wᴇʟᴄᴏᴍᴇ Bᴀᴄᴋ 😁, Nᴏᴡ Yᴏᴜ Cᴀɴ Usᴇ Mᴇ Fᴏʀ {get_readable_time(VERIFY_EXPIRE)}.\n\nEɴᴊᴏʏʏʏ...❤️</b>',
+            reply_markup=get_welcome_markup()
         )
     except:
         await send_verification(client, message)
@@ -169,32 +170,46 @@ def get_verification_markup(verify_token, username):
         [InlineKeyboardButton('ɢᴇᴛ ᴛᴏᴋᴇɴ', url=verify_token)]
     ])
 
-def get_premium_markup():
-    # Added 'home_page' back to ensure users can return to the verification link easily
+def get_welcome_markup():
     return InlineKeyboardMarkup([
-        [InlineKeyboardButton('🔙 Back', callback_data="home_page"), InlineKeyboardButton('❌ Close', callback_data="close_message")]
+        [InlineKeyboardButton('❌ Close', callback_data="close_message"), InlineKeyboardButton('🌟 Premium', callback_data="premium_page")],
+        [InlineKeyboardButton('🔙 Back', callback_data="home_page")]
+    ])
+
+def get_premium_markup(is_verified=False):
+    # If user is verified, Back button goes to Welcome screen. Otherwise, to Token screen.
+    back_callback = "back_to_welcome" if is_verified else "home_page"
+    return InlineKeyboardMarkup([
+        [InlineKeyboardButton('🔙 Back', callback_data=back_callback), InlineKeyboardButton('❌ Close', callback_data="close_message")]
     ])
 
 # --- HANDLERS ---
 @Client.on_callback_query(filters.regex("premium_page"))
 async def premium_cb(client, query):
+    user_id = query.from_user.id
+    verified = await is_user_verified(user_id)
+    markup = get_premium_markup(is_verified=verified)
     try:
-        # Txt.PREMIUM_TXT must be defined in your config.py
-        await query.message.edit_caption(
-            caption=Txt.PREMIUM_TXT,
-            reply_markup=get_premium_markup()
-        )
+        await query.message.edit_caption(caption=Txt.PREMIUM_TXT, reply_markup=markup)
     except Exception:
-        await query.message.edit_text(
-            Txt.PREMIUM_TXT, 
-            reply_markup=get_premium_markup(), 
-            disable_web_page_preview=True
-        )
+        await query.message.edit_text(Txt.PREMIUM_TXT, reply_markup=markup, disable_web_page_preview=True)
+
+@Client.on_callback_query(filters.regex("back_to_welcome"))
+async def back_to_welcome_cb(client, query):
+    user_id = query.from_user.id
+    if await is_user_verified(user_id):
+        text = f'<b>Wᴇʟᴄᴏᴍᴇ Bᴀᴄᴋ 😁, Nᴏᴡ Yᴏᴜ Cᴀɴ Usᴇ Mᴇ Fᴏʀ {get_readable_time(VERIFY_EXPIRE)}.\n\nEɴᴊᴏʏʏʏ...❤️</b>'
+        try:
+            await query.message.edit_caption(caption=text, reply_markup=get_welcome_markup())
+        except Exception:
+            await query.message.edit_text(text, reply_markup=get_welcome_markup())
+    else:
+        # If verification expired while they were on the premium page
+        await query.answer("Your token has expired!", show_alert=True)
+        await home_cb(client, query)
 
 @Client.on_callback_query(filters.regex("home_page"))
 async def home_cb(client, query):
-    # This deletes the current "Premium" menu and sends a FRESH verification message
-    # This is the most reliable way to ensure the token hasn't expired
     await query.message.delete()
     await send_verification(client, query)
 
@@ -206,4 +221,4 @@ async def close_cb(client, query):
 async def plan_command_cb(client, query):
     await client.send_message(chat_id=query.message.chat.id, text="/plan")
     await query.message.delete()
-    
+
