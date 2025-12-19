@@ -119,19 +119,19 @@ def verify_markup(link):
     return InlineKeyboardMarkup([
         [
             InlineKeyboardButton("Tutorial", url=VERIFY_TUTORIAL),
-            InlineKeyboardButton("Premium", callback_data="premium_page")
+            InlineKeyboardButton("⭐ Premium", callback_data="premium_page")
         ],
         [InlineKeyboardButton("Get Token", url=link)]
     ])
 
 def welcome_markup():
     return InlineKeyboardMarkup([
-        [InlineKeyboardButton("❌ Cancel", callback_data="close_message")]
+        [InlineKeyboardButton("ᴄʟᴏsᴇ", callback_data="close_message")]
     ])
 
 def premium_markup():
     return InlineKeyboardMarkup([
-        [InlineKeyboardButton("⬅ Back", callback_data="back_to_welcome")]
+        [InlineKeyboardButton("⬅ ʙᴀᴄᴋ", callback_data="back_to_welcome")]
     ])
 
 # =====================================================
@@ -215,10 +215,10 @@ async def send_welcome_message(client, user_id, message_obj=None):
     user_state[user_id] = "verified"
     
     text = (
-        f"<b>Welcome Back 😊\n"
-        f"Your token has been successfully verified.\n"
-        f"You can now use me for {get_readable_time(VERIFY_EXPIRE)}.\n\n"
-        f"Enjoy ❤️</b>"
+        f"<b>ᴡᴇʟᴄᴏᴍᴇ ʙᴀᴄᴋ 😊\n\n"
+        f"ʏᴏᴜʀ ᴛᴏᴋᴇɴ ʜᴀꜱ ʙᴇᴇɴ ꜱᴜᴄᴄᴇꜱꜱꜰᴜʟʟʏ ᴠᴇʀɪꜰɪᴇᴅ.\n"
+        f"ʏᴏᴜ ᴄᴀɴ ɴᴏᴡ ᴜꜱᴇ ᴍᴇ ꜰᴏʀ {get_readable_time(VERIFY_EXPIRE)}.\n\n"
+        f"ᴇɴᴊᴏʏ ʏᴏᴜʀ ᴛɪᴍᴇ ❤️</b>"
     )
     
     # If we have a message object, edit it
