@@ -184,3 +184,24 @@ Pʀɪᴄɪɴɢ:
 
 **ᴜꜱᴇ ᴛʜᴇꜱᴇ ᴄᴏᴍᴍᴀɴᴅꜱ ᴛᴏ ᴇɴʀɪᴄʜ ʏᴏᴜʀ ᴍᴇᴅɪᴀ ᴡɪᴛʜ ᴀᴅᴅɪᴛɪᴏɴᴀʟ ᴍᴇᴛᴀᴅᴀᴛᴀ ɪɴꜰᴏʀᴍᴀᴛɪᴏɴ!**
 """
+
+    PLAN_MAIN_TXT = "<b>👋 Hey {},\n\nSelect a plan that suits your needs from the options below:</b>"
+    
+    FREE_TXT = "👋 Hey {},\n🆓 Free Trial\n⏰ 1 hour access\n💸 Plan price ➛ Free\n\n➛ Limited-time access to test the service\n➛ Perfect to check speed and features\n➛ No payment required"
+    
+    BASIC_TXT = "👋 Hey {},\n🟢 Basic Pass\n⏰ 7 days\n💸 Plan price ➛ ₹39\n\n➛ Suitable for light and short-term users\n➛ Full access during active period\n➛ Budget-friendly weekly plan\n➛ Check your active plan: /myplan"
+    
+    LITE_TXT = "👋 Hey {},\n🔵 Lite Plan\n⏰ 15 days\n💸 Plan price ➛ ₹79\n\n➛ Best choice for regular users\n➛ More value compared to weekly plan\n➛ Smooth and uninterrupted access\n➛ Recommended for consistent usage"
+    
+    STANDARD_TXT = "👋 Hey {},\n⭐ Standard Plan\n⏰ 30 days\n💸 Plan price ➛ ₹129\n\n➛ Most popular plan\n➛ Best balance of price and duration\n➛ Ideal for daily and long-term users\n➛ ⭐ Best for regular users"
+    
+    PRO_TXT = "👋 Hey {},\n💎 Pro Plan\n⏰ 50 days\n💸 Plan price ➛ ₹199\n\n➛ Maximum savings for long-term users\n➛ Hassle-free extended access\n➛ Best value plan for power users\n➛ 💎 Long-term recommended"
+    
+    ULTRA_TXT = "👋 Hey {},\n👑 Ultra Plan\n⏰ Coming soon\n💸 Price ➛ TBA\n\n➛ Premium and exclusive access\n➛ Extra benefits and features\n➛ Designed for hardcore users\n➛ Stay tuned for launch 👀"
+
+    SELECT_PAYMENT_TXT = "<b>Select Your Payment Method</b>"
+    
+    UPI_TXT = "👋 Hey {},\nPay the amount according to your selected plan and enjoy plan membership!\n\n💵 <b>UPI ID:</b> <code>dm @PYato</code>\n\n‼️ You must send a screenshot after payment."
+    
+    QR_TXT = "👋 Hey {},\nPay the amount according to your membership price!\n\n📸 <b>QR Code:</b> <a href='https://t.me/Animelibraryn4'>Click here to scan</a>\n\n‼️ You must send a screenshot after payment."
+    
