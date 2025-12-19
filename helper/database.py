@@ -289,6 +289,42 @@ class Database:
         except Exception as e:
             logging.error(f"Error checking global thumb status for user {id}: {e}")
             return False
+# Add these methods to the Database class in database.py
+# Add them anywhere after the existing methods, before the codeflixbots initialization
+
+    async def get_verify_status(self, id):
+        try:
+            user = await self.col.find_one({"_id": int(id)})
+            if user:
+                # Check if user has verify_status field, if not return 0
+                return user.get("verify_status", 0)
+            return 0
+        except Exception as e:
+            logging.error(f"Error getting verify status for user {id}: {e}")
+            return 0
+
+    async def set_verify_status(self, id, verify_status):
+        try:
+            await self.col.update_one(
+                {"_id": int(id)},
+                {"$set": {"verify_status": verify_status}},
+                upsert=True
+            )
+            return True
+        except Exception as e:
+            logging.error(f"Error setting verify status for user {id}: {e}")
+            return False
+
+    async def delete_verify_status(self, id):
+        try:
+            await self.col.update_one(
+                {"_id": int(id)},
+                {"$unset": {"verify_status": ""}}
+            )
+            return True
+        except Exception as e:
+            logging.error(f"Error deleting verify status for user {id}: {e}")
+            return False
 
 # Initialize database connection
 codeflixbots = Database(Config.DB_URL, Config.DB_NAME)
