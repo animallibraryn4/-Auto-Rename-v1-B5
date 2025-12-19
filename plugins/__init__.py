@@ -142,13 +142,14 @@ def verify_markup(link):
 def welcome_markup():
     return InlineKeyboardMarkup([
         [
-            InlineKeyboardButton("❌ Cancel", callback_data="close_message")
+            InlineKeyboardButton("ᴄᴀɴᴄᴇʟ", callback_data="close_message"),
+            InlineKeyboardButton("Premium", callback_data="premium_page")
         ]
     ])
 
 def premium_markup():
     return InlineKeyboardMarkup([
-        [InlineKeyboardButton("⬅ Back", callback_data="back_to_welcome")]
+        [InlineKeyboardButton("⬅ ʙᴀᴄᴋ", callback_data="back_to_welcome")]
     ])
 
 # =====================================================
@@ -232,10 +233,11 @@ async def send_welcome_message(client, user_id, message_obj=None):
     user_state[user_id] = "verified"
     
     text = (
-        f"<b>Welcome Back 😊\n"
-        f"Your token has been successfully verified.\n"
-        f"You can now use me for {get_readable_time(VERIFY_EXPIRE)}.\n\n"
-        f"Enjoy ❤️</b>"
+        f"<b>ᴡᴇʟᴄᴏᴍᴇ ʙᴀᴄᴋ 😊\n"
+        f"ʏᴏᴜʀ ᴛᴏᴋᴇɴ ʜᴀꜱ ʙᴇᴇɴ ꜱᴜᴄᴄᴇꜱꜰᴜʟʟʏ ᴠᴇʀɪꜰɪᴇᴅ.\n"
+        f"ʏᴏᴜ ᴄᴀɴ ɴᴏᴡ ᴜꜱᴇ ᴍᴇ ꜰᴏʀ {get_readable_time(VERIFY_EXPIRE)}.\n\n"
+        
+        f"ᴇɴᴊᴏʏ ʏᴏᴜʀ ᴛɪᴍᴇ ❤️</b>"
     )
     
     # If we have a message object, edit it
@@ -361,15 +363,16 @@ async def start_cmd(client, message):
         # Send welcome message
         await client.send_photo(
             chat_id=user_id,
-            photo=VERIFY_PHOTO,
             caption=(
-                f"<b>Welcome Back 😊\n"
-                f"You can now use me for {get_readable_time(VERIFY_EXPIRE)}.\n\n"
-                f"Enjoy ❤️</b>"
+                f"<b>ᴡᴇʟᴄᴏᴍᴇ ʙᴀᴄᴋ 😊\n"
+                f"ʏᴏᴜʀ ᴛᴏᴋᴇɴ ʜᴀꜱ ʙᴇᴇɴ ꜱᴜᴄᴄᴇꜱꜰᴜʟʟʏ ᴠᴇʀɪꜰɪᴇᴅ.\n"
+                f"ʏᴏᴜ ᴄᴀɴ ɴᴏᴡ ᴜꜱᴇ ᴍᴇ ꜰᴏʀ {get_readable_time(VERIFY_EXPIRE)}.\n\n"
+                
+                f"ᴇɴᴊᴏʏ ʏᴏᴜʀ ᴛɪᴍᴇ ❤️</b>"
             ),
             reply_markup=welcome_markup()
         )
     else:
         # Send verification message
         await send_verification(client, message)
-            
+
