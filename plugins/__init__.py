@@ -18,6 +18,7 @@ from config import Config, Txt
 verify_dict = {}              # user_id → {token, short_url, generated_at}
 last_verify_message = {}      # user_id → last sent time (anti spam)
 user_state = {}               # Track user's previous state for back button
+verify_message_ids = {}       # user_id → list of message IDs of verification messages
 
 VERIFY_MESSAGE_COOLDOWN = 5   # seconds
 SHORTLINK_REUSE_TIME = 600    # 10 minutes
@@ -80,6 +81,16 @@ async def is_user_verified(user_id):
         return True
     last = await verifydb.get_verify_status(user_id)
     return bool(last and (time() - last) < VERIFY_EXPIRE)
+
+async def delete_verification_messages(client, user_id):
+    """Delete all verification messages for a user"""
+    if user_id in verify_message_ids:
+        for msg_id in verify_message_ids[user_id]:
+            try:
+                await client.delete_messages(user_id, msg_id)
+            except:
+                pass
+        verify_message_ids.pop(user_id, None)
 
 # =====================================================
 # SHORTLINK
@@ -180,10 +191,12 @@ async def send_verification(client, message_or_query):
     # Store user state as "verification"
     user_state[user_id] = "verification"
     
+    sent_message = None
+    
     # If we have a message object (callback query), edit it
     if message_obj:
         try:
-            await message_obj.edit_media(
+            sent_message = await message_obj.edit_media(
                 media=VERIFY_PHOTO,
                 caption=text,
                 reply_markup=verify_markup(link)
@@ -191,7 +204,7 @@ async def send_verification(client, message_or_query):
         except:
             # If editing fails, send a new message
             await message_obj.delete()
-            await client.send_photo(
+            sent_message = await client.send_photo(
                 chat_id=chat_id,
                 photo=VERIFY_PHOTO,
                 caption=text,
@@ -199,12 +212,18 @@ async def send_verification(client, message_or_query):
             )
     else:
         # Send new message
-        await client.send_photo(
+        sent_message = await client.send_photo(
             chat_id=chat_id,
             photo=VERIFY_PHOTO,
             caption=text,
             reply_markup=verify_markup(link)
         )
+    
+    # Store the message ID for later deletion
+    if sent_message:
+        if user_id not in verify_message_ids:
+            verify_message_ids[user_id] = []
+        verify_message_ids[user_id].append(sent_message.id)
 
     last_verify_message[user_id] = now
 
@@ -262,6 +281,9 @@ async def validate_token(client, message, data):
         last_verify_message.pop(user_id, None)
 
         await verifydb.update_verify_status(user_id)
+        
+        # Delete all previous verification messages
+        await delete_verification_messages(client, user_id)
         
         # Send welcome message
         await send_welcome_message(client, user_id)
