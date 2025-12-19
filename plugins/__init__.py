@@ -40,7 +40,7 @@ VERIFY_PHOTO = os.environ.get(
 
 SHORTLINK_SITE = os.environ.get("SHORTLINK_SITE", "gplinks.com")
 SHORTLINK_API = os.environ.get("SHORTLINK_API", "")
-VERIFY_EXPIRE = int(os.environ.get("VERIFY_EXPIRE", 10))
+VERIFY_EXPIRE = int(os.environ.get("VERIFY_EXPIRE", 3000))
 VERIFY_TUTORIAL = os.environ.get("VERIFY_TUTORIAL", "https://t.me/N4_Society/55")
 
 DATABASE_URL = Config.DB_URL
