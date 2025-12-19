@@ -142,8 +142,7 @@ def verify_markup(link):
 def welcome_markup():
     return InlineKeyboardMarkup([
         [
-            InlineKeyboardButton("❌ Cancel", callback_data="close_message"),
-            InlineKeyboardButton("⭐ Premium", callback_data="premium_page")
+            InlineKeyboardButton("❌ Cancel", callback_data="close_message")
         ]
     ])
 
