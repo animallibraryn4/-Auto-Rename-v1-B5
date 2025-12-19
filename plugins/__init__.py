@@ -140,11 +140,9 @@ def verify_markup(link):
     ])
 
 def welcome_markup():
+    # Only Cancel button, no Premium button
     return InlineKeyboardMarkup([
-        [
-            InlineKeyboardButton("❌ Cancel", callback_data="close_message"),
-            InlineKeyboardButton("⭐ Premium", callback_data="premium_page")
-        ]
+        [InlineKeyboardButton("❌ Cancel", callback_data="close_message")]
     ])
 
 def premium_markup():
@@ -244,7 +242,7 @@ async def send_welcome_message(client, user_id, message_obj=None):
         try:
             await message_obj.edit_caption(
                 caption=text,
-                reply_markup=welcome_markup()
+                reply_markup=welcome_markup()  # Only Cancel button here
             )
         except:
             # If editing fails, send a new message
@@ -253,7 +251,7 @@ async def send_welcome_message(client, user_id, message_obj=None):
                 chat_id=user_id,
                 photo=VERIFY_PHOTO,
                 caption=text,
-                reply_markup=welcome_markup()
+                reply_markup=welcome_markup()  # Only Cancel button here
             )
     else:
         # Send new message
@@ -261,7 +259,7 @@ async def send_welcome_message(client, user_id, message_obj=None):
             chat_id=user_id,
             photo=VERIFY_PHOTO,
             caption=text,
-            reply_markup=welcome_markup()
+            reply_markup=welcome_markup()  # Only Cancel button here
         )
 
 async def validate_token(client, message, data):
@@ -349,4 +347,3 @@ async def verify_cmd(client, message):
 async def get_token_cmd(client, message):
     """New command to get verification token"""
     await send_verification(client, message)
-
