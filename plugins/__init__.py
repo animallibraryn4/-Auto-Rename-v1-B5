@@ -6,6 +6,7 @@ from urllib3 import disable_warnings
 
 from pyrogram import Client, filters
 from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton, Message, CallbackQuery
+from pyrogram.errors import MessageNotModified
 
 from cloudscraper import create_scraper
 from motor.motor_asyncio import AsyncIOMotorClient
@@ -201,6 +202,9 @@ async def send_verification(client, message_or_query):
                 caption=text,
                 reply_markup=verify_markup(link)
             )
+        except MessageNotModified:
+            # Message already has the same content, use existing message
+            sent_message = message_obj
         except:
             # If editing fails, send a new message
             await message_obj.delete()
@@ -246,6 +250,8 @@ async def send_welcome_message(client, user_id, message_obj=None):
                 caption=text,
                 reply_markup=welcome_markup()
             )
+        except MessageNotModified:
+            pass
         except:
             # If editing fails, send a new message
             await message_obj.delete()
@@ -302,12 +308,16 @@ async def premium_cb(client, query: CallbackQuery):
         # Default to verification if state not set
         user_state[user_id] = "verification"
     
-    # Edit the current message to show premium page
-    await query.message.edit_text(
-        Txt.PREMIUM_TXT,
-        reply_markup=premium_markup(),
-        disable_web_page_preview=True
-    )
+    try:
+        # Edit the current message to show premium page
+        await query.message.edit_text(
+            Txt.PREMIUM_TXT,
+            reply_markup=premium_markup(),
+            disable_web_page_preview=True
+        )
+    except MessageNotModified:
+        # Message already has the same content, ignore the error
+        pass
 
 @Client.on_callback_query(filters.regex("^back_to_welcome$"))
 async def back_cb(client, query: CallbackQuery):
@@ -366,3 +376,4 @@ async def start_cmd(client, message):
     # For normal /start command without verification token, don't ask for verification
     # Let the start handler in start_&_cb.py handle it normally
     pass
+    
