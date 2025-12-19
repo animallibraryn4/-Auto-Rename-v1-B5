@@ -71,9 +71,9 @@ def get_readable_time(seconds):
     m, s = divmod(seconds, 60)
     h, m = divmod(m, 60)
     if h:
-        return f"{h}ʜ {m}ᴍ"
+        return f"{h}ʜ{m}ᴍ"
     if m:
-        return f"{m}ᴍ {s}s"
+        return f"{m}ᴍ"
     return f"{s}s"
 
 async def is_user_verified(user_id):
@@ -127,40 +127,30 @@ async def get_verify_token(bot, user_id, base):
     return short_url
 
 # =====================================================
-# MARKUPS (UPDATED)
+# MARKUPS
 # =====================================================
 
 def verify_markup(link):
     return InlineKeyboardMarkup([
         [
-            InlineKeyboardButton("📺 Tutorial", url=VERIFY_TUTORIAL),
-            InlineKeyboardButton("⭐ Premium", callback_data="premium_page")
+            InlineKeyboardButton("Tutorial", url=VERIFY_TUTORIAL),
+            InlineKeyboardButton("Premium", callback_data="premium_page")
         ],
-        [
-            InlineKeyboardButton("🔗 Get Token", url=link),
-            InlineKeyboardButton("❌ Cancel", callback_data="close_message")
-        ]
+        [InlineKeyboardButton("Get Token", url=link)]
     ])
 
 def welcome_markup():
     return InlineKeyboardMarkup([
         [
-            InlineKeyboardButton("🔄 Refresh Token", callback_data="refresh_verify"),
+            InlineKeyboardButton("❌ Cancel", callback_data="close_message"),
             InlineKeyboardButton("⭐ Premium", callback_data="premium_page")
-        ],
-        [InlineKeyboardButton("❌ Close", callback_data="close_message")]
+        ]
     ])
 
-def premium_markup(from_state="verification"):
-    """Premium page markup with dynamic back button based on state"""
-    if from_state == "verified":
-        return InlineKeyboardMarkup([
-            [InlineKeyboardButton("⬅ Back to Welcome", callback_data="back_to_welcome")]
-        ])
-    else:
-        return InlineKeyboardMarkup([
-            [InlineKeyboardButton("⬅ Back to Verify", callback_data="back_to_verify")]
-        ])
+def premium_markup():
+    return InlineKeyboardMarkup([
+        [InlineKeyboardButton("⬅ Back", callback_data="back_to_welcome")]
+    ])
 
 # =====================================================
 # CORE VERIFICATION (STABLE)
@@ -180,8 +170,6 @@ async def send_verification(client, message_or_query):
         message_obj = None
 
     if await is_user_verified(user_id):
-        # User is already verified, show welcome instead
-        await send_welcome_message(client, user_id, message_obj)
         return
 
     now = time()
@@ -195,11 +183,9 @@ async def send_verification(client, message_or_query):
     link = await get_verify_token(client, user_id, f"https://t.me/{bot.username}?start=")
 
     text = (
-        f"👋 **Hello {mention}**\n\n"
-        f"⚠️ **VERIFICATION REQUIRED**\n\n"
-        f"To use this bot, you need to complete token verification.\n\n"
-        f"✅ **Validity:** {get_readable_time(VERIFY_EXPIRE)}\n"
-        f"🔗 **Click 'Get Token' button below**"
+        f"Hi 👋 {mention}\n\n"
+        f"To start using this bot, please complete Ads Token verification.\n\n"
+        f"Validity: {get_readable_time(VERIFY_EXPIRE)}"
     )
 
     # Store user state as "verification"
@@ -247,9 +233,8 @@ async def send_welcome_message(client, user_id, message_obj=None):
     user_state[user_id] = "verified"
     
     text = (
-        f"<b>✅ VERIFICATION SUCCESSFUL!\n\n"
-        f"Welcome Back 😊\n"
-        f"Your token has been verified successfully.\n"
+        f"<b>Welcome Back 😊\n"
+        f"Your token has been successfully verified.\n"
         f"You can now use me for {get_readable_time(VERIFY_EXPIRE)}.\n\n"
         f"Enjoy ❤️</b>"
     )
@@ -284,7 +269,7 @@ async def validate_token(client, message, data):
     stored = verify_dict.get(user_id)
 
     if await is_user_verified(user_id):
-        return await message.reply("✅ Already verified.")
+        return await message.reply("Already verified.")
 
     if not stored:
         return await send_verification(client, message)
@@ -306,51 +291,37 @@ async def validate_token(client, message, data):
         await send_verification(client, message)
 
 # =====================================================
-# CALLBACKS (UPDATED)
+# CALLBACKS
 # =====================================================
 
 @Client.on_callback_query(filters.regex("^premium_page$"))
 async def premium_cb(client, query: CallbackQuery):
     user_id = query.from_user.id
-    # Get current user state
-    state = user_state.get(user_id, "verification")
+    # Store current state before going to premium
+    if user_id not in user_state:
+        # Default to verification if state not set
+        user_state[user_id] = "verification"
     
-    # Edit the current message to show premium page with appropriate back button
+    # Edit the current message to show premium page
     await query.message.edit_text(
         Txt.PREMIUM_TXT,
-        reply_markup=premium_markup(from_state=state),
+        reply_markup=premium_markup(),
         disable_web_page_preview=True
     )
 
 @Client.on_callback_query(filters.regex("^back_to_welcome$"))
-async def back_to_welcome_cb(client, query: CallbackQuery):
-    """Back button from premium page to welcome message"""
+async def back_cb(client, query: CallbackQuery):
     user_id = query.from_user.id
     
-    # Check if user is verified
-    if await is_user_verified(user_id):
-        # User is verified, show welcome message
+    # Check user's previous state
+    state = user_state.get(user_id, "verification")
+    
+    if state == "verified":
+        # User was already verified, show welcome message
         await send_welcome_message(client, user_id, query.message)
-        user_state[user_id] = "verified"
     else:
-        # User is not verified, show verification message
+        # User was in verification flow, show verification message
         await send_verification(client, query)
-
-@Client.on_callback_query(filters.regex("^back_to_verify$"))
-async def back_to_verify_cb(client, query: CallbackQuery):
-    """Back button from premium page to verification message"""
-    await send_verification(client, query)
-
-@Client.on_callback_query(filters.regex("^refresh_verify$"))
-async def refresh_verify_cb(client, query: CallbackQuery):
-    """Refresh verification token from welcome message"""
-    user_id = query.from_user.id
-    
-    # Clear existing token
-    verify_dict.pop(user_id, None)
-    
-    # Send new verification message
-    await send_verification(client, query)
 
 @Client.on_callback_query(filters.regex("^close_message$"))
 async def close_cb(client, query: CallbackQuery):
@@ -371,10 +342,11 @@ async def verify_cmd(client, message):
         await send_verification(client, message)
 
 # =====================================================
-# GET_TOKEN COMMAND
+# GET_TOKEN COMMAND (NEW) - This is the only new command we need
 # =====================================================
 
 @Client.on_message(filters.private & filters.command("get_token"))
 async def get_token_cmd(client, message):
     """New command to get verification token"""
     await send_verification(client, message)
+
