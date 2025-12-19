@@ -11,33 +11,26 @@ from config import Config
 # Start Command Handler
 @Client.on_message(filters.private & filters.command("start"))
 async def start(client, message: Message):
-    print(f"DEBUG: /start command received from user: {message.from_user.id}")
-    
-    if hasattr(message, 'command') and len(message.command) == 2: 
-       data = message.command[1]
-       print(f"DEBUG: Command with argument: {data}")
-       if data.split("-")[0] == 'verify':
-           await validate_token(client, message, data)
-           return
-    
     user = message.from_user
     await codeflixbots.add_user(client, message)
 
-    # Check if user is verified before showing the start message
-    from plugins import is_user_verified
-    
-    verification_status = await is_user_verified(user.id)
-    print(f"DEBUG: User {user.id} verification status: {verification_status}")
-    
-    if not verification_status:
-        print(f"DEBUG: Sending verification to user {user.id}")
-        from plugins import send_verification
-        await send_verification(client, message)
-        return
-    
-    print(f"DEBUG: Proceeding with normal start for user {user.id}")
+    # Move verification check here: only if there is a command argument (like a file link)
+    if hasattr(message, 'command') and len(message.command) == 2: 
+       data = message.command[1]
+       
+       # Handle the specific 'verify' link
+       if data.split("-")[0] == 'verify':
+           await validate_token(client, message, data)
+           return
+       
+       # Force verification ONLY for other deep-links (like files)
+       from plugins import is_user_verified
+       if not await is_user_verified(user.id):
+           from plugins import send_verification
+           await send_verification(client, message)
+           return
 
-    # Initial interactive text and sticker sequence
+    # Normal /start commands will now bypass the check and reach here:
     m = await message.reply_text("ᴏɴᴇᴇ-ᴄʜᴀɴ!, ʜᴏᴡ ᴀʀᴇ ʏᴏᴜ \nᴡᴀɪᴛ ᴀ ᴍᴏᴍᴇɴᴛ. . .")
     await asyncio.sleep(0.4)
     await m.edit_text("🎊")
@@ -251,5 +244,4 @@ async def help_command(client, message):
             [InlineKeyboardButton('ᴍᴇᴛᴀᴅᴀᴛᴀ', callback_data='meta'), InlineKeyboardButton('ᴅᴏɴᴀᴛᴇ', callback_data='donate')],
             [InlineKeyboardButton('ʜᴏᴍᴇ', callback_data='home')]
         ])
-)
-
+        )
