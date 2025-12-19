@@ -26,17 +26,12 @@ SHORTLINK_REUSE_TIME = 600    # 10 minutes
 # =====================================================
 # CONFIG
 # =====================================================
-
-VERIFY_PHOTO = os.environ.get(
-    "VERIFY_PHOTO",
-    "https://images8.alphacoders.com/138/1384114.png"
-)
+DATABASE_URL = Config.DB_URL
+VERIFY_PHOTO = os.environ.get("VERIFY_PHOTO", "https://images8.alphacoders.com/138/1384114.png")
 SHORTLINK_SITE = os.environ.get("SHORTLINK_SITE", "gplinks.com")
 SHORTLINK_API = os.environ.get("SHORTLINK_API", "596f423cdf22b174e43d0b48a36a8274759ec2a3")
 VERIFY_EXPIRE = int(os.environ.get("VERIFY_EXPIRE", 3020))
 VERIFY_TUTORIAL = os.environ.get("VERIFY_TUTORIAL", "https://t.me/N4_Society/55")
-
-DATABASE_URL = Config.DB_URL
 COLLECTION_NAME = os.environ.get("COLLECTION_NAME", "Token1")
 PREMIUM_USERS = list(map(int, os.environ.get("PREMIUM_USERS", "").split())) if os.environ.get("PREMIUM_USERS") else []
 
@@ -142,8 +137,7 @@ def verify_markup(link):
 def welcome_markup():
     return InlineKeyboardMarkup([
         [
-            InlineKeyboardButton("❌ Cancel", callback_data="close_message"),
-            InlineKeyboardButton("⭐ Premium", callback_data="premium_page")
+            InlineKeyboardButton("❌ Cancel", callback_data="close_message")
         ]
     ])
 
@@ -349,4 +343,4 @@ async def verify_cmd(client, message):
 async def get_token_cmd(client, message):
     """New command to get verification token"""
     await send_verification(client, message)
-
+    
