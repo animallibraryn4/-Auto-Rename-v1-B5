@@ -1,103 +1,95 @@
 import asyncio
 from pyrogram import Client, filters
-from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton, InputMediaPhoto
+from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery
+from config import Txt, Config
 
-# --- Constants & Layouts ---
-PAYMENT_LINK = "https://t.me/Animelibraryn4"
-OWNER_LINK = "https://t.me/PYato"
-THUMBNAIL = "https://graph.org/file/8b50e21db819f296661b7.jpg"
+# --- Constants for Data ---
+PLAN_DATA = {
+    "free": {"name": "Free Trial", "time": "1 hour", "price": "Free", "desc": "Limited-time access to test the service\n➛ Perfect to check speed and features\n➛ No payment required", "page": "1/6"},
+    "basic": {"name": "Basic Pass", "time": "7 days", "price": "₹39", "desc": "Suitable for light and short-term users\n➛ Full access during active period\n➛ Budget-friendly weekly plan\n➛ Check your active plan: /myplan", "page": "2/6"},
+    "lite": {"name": "Lite Plan", "time": "15 days", "price": "₹79", "desc": "Best choice for regular users\n➛ More value compared to weekly plan\n➛ Smooth and uninterrupted access\n➛ Recommended for consistent usage", "page": "3/6"},
+    "standard": {"name": "Standard Plan", "time": "30 days", "price": "₹129", "desc": "Most popular plan\n➛ Best balance of price and duration\n➛ Ideal for daily and long-term users\n➛ ⭐ Best for regular users", "page": "4/6"},
+    "pro": {"name": "Pro Plan", "time": "50 days", "price": "₹199", "desc": "Maximum savings for long-term users\n➛ Hassle-free extended access\n➛ Best value plan for power users\n➛ 💎 Long-term recommended", "page": "5/6"},
+    "ultra": {"name": "Ultra Plan", "time": "Coming soon", "price": "TBA", "desc": "Premium and exclusive access\n➛ Extra benefits and features\n➛ Designed for hardcore users\n➛ Stay tuned for launch 👀", "page": "6/6"},
+}
 
-def get_main_menu():
-    return InlineKeyboardMarkup([
-        [InlineKeyboardButton("Free Trial", callback_data="p_free"), InlineKeyboardButton("Basic Pass", callback_data="p_basic")],
-        [InlineKeyboardButton("Lite", callback_data="p_lite"), InlineKeyboardButton("Standard", callback_data="p_standard")],
-        [InlineKeyboardButton("Pro", callback_data="p_pro"), InlineKeyboardButton("Ultra", callback_data="p_ultra")],
-        [InlineKeyboardButton("✖️ Close", callback_data="close")]
-    ])
-
-def get_nav_buttons(back_val, next_val, buy=True):
-    btns = []
-    if buy:
-        btns.append([InlineKeyboardButton("💳 Click here to buy plan", callback_data="pay_method")])
-    else:
-        btns.append([InlineKeyboardButton("📢 Admit Link", url=PAYMENT_LINK)])
-    btns.append([InlineKeyboardButton("⬅️ Back", callback_data=back_val), InlineKeyboardButton("➡️ Next", callback_data=next_val)])
-    return InlineKeyboardMarkup(btns)
-
-# --- Handlers ---
-
-@Client.on_message(filters.command("plan"))
+# --- Command Handler ---
+@Client.on_message(filters.command(["plan", "premium"]))
 async def plan_cmd(bot, message):
+    buttons = [
+        [InlineKeyboardButton("Free Trial", callback_data="view_free"), InlineKeyboardButton("Basic Pass", callback_data="view_basic")],
+        [InlineKeyboardButton("Lite", callback_data="view_lite"), InlineKeyboardButton("Standard", callback_data="view_standard")],
+        [InlineKeyboardButton("Pro", callback_data="view_pro"), InlineKeyboardButton("Ultra", callback_data="view_ultra")],
+        [InlineKeyboardButton("Close", callback_data="close")]
+    ]
     await message.reply_photo(
-        photo=THUMBNAIL,
-        caption="**Welcome to our Premium Plans!**\n\nPlease select a plan from the buttons below to view details.",
-        reply_markup=get_main_menu()
+        photo='https://graph.org/file/8b50e21db819f296661b7.jpg',
+        caption=Txt.PREPLANS_TXT if message.text == "/plan" else Txt.PREMIUM_TXT,
+        reply_markup=InlineKeyboardMarkup(buttons)
     )
 
-@Client.on_callback_query(filters.regex(r"^p_"))
-async def plan_pages(bot, cb):
-    user_name = cb.from_user.first_name
-    page = cb.data.split("_")[1]
-    
-    pages = {
-        "free": {
-            "text": f"👋 Hey {user_name},\n\n🆓 **FREE TRIAL (1/6)**\n⏰ 1 Hour Access\n💸 Price: Free\n\n➛ Limited-time access to test the service\n➛ Perfect to check speed and features\n➛ No payment required",
-            "markup": get_nav_buttons("main", "p_basic", buy=False)
-        },
-        "basic": {
-            "text": f"👋 Hey {user_name},\n\n🟢 **BASIC PASS (2/6)**\n⏰ 7 Days\n💸 Price: ₹39\n\n➛ Suitable for light users\n➛ Full access\n➛ Budget-friendly\n➛ Check status: /myplan",
-            "markup": get_nav_buttons("p_free", "p_lite")
-        },
-        "lite": {
-            "text": f"👋 Hey {user_name},\n\n🔵 **LITE PLAN (3/6)**\n⏰ 15 Days\n💸 Price: ₹79\n\n➛ Best for regular users\n➛ More value\n➛ Smooth access",
-            "markup": get_nav_buttons("p_basic", "p_standard")
-        },
-        "standard": {
-            "text": f"👋 Hey {user_name},\n\n⭐ **STANDARD PLAN (4/6)**\n⏰ 30 Days\n💸 Price: ₹129\n\n➛ Most popular plan\n➛ Best balance\n➛ Ideal for daily users",
-            "markup": get_nav_buttons("p_lite", "p_pro")
-        },
-        "pro": {
-            "text": f"👋 Hey {user_name},\n\n💎 **PRO PLAN (5/6)**\n⏰ 50 Days\n💸 Price: ₹199\n\n➛ Maximum savings\n➛ Extended access\n➛ Best for power users",
-            "markup": get_nav_buttons("p_standard", "p_ultra")
-        },
-        "ultra": {
-            "text": f"👋 Hey {user_name},\n\n👑 **ULTRA PLAN (6/6)**\n⏰ Coming Soon\n💸 Price: TBA\n\n➛ Premium & exclusive\n➛ Extra benefits\n➛ Stay tuned 👀",
-            "markup": get_nav_buttons("p_pro", "main")
-        }
-    }
-    
-    if page == "main":
-        await cb.edit_message_caption(caption="**Main Menu**", reply_markup=get_main_menu())
-    else:
-        p_data = pages[page]
-        await cb.edit_message_caption(caption=p_data["text"], reply_markup=p_data["markup"])
+# --- Callback Query Handler ---
+@Client.on_callback_query()
+async def cb_handler(bot, query: CallbackQuery):
+    data = query.data
+    user_name = query.from_user.first_name
 
-@Client.on_callback_query(filters.regex("pay_method"))
-async def payment_menu(bot, cb):
-    buttons = InlineKeyboardMarkup([
-        [InlineKeyboardButton("💵 Pay via UPI ID", callback_data="pay_upi")],
-        [InlineKeyboardButton("📸 Scan QR Code", callback_data="pay_qr")],
-        [InlineKeyboardButton("⬅️ Back", callback_data="p_basic")]
-    ])
-    await cb.edit_message_caption(caption="💳 **SELECT YOUR PAYMENT METHOD**", reply_markup=buttons)
-
-@Client.on_callback_query(filters.regex(r"^pay_(upi|qr)"))
-async def process_pay(bot, cb):
-    method = cb.data.split("_")[1]
-    user_name = cb.from_user.first_name
-    
-    if method == "upi":
-        msg = f"👋 Hey {user_name},\n\nPay the amount according to your plan!\n\n💵 **UPI ID:** `{OWNER_LINK.split('/')[-1]}`\n\n‼️ Must send screenshot after payment"
-    else:
-        msg = f"👋 Hey {user_name},\n\nPay the amount according to your membership price!\n\n📸 **QR Code:** [Click here to scan]({PAYMENT_LINK})\n\n‼️ Must send screenshot after payment"
+    if data == "close":
+        await query.message.delete()
         
-    buttons = InlineKeyboardMarkup([
-        [InlineKeyboardButton("📤 Send screenshot", url=PAYMENT_LINK)],
-        [InlineKeyboardButton("⬅️ Back", callback_data="pay_method")]
-    ])
-    await cb.edit_message_caption(caption=msg, reply_markup=buttons)
+    elif data == "main_plan":
+        # Returns to the main selection grid
+        buttons = [
+            [InlineKeyboardButton("Free Trial", callback_data="view_free"), InlineKeyboardButton("Basic Pass", callback_data="view_basic")],
+            [InlineKeyboardButton("Lite", callback_data="view_lite"), InlineKeyboardButton("Standard", callback_data="view_standard")],
+            [InlineKeyboardButton("Pro", callback_data="view_pro"), InlineKeyboardButton("Ultra", callback_data="view_ultra")],
+            [InlineKeyboardButton("Close", callback_data="close")]
+        ]
+        await query.message.edit_caption(caption=Txt.PREPLANS_TXT, reply_markup=InlineKeyboardMarkup(buttons))
 
-@Client.on_callback_query(filters.regex("close"))
-async def close(bot, cb):
-    await cb.message.delete()
+    elif data.startswith("view_"):
+        plan_key = data.split("_")[1]
+        plan = PLAN_DATA[plan_key]
+        
+        # Determine Next/Back logic for pagination
+        keys = list(PLAN_DATA.keys())
+        curr_idx = keys.index(plan_key)
+        next_plan = keys[(curr_idx + 1) % len(keys)]
+        prev_plan = keys[(curr_idx - 1) % len(keys)]
 
+        text = f"👋 Hey {user_name},\n\n{plan['name']}\n⏰ {plan['time']}\n💸 Plan price ➛ {plan['price']}\n➛ {plan['desc']}"
+        
+        buttons = []
+        if plan_key == "free":
+            buttons.append([InlineKeyboardButton("Admit Link: @Anime_Library_N4", url="https://t.me/Anime_library_n4")])
+        else:
+            buttons.append([InlineKeyboardButton("Click here to buy plan", callback_data=f"pay_{plan_key}")])
+            
+        buttons.append([InlineKeyboardButton(f"Page {plan['page']}", callback_data="none")])
+        buttons.append([InlineKeyboardButton("← Back", callback_data=f"view_{prev_plan}"), InlineKeyboardButton("Next →", callback_data=f"view_{next_plan}")])
+        buttons.append([InlineKeyboardButton("Back to Menu", callback_data="main_plan")])
+
+        await query.message.edit_caption(caption=text, reply_markup=InlineKeyboardMarkup(buttons))
+
+    elif data.startswith("pay_"):
+        plan_key = data.split("_")[1]
+        buttons = [
+            [InlineKeyboardButton("Pay via UPI ID", callback_data=f"method_upi_{plan_key}")],
+            [InlineKeyboardButton("Scan QR Code", callback_data=f"method_qr_{plan_key}")],
+            [InlineKeyboardButton("Back", callback_data=f"view_{plan_key}")]
+        ]
+        await query.message.edit_caption(caption="**Select Your Payment Method**", reply_markup=InlineKeyboardMarkup(buttons))
+
+    elif data.startswith("method_"):
+        _, method, plan_key = data.split("_")
+        if method == "upi":
+            text = f"👋 Hey {user_name},\n\nPay the amount according to your selected plan and enjoy plan membership!\n\n💵 **UPI ID:** `dm @PYato` \n\n‼️ You must send a screenshot after payment."
+        else:
+            text = f"👋 Hey Anime Library N4,\n\nPay the amount according to your membership price!\n\n📸 **QR Code:** [Click here to scan](https://t.me/Animelibraryn4)\n\n‼️ You must send a screenshot after payment."
+            
+        buttons = [
+            [InlineKeyboardButton("Send payment screenshot here", url="https://t.me/Animelibraryn4")],
+            [InlineKeyboardButton("Back", callback_data=f"pay_{plan_key}")]
+        ]
+        await query.message.edit_caption(caption=text, reply_markup=InlineKeyboardMarkup(buttons))
+        
