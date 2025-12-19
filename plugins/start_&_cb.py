@@ -20,15 +20,6 @@ async def start(client, message: Message):
     user = message.from_user
     await codeflixbots.add_user(client, message)
 
-    # Check if user is verified before showing the start message
-    from plugins import is_user_verified
-    
-    if not await is_user_verified(user.id):
-        # User is not verified, send verification message
-        from plugins import send_verification
-        await send_verification(client, message)
-        return
-
     # Initial interactive text and sticker sequence
     m = await message.reply_text("ᴏɴᴇᴇ-ᴄʜᴀɴ!, ʜᴏᴡ ᴀʀᴇ ʏᴏᴜ \nᴡᴀɪᴛ ᴀ ᴍᴏᴍᴇɴᴛ. . .")
     await asyncio.sleep(0.4)
@@ -176,7 +167,7 @@ async def cb_handler(client, query: CallbackQuery):
             disable_web_page_preview=True,
             reply_markup=InlineKeyboardMarkup([
                 [InlineKeyboardButton("ᴄᴏᴍᴍᴀɴᴅs", callback_data="help"), InlineKeyboardButton("ᴅᴇᴠᴇʟᴏᴘᴇʀ", url='https://t.me/Tanjiro_kamado_n4_bot')],
-                [InlineKeyboardButton("ʙᴀᴄᴋ", callback_data="home")]
+                [InlineKeyboardButton("ʙᴀᴄᴇ", callback_data="home")]
             ])
         )
     elif data == "close":
@@ -209,6 +200,8 @@ async def getpremium(bot, message):
     await asyncio.sleep(300)
     await yt.delete()
     await message.delete()
+
+# Plan Command Handler - This was moved to plan.py, so it's removed from here
 
 # Bought Command Handler
 @Client.on_message(filters.command("bought") & filters.private)
