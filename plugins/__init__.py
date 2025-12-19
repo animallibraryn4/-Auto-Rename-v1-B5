@@ -342,11 +342,35 @@ async def verify_cmd(client, message):
         await send_verification(client, message)
 
 # =====================================================
-# GET_TOKEN COMMAND (NEW) - This is the only new command we need
+# START COMMAND (ADDED FOR COMPLETENESS)
 # =====================================================
 
-@Client.on_message(filters.private & filters.command("get_token"))
-async def get_token_cmd(client, message):
-    """New command to get verification token"""
-    await send_verification(client, message)
-
+@Client.on_message(filters.private & filters.command("start"))
+async def start_cmd(client, message):
+    user_id = message.from_user.id
+    
+    # Check if user sent a verify link
+    if len(message.command) == 2 and message.command[1].startswith("verify"):
+        await validate_token(client, message, message.command[1])
+        return
+    
+    # Check if user is already verified
+    if await is_user_verified(user_id):
+        # Store user state as verified
+        user_state[user_id] = "verified"
+        
+        # Send welcome message
+        await client.send_photo(
+            chat_id=user_id,
+            photo=VERIFY_PHOTO,
+            caption=(
+                f"<b>Welcome Back 😊\n"
+                f"You can now use me for {get_readable_time(VERIFY_EXPIRE)}.\n\n"
+                f"Enjoy ❤️</b>"
+            ),
+            reply_markup=welcome_markup()
+        )
+    else:
+        # Send verification message
+        await send_verification(client, message)
+            
