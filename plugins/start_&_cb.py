@@ -11,14 +11,31 @@ from config import Config
 # Start Command Handler
 @Client.on_message(filters.private & filters.command("start"))
 async def start(client, message: Message):
+    print(f"DEBUG: /start command received from user: {message.from_user.id}")
+    
     if hasattr(message, 'command') and len(message.command) == 2: 
        data = message.command[1]
+       print(f"DEBUG: Command with argument: {data}")
        if data.split("-")[0] == 'verify':
            await validate_token(client, message, data)
            return
     
     user = message.from_user
     await codeflixbots.add_user(client, message)
+
+    # Check if user is verified before showing the start message
+    from plugins import is_user_verified
+    
+    verification_status = await is_user_verified(user.id)
+    print(f"DEBUG: User {user.id} verification status: {verification_status}")
+    
+    if not verification_status:
+        print(f"DEBUG: Sending verification to user {user.id}")
+        from plugins import send_verification
+        await send_verification(client, message)
+        return
+    
+    print(f"DEBUG: Proceeding with normal start for user {user.id}")
 
     # Initial interactive text and sticker sequence
     m = await message.reply_text("ᴏɴᴇᴇ-ᴄʜᴀɴ!, ʜᴏᴡ ᴀʀᴇ ʏᴏᴜ \nᴡᴀɪᴛ ᴀ ᴍᴏᴍᴇɴᴛ. . .")
@@ -167,7 +184,7 @@ async def cb_handler(client, query: CallbackQuery):
             disable_web_page_preview=True,
             reply_markup=InlineKeyboardMarkup([
                 [InlineKeyboardButton("ᴄᴏᴍᴍᴀɴᴅs", callback_data="help"), InlineKeyboardButton("ᴅᴇᴠᴇʟᴏᴘᴇʀ", url='https://t.me/Tanjiro_kamado_n4_bot')],
-                [InlineKeyboardButton("ʙᴀᴄᴇ", callback_data="home")]
+                [InlineKeyboardButton("ʙᴀᴄᴋ", callback_data="home")]
             ])
         )
     elif data == "close":
@@ -200,8 +217,6 @@ async def getpremium(bot, message):
     await asyncio.sleep(300)
     await yt.delete()
     await message.delete()
-
-# Plan Command Handler - This was moved to plan.py, so it's removed from here
 
 # Bought Command Handler
 @Client.on_message(filters.command("bought") & filters.private)
