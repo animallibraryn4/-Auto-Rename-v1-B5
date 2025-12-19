@@ -10,6 +10,7 @@ from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton, Message, 
 from cloudscraper import create_scraper
 from motor.motor_asyncio import AsyncIOMotorClient
 from config import Config, Txt
+from helper.database import codeflixbots  # Import main database
 
 # =====================================================
 # MEMORY (SIMPLE & STABLE)
@@ -36,32 +37,7 @@ SHORTLINK_API = os.environ.get("SHORTLINK_API", "596f423cdf22b174e43d0b48a36a827
 VERIFY_EXPIRE = int(os.environ.get("VERIFY_EXPIRE", 3020))
 VERIFY_TUTORIAL = os.environ.get("VERIFY_TUTORIAL", "https://t.me/N4_Society/55")
 
-DATABASE_URL = Config.DB_URL
-COLLECTION_NAME = os.environ.get("COLLECTION_NAME", "Token1")
 PREMIUM_USERS = list(map(int, os.environ.get("PREMIUM_USERS", "").split())) if os.environ.get("PREMIUM_USERS") else []
-
-# =====================================================
-# DATABASE
-# =====================================================
-
-class VerifyDB:
-    def __init__(self):
-        self.client = AsyncIOMotorClient(DATABASE_URL)
-        self.db = self.client["verify-db"]
-        self.col = self.db[COLLECTION_NAME]
-
-    async def get_verify_status(self, user_id):
-        data = await self.col.find_one({"id": user_id})
-        return data.get("verify_status", 0) if data else 0
-
-    async def update_verify_status(self, user_id):
-        await self.col.update_one(
-            {"id": user_id},
-            {"$set": {"verify_status": time()}},
-            upsert=True
-        )
-
-verifydb = VerifyDB()
 
 # =====================================================
 # HELPERS
@@ -77,10 +53,19 @@ def get_readable_time(seconds):
     return f"{s}s"
 
 async def is_user_verified(user_id):
+    """Check if user is verified using main database"""
     if not VERIFY_EXPIRE or user_id in PREMIUM_USERS:
         return True
-    last = await verifydb.get_verify_status(user_id)
-    return bool(last and (time() - last) < VERIFY_EXPIRE)
+    
+    # Get verification status from main database
+    last = await codeflixbots.get_verify_status(user_id)
+    
+    # If last is 0 or None, user is not verified
+    if not last:
+        return False
+    
+    # Check if verification is still valid
+    return (time() - last) < VERIFY_EXPIRE
 
 async def delete_verification_messages(client, user_id):
     """Delete all verification messages for a user"""
@@ -134,15 +119,14 @@ def verify_markup(link):
     return InlineKeyboardMarkup([
         [
             InlineKeyboardButton("Tutorial", url=VERIFY_TUTORIAL),
-            InlineKeyboardButton("⭐Premium", callback_data="premium_page")
+            InlineKeyboardButton("Premium", callback_data="premium_page")
         ],
         [InlineKeyboardButton("Get Token", url=link)]
     ])
 
 def welcome_markup():
-    # Only Cancel button, no Premium button
     return InlineKeyboardMarkup([
-        [InlineKeyboardButton("Cancel", callback_data="close_message")]
+        [InlineKeyboardButton("❌ Cancel", callback_data="close_message")]
     ])
 
 def premium_markup():
@@ -242,7 +226,7 @@ async def send_welcome_message(client, user_id, message_obj=None):
         try:
             await message_obj.edit_caption(
                 caption=text,
-                reply_markup=welcome_markup()  # Only Cancel button here
+                reply_markup=welcome_markup()
             )
         except:
             # If editing fails, send a new message
@@ -251,7 +235,7 @@ async def send_welcome_message(client, user_id, message_obj=None):
                 chat_id=user_id,
                 photo=VERIFY_PHOTO,
                 caption=text,
-                reply_markup=welcome_markup()  # Only Cancel button here
+                reply_markup=welcome_markup()
             )
     else:
         # Send new message
@@ -259,33 +243,50 @@ async def send_welcome_message(client, user_id, message_obj=None):
             chat_id=user_id,
             photo=VERIFY_PHOTO,
             caption=text,
-            reply_markup=welcome_markup()  # Only Cancel button here
+            reply_markup=welcome_markup()
         )
 
 async def validate_token(client, message, data):
+    """Validate the verification token and update user status"""
     user_id = message.from_user.id
+    
+    # Check if already verified
+    if await is_user_verified(user_id):
+        await message.reply("✅ You are already verified!")
+        return
+
     stored = verify_dict.get(user_id)
 
-    if await is_user_verified(user_id):
-        return await message.reply("Already verified.")
-
     if not stored:
+        # No active token found, send new verification
         return await send_verification(client, message)
 
-    _, uid, token = data.split("-")
-
-    if uid == str(user_id) and token == stored["token"]:
-        verify_dict.pop(user_id, None)
-        last_verify_message.pop(user_id, None)
-
-        await verifydb.update_verify_status(user_id)
+    try:
+        # Parse the data: verify-user_id-token
+        _, uid, token = data.split("-")
         
-        # Delete all previous verification messages
-        await delete_verification_messages(client, user_id)
-        
-        # Send welcome message
-        await send_welcome_message(client, user_id)
-    else:
+        if uid == str(user_id) and token == stored["token"]:
+            # Token is valid
+            verify_dict.pop(user_id, None)
+            last_verify_message.pop(user_id, None)
+
+            # Save verification status in main database
+            await codeflixbots.set_verify_status(user_id, int(time()))
+            
+            # Delete all previous verification messages
+            await delete_verification_messages(client, user_id)
+            
+            # Send welcome message
+            await send_welcome_message(client, user_id)
+            
+            print(f"[VERIFY SUCCESS] User {user_id} verified successfully")
+        else:
+            # Token mismatch
+            print(f"[VERIFY FAIL] Token mismatch for user {user_id}")
+            await send_verification(client, message)
+            
+    except Exception as e:
+        print(f"[VERIFY ERROR] {e}")
         await send_verification(client, message)
 
 # =====================================================
@@ -297,7 +298,6 @@ async def premium_cb(client, query: CallbackQuery):
     user_id = query.from_user.id
     # Store current state before going to premium
     if user_id not in user_state:
-        # Default to verification if state not set
         user_state[user_id] = "verification"
     
     # Edit the current message to show premium page
@@ -340,7 +340,7 @@ async def verify_cmd(client, message):
         await send_verification(client, message)
 
 # =====================================================
-# GET_TOKEN COMMAND (NEW) - This is the only new command we need
+# GET_TOKEN COMMAND
 # =====================================================
 
 @Client.on_message(filters.private & filters.command("get_token"))
