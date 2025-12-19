@@ -6,7 +6,6 @@ from urllib3 import disable_warnings
 
 from pyrogram import Client, filters
 from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton, Message, CallbackQuery
-from pyrogram.errors import MessageNotModified
 
 from cloudscraper import create_scraper
 from motor.motor_asyncio import AsyncIOMotorClient
@@ -202,9 +201,6 @@ async def send_verification(client, message_or_query):
                 caption=text,
                 reply_markup=verify_markup(link)
             )
-        except MessageNotModified:
-            # Message already has the same content, use existing message
-            sent_message = message_obj
         except:
             # If editing fails, send a new message
             await message_obj.delete()
@@ -250,8 +246,6 @@ async def send_welcome_message(client, user_id, message_obj=None):
                 caption=text,
                 reply_markup=welcome_markup()
             )
-        except MessageNotModified:
-            pass
         except:
             # If editing fails, send a new message
             await message_obj.delete()
@@ -308,16 +302,12 @@ async def premium_cb(client, query: CallbackQuery):
         # Default to verification if state not set
         user_state[user_id] = "verification"
     
-    try:
-        # Edit the current message to show premium page
-        await query.message.edit_text(
-            Txt.PREMIUM_TXT,
-            reply_markup=premium_markup(),
-            disable_web_page_preview=True
-        )
-    except MessageNotModified:
-        # Message already has the same content, ignore the error
-        pass
+    # Edit the current message to show premium page
+    await query.message.edit_text(
+        Txt.PREMIUM_TXT,
+        reply_markup=premium_markup(),
+        disable_web_page_preview=True
+    )
 
 @Client.on_callback_query(filters.regex("^back_to_welcome$"))
 async def back_cb(client, query: CallbackQuery):
@@ -352,28 +342,10 @@ async def verify_cmd(client, message):
         await send_verification(client, message)
 
 # =====================================================
-# GET_TOKEN COMMAND (NEW)
+# GET_TOKEN COMMAND (NEW) - This is the only new command we need
 # =====================================================
 
 @Client.on_message(filters.private & filters.command("get_token"))
 async def get_token_cmd(client, message):
     """New command to get verification token"""
     await send_verification(client, message)
-
-# =====================================================
-# START COMMAND (ADDED FOR COMPLETENESS)
-# =====================================================
-
-@Client.on_message(filters.private & filters.command("start"))
-async def start_cmd(client, message):
-    user_id = message.from_user.id
-    
-    # Check if user sent a verify link
-    if len(message.command) == 2 and message.command[1].startswith("verify"):
-        await validate_token(client, message, message.command[1])
-        return
-    
-    # For normal /start command without verification token, don't ask for verification
-    # Let the start handler in start_&_cb.py handle it normally
-    pass
-    
