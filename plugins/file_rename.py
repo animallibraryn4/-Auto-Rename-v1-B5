@@ -607,42 +607,25 @@ async def process_rename(client: Client, message: Message):
 async def auto_rename_files(client, message):
     user_id = message.from_user.id
     
-    # IMPORTANT: Check verification status BEFORE adding to queue
-    # This prevents multiple verification checks for the same user
-    current_time = time.time()
-    
-    # Only check verification once every 2 seconds per user
-    # This prevents multiple concurrent verification checks
-    if user_id in recent_verification_checks:
-        last_check = recent_verification_checks[user_id]
-        if current_time - last_check < 2:  # 2 seconds cooldown
-            # Skip verification check if we checked recently
-            # This helps when multiple files arrive simultaneously
-            pass
-        else:
-            # Check verification if it's been more than 2 seconds
+    # Check if user is verified before processing
+    if not await is_user_verified(user_id):
+        # Check cooldown to prevent multiple verification messages
+        current_time = time.time()
+        last_check = recent_verification_checks.get(user_id, 0)
+        
+        if current_time - last_check > 2:  # 2 seconds cooldown
             recent_verification_checks[user_id] = current_time
-            if not await is_user_verified(user_id):
-                # Send verification prompt instead of processing the file
-                # This will now send only ONE verification message even for multiple files
-                await send_verification(client, message)
-                return
-    else:
-        # First check for this user
-        recent_verification_checks[user_id] = current_time
-        if not await is_user_verified(user_id):
-            # Send verification prompt instead of processing the file
-            # This will now send only ONE verification message even for multiple files
             await send_verification(client, message)
-            return
-    
-    # Clean up old verification checks
-    cleanup_users = []
-    for uid, check_time in recent_verification_checks.items():
-        if current_time - check_time > 30:  # Remove entries older than 30 seconds
-            cleanup_users.append(uid)
-    for uid in cleanup_users:
-        del recent_verification_checks[uid]
+        
+        # Clean up old verification checks
+        cleanup_users = []
+        for uid, check_time in recent_verification_checks.items():
+            if current_time - check_time > 30:
+                cleanup_users.append(uid)
+        for uid in cleanup_users:
+            del recent_verification_checks[uid]
+        
+        return  # Stop processing file
     
     # User is verified, proceed with adding to queue
     # Create per-user queue if it doesn't exist
