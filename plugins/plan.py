@@ -1,6 +1,6 @@
 import asyncio
 from pyrogram import Client, filters
-from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery, InputMediaPhoto
+from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery
 from config import Txt, Config
 
 # --- Constants ---
@@ -35,7 +35,7 @@ async def handle_callbacks(bot, query: CallbackQuery):
             [InlineKeyboardButton("Pro", callback_data="view_pro"), InlineKeyboardButton("Ultra", callback_data="view_ultra")],
             [InlineKeyboardButton("Close", callback_data="close")]
         ]
-        await query.message.edit_message_caption(
+        await query.message.edit_caption(
             caption=Txt.PLAN_MAIN_TXT.format(user_name), 
             reply_markup=InlineKeyboardMarkup(buttons)
         )
@@ -68,7 +68,7 @@ async def handle_callbacks(bot, query: CallbackQuery):
         ])
         btn.append([InlineKeyboardButton("Back to Menu", callback_data="main_plan")])
         
-        await query.message.edit_message_caption(
+        await query.message.edit_caption(
             caption=txt.format(user_name), 
             reply_markup=InlineKeyboardMarkup(btn)
         )
@@ -80,7 +80,7 @@ async def handle_callbacks(bot, query: CallbackQuery):
             [InlineKeyboardButton("Scan QR Code", callback_data=f"qr_{plan_origin}")],
             [InlineKeyboardButton("Back", callback_data=f"view_{plan_origin}")]
         ]
-        await query.message.edit_message_caption(
+        await query.message.edit_caption(
             caption=Txt.SELECT_PAYMENT_TXT, 
             reply_markup=InlineKeyboardMarkup(buttons)
         )
@@ -92,11 +92,11 @@ async def handle_callbacks(bot, query: CallbackQuery):
             [InlineKeyboardButton("Send payment screenshot here", url="https://t.me/Animelibraryn4")],
             [InlineKeyboardButton("Back", callback_data=f"pay_{origin}")]
         ]
-        await query.message.edit_message_caption(
+        await query.message.edit_caption(
             caption=txt.format(user_name), 
             reply_markup=InlineKeyboardMarkup(buttons)
         )
 
     elif data == "close":
         await query.message.delete()
-        
+
