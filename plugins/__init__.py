@@ -134,7 +134,7 @@ def verify_markup(link):
     return InlineKeyboardMarkup([
         [
             InlineKeyboardButton("Tutorial", url=VERIFY_TUTORIAL),
-            InlineKeyboardButton("Premium", callback_data="premium_page")
+            InlineKeyboardButton("⭐Premium", callback_data="premium_page")
         ],
         [InlineKeyboardButton("Get Token", url=link)]
     ])
@@ -142,7 +142,7 @@ def verify_markup(link):
 def welcome_markup():
     # Only Cancel button, no Premium button
     return InlineKeyboardMarkup([
-        [InlineKeyboardButton("❌ Cancel", callback_data="close_message")]
+        [InlineKeyboardButton("Cancel", callback_data="close_message")]
     ])
 
 def premium_markup():
