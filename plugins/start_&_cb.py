@@ -20,14 +20,8 @@ async def start(client, message: Message):
     user = message.from_user
     await codeflixbots.add_user(client, message)
 
-    # Check if user is verified before showing the start message
-    from plugins import is_user_verified
-    
-    if not await is_user_verified(user.id):
-        # User is not verified, send verification message
-        from plugins import send_verification
-        await send_verification(client, message)
-        return
+    # REMOVED VERIFICATION CHECK HERE - Normal /start should not ask for verification
+    # Only file uploads will ask for verification (handled in file_rename.py)
 
     # Initial interactive text and sticker sequence
     m = await message.reply_text("ᴏɴᴇᴇ-ᴄʜᴀɴ!, ʜᴏᴡ ᴀʀᴇ ʏᴏᴜ \nᴡᴀɪᴛ ᴀ ᴍᴏᴍᴇɴᴛ. . .")
@@ -244,5 +238,3 @@ async def help_command(client, message):
             [InlineKeyboardButton('ʜᴏᴍᴇ', callback_data='home')]
         ])
 )
-
-
