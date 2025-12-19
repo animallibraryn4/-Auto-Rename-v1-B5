@@ -141,7 +141,10 @@ def verify_markup(link):
 
 def welcome_markup():
     return InlineKeyboardMarkup([
-        [InlineKeyboardButton("❌ Cancel", callback_data="close_message")]
+        [
+            InlineKeyboardButton("❌ Cancel", callback_data="close_message"),
+            InlineKeyboardButton("⭐ Premium", callback_data="premium_page")
+        ]
     ])
 
 def premium_markup():
@@ -346,3 +349,4 @@ async def verify_cmd(client, message):
 async def get_token_cmd(client, message):
     """New command to get verification token"""
     await send_verification(client, message)
+
