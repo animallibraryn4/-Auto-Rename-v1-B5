@@ -196,6 +196,7 @@ async def send_verification(client, message_or_query):
     # If we have a message object (callback query), edit it
     if message_obj:
         try:
+            # Try to edit the message with photo
             sent_message = await message_obj.edit_media(
                 media=VERIFY_PHOTO,
                 caption=text,
@@ -203,7 +204,10 @@ async def send_verification(client, message_or_query):
             )
         except:
             # If editing fails, send a new message
-            await message_obj.delete()
+            try:
+                await message_obj.delete()
+            except:
+                pass
             sent_message = await client.send_photo(
                 chat_id=chat_id,
                 photo=VERIFY_PHOTO,
@@ -242,19 +246,32 @@ async def send_welcome_message(client, user_id, message_obj=None):
     # If we have a message object, edit it
     if message_obj:
         try:
-            await message_obj.edit_caption(
+            # Try to edit the message with photo
+            await message_obj.edit_media(
+                media=VERIFY_PHOTO,
                 caption=text,
                 reply_markup=welcome_markup()
             )
         except:
-            # If editing fails, send a new message
-            await message_obj.delete()
-            await client.send_photo(
-                chat_id=user_id,
-                photo=VERIFY_PHOTO,
-                caption=text,
-                reply_markup=welcome_markup()
-            )
+            try:
+                # If editing media fails, try to edit as text
+                await message_obj.edit_text(
+                    text=text,
+                    reply_markup=welcome_markup(),
+                    disable_web_page_preview=True
+                )
+            except:
+                # If editing fails, send a new message
+                try:
+                    await message_obj.delete()
+                except:
+                    pass
+                await client.send_photo(
+                    chat_id=user_id,
+                    photo=VERIFY_PHOTO,
+                    caption=text,
+                    reply_markup=welcome_markup()
+                )
     else:
         # Send new message
         await client.send_photo(
@@ -302,12 +319,27 @@ async def premium_cb(client, query: CallbackQuery):
         # Default to verification if state not set
         user_state[user_id] = "verification"
     
-    # Edit the current message to show premium page
-    await query.message.edit_text(
-        Txt.PREMIUM_TXT,
-        reply_markup=premium_markup(),
-        disable_web_page_preview=True
-    )
+    try:
+        # Edit the current message to show premium page
+        # First, check if we can edit the message
+        await query.message.edit_text(
+            Txt.PREMIUM_TXT,
+            reply_markup=premium_markup(),
+            disable_web_page_preview=True
+        )
+    except Exception as e:
+        print(f"Error in premium_cb: {e}")
+        # If editing fails, send a new message
+        try:
+            await query.message.delete()
+        except:
+            pass
+        await client.send_message(
+            chat_id=user_id,
+            text=Txt.PREMIUM_TXT,
+            reply_markup=premium_markup(),
+            disable_web_page_preview=True
+        )
 
 @Client.on_callback_query(filters.regex("^back_to_welcome$"))
 async def back_cb(client, query: CallbackQuery):
@@ -318,7 +350,47 @@ async def back_cb(client, query: CallbackQuery):
     
     if state == "verified":
         # User was already verified, show welcome message
-        await send_welcome_message(client, user_id, query.message)
+        welcome_text = (
+            f"<b>Welcome Back 😊\n"
+            f"Your token has been successfully verified.\n"
+            f"You can now use me for {get_readable_time(VERIFY_EXPIRE)}.\n\n"
+            f"Enjoy ❤️</b>"
+        )
+        
+        try:
+            # Try to edit the message back to welcome with photo
+            await query.message.edit_media(
+                media=VERIFY_PHOTO,
+                caption=welcome_text,
+                reply_markup=welcome_markup()
+            )
+        except:
+            try:
+                # If editing media fails, send a new photo message
+                await query.message.delete()
+                await client.send_photo(
+                    chat_id=user_id,
+                    photo=VERIFY_PHOTO,
+                    caption=welcome_text,
+                    reply_markup=welcome_markup()
+                )
+            except Exception as e:
+                print(f"Error in back_cb: {e}")
+                # Last resort: try to edit as text
+                try:
+                    await query.message.edit_text(
+                        text=welcome_text,
+                        reply_markup=welcome_markup(),
+                        disable_web_page_preview=True
+                    )
+                except:
+                    # Send a brand new message
+                    await client.send_photo(
+                        chat_id=user_id,
+                        photo=VERIFY_PHOTO,
+                        caption=welcome_text,
+                        reply_markup=welcome_markup()
+                    )
     else:
         # User was in verification flow, show verification message
         await send_verification(client, query)
@@ -328,7 +400,10 @@ async def close_cb(client, query: CallbackQuery):
     user_id = query.from_user.id
     # Clear user state when closing
     user_state.pop(user_id, None)
-    await query.message.delete()
+    try:
+        await query.message.delete()
+    except:
+        pass
 
 # =====================================================
 # VERIFY COMMAND
