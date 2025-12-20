@@ -4,7 +4,7 @@ from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton, CallbackQ
 from config import Txt, Config
 
 # --- Constants ---
-PLAN_PHOTO = "https://files.catbox.moe/hwt0gl.jpg"
+PLAN_PHOTO = "https://images8.alphacoders.com/138/1384114.png"
 
 # --- Main Command ---
 @Client.on_message(filters.command("plan"))
