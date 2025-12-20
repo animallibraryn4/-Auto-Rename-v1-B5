@@ -37,8 +37,6 @@ SHORTLINK_API = os.environ.get("SHORTLINK_API", "596f423cdf22b174e43d0b48a36a827
 VERIFY_EXPIRE = int(os.environ.get("VERIFY_EXPIRE", 3020))
 VERIFY_TUTORIAL = os.environ.get("VERIFY_TUTORIAL", "https://t.me/N4_Society/55")
 
-PREMIUM_USERS = list(map(int, os.environ.get("PREMIUM_USERS", "").split())) if os.environ.get("PREMIUM_USERS") else []
-
 # =====================================================
 # HELPERS
 # =====================================================
@@ -54,7 +52,12 @@ def get_readable_time(seconds):
 
 async def is_user_verified(user_id):
     """Check if user is verified using main database"""
-    if not VERIFY_EXPIRE or user_id in PREMIUM_USERS:
+    if not VERIFY_EXPIRE:
+        return True
+    
+    # Check if user is premium first via database
+    premium_status = await codeflixbots.get_premium_status(user_id)
+    if premium_status.get("is_premium", False):
         return True
     
     # Get verification status from main database
@@ -211,15 +214,27 @@ async def send_verification(client, message_or_query):
 
 async def send_welcome_message(client, user_id, message_obj=None):
     """Send welcome message to verified users"""
+    # Check premium status
+    premium_status = await codeflixbots.get_premium_status(user_id)
+    
+    if premium_status.get("is_premium", False):
+        days_left = premium_status.get("days_left", 0)
+        text = (
+            f"<b>ᴡᴇʟᴄᴏᴍᴇ ʙᴀᴄᴋ ⭐ᴘʀᴇᴍɪᴜᴍ ᴜsᴇʀ😊\n\n"
+            f"ʏᴏᴜʀ ᴘʀᴇᴍɪᴜᴍ ᴘʟᴀɴ ɪs ᴀᴄᴛɪᴠᴇ.\n"
+            f"ʀᴇᴍᴀɪɴɪɴɢ ᴅᴀʏs: {days_left} days\n\n"
+            f"ᴇɴᴊᴏʏ ᴘʀᴇᴍɪᴜᴍ ғᴇᴀᴛᴜʀᴇs ❤️</b>"
+        )
+    else:
+        text = (
+            f"<b>ᴡᴇʟᴄᴏᴍᴇ ʙᴀᴄᴋ 😊\n\n"
+            f"ʏᴏᴜʀ ᴛᴏᴋᴇɴ ʜᴀꜱ ʙᴇᴇɴ ꜱᴜᴄᴄᴇꜱꜱꜰᴜʟʟʏ ᴠᴇʀɪꜰɪᴇᴅ.\n"
+            f"ʏᴏᴜ ᴄᴀɴ ɴᴏᴡ ᴜꜱᴇ ᴍᴇ ꜰᴏʀ {get_readable_time(VERIFY_EXPIRE)}.\n\n"
+            f"ᴇɴᴊᴏʏ ʏᴏᴜʀ ᴛɪᴍᴇ ❤️</b>"
+        )
+    
     # Store user state as "verified"
     user_state[user_id] = "verified"
-    
-    text = (
-        f"<b>ᴡᴇʟᴄᴏᴍᴇ ʙᴀᴄᴋ 😊\n\n"
-        f"ʏᴏᴜʀ ᴛᴏᴋᴇɴ ʜᴀꜱ ʙᴇᴇɴ ꜱᴜᴄᴄᴇꜱꜱꜰᴜʟʟʏ ᴠᴇʀɪꜰɪᴇᴅ.\n"
-        f"ʏᴏᴜ ᴄᴀɴ ɴᴏᴡ ᴜꜱᴇ ᴍᴇ ꜰᴏʀ {get_readable_time(VERIFY_EXPIRE)}.\n\n"
-        f"ᴇɴᴊᴏʏ ʏᴏᴜʀ ᴛɪᴍᴇ ❤️</b>"
-    )
     
     # If we have a message object, edit it
     if message_obj:
