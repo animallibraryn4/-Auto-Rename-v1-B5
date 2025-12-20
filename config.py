@@ -185,7 +185,7 @@ Pʀɪᴄɪɴɢ:
 **ᴜꜱᴇ ᴛʜᴇꜱᴇ ᴄᴏᴍᴍᴀɴᴅꜱ ᴛᴏ ᴇɴʀɪᴄʜ ʏᴏᴜʀ ᴍᴇᴅɪᴀ ᴡɪᴛʜ ᴀᴅᴅɪᴛɪᴏɴᴀʟ ᴍᴇᴛᴀᴅᴀᴛᴀ ɪɴꜰᴏʀᴍᴀᴛɪᴏɴ!**
 """
 
-    PLAN_MAIN_TXT = "<b>👋 Hey {},\n\nSelect a plan that suits your needs from the options below:</b>"
+    PLAN_MAIN_TXT = "<b>👋 Hey, {}!\n\nSelect a plan that suits your needs from the options below:</b>"
     
     FREE_TXT = "👋 Hey {},\n🆓 Free Trial\n⏰ 1 hour access\n💸 Plan price ➛ Free\n\n➛ Limited-time access to test the service\n➛ Perfect to check speed and features\n➛ No payment required"
     
