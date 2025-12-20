@@ -11,6 +11,7 @@ import pyromod
 from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 import os
 import time
+from helper.database import codeflixbots  # Import database
 
 pyrogram.utils.MIN_CHANNEL_ID = -1001896877147
 
@@ -31,6 +32,20 @@ class Bot(Client):
         )
         # Initialize the bot's start time for uptime calculation
         self.start_time = time.time()
+        
+    async def cleanup_expired_premium_periodically(self):
+        """Periodically clean up expired premium users"""
+        print("[PREMIUM] Cleanup task started")
+        while True:
+            try:
+                expired_count = await codeflixbots.cleanup_expired_premium()
+                if expired_count > 0:
+                    print(f"[PREMIUM CLEANUP] Removed {expired_count} expired premium users")
+            except Exception as e:
+                print(f"[PREMIUM CLEANUP ERROR] {e}")
+            
+            # Run cleanup every 1 hour
+            await asyncio.sleep(3600)
 
     async def start(self):
         await super().start()
@@ -42,7 +57,10 @@ class Bot(Client):
             app = web.AppRunner(await web_server())
             await app.setup()       
             await web.TCPSite(app, "0.0.0.0", 9090).start()     
-        print(f"{me.first_name} Is Started.....✨️")
+        print(f"{me.first_name} Is Started.....вЬ®пЄП")
+
+        # Start the cleanup task for expired premium users
+        asyncio.create_task(self.cleanup_expired_premium_periodically())
 
         # Calculate uptime using timedelta
         uptime_seconds = int(time.time() - self.start_time)
@@ -59,12 +77,12 @@ class Bot(Client):
                     chat_id=chat_id,
                     photo=Config.START_PIC,
                     caption=(
-                        "**ᴀɴʏᴀ ɪs ʀᴇsᴛᴀʀᴛᴇᴅ ᴀɢᴀɪɴ  !**\n\n"
-                        f"ɪ ᴅɪᴅɴ'ᴛ sʟᴇᴘᴛ sɪɴᴄᴇ: `{uptime_string}`"
+                        "**біА…і ПбіА …™s  АбіЗsбіЫбіА АбіЫбіЗбіЕ біА…ҐбіА…™…і  !**\n\n"
+                        f"…™ біЕ…™біЕ…і'біЫ s ЯбіЗбіШбіЫ s…™…ібіДбіЗ: `{uptime_string}`"
                     ),
                     reply_markup=InlineKeyboardMarkup(
                         [[
-                            InlineKeyboardButton("ᴜᴘᴅᴀᴛᴇs", url="https://t.me/animelibraryn4")
+                            InlineKeyboardButton("біЬбіШбіЕбіАбіЫбіЗs", url="https://t.me/animelibraryn4")
                         ]]
                     )
                 )
@@ -73,4 +91,3 @@ class Bot(Client):
                 print(f"Failed to send message in chat {chat_id}: {e}")
 
 Bot().run()
-
