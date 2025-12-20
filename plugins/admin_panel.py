@@ -96,23 +96,4 @@ async def send_msg(user_id, message):
     except Exception as e:
         logger.error(f"{user_id} : {e}")
         return 500
-
-async def cleanup_expired_premium_periodically():
-    """Periodically clean up expired premium users"""
-    while True:
-        try:
-            expired_count = await codeflixbots.cleanup_expired_premium()
-            if expired_count > 0:
-                print(f"[PREMIUM CLEANUP] Removed {expired_count} expired premium users")
-        except Exception as e:
-            print(f"[PREMIUM CLEANUP ERROR] {e}")
         
-        # Run cleanup every 1 hour
-        await asyncio.sleep(3600)
-
-@Client.on_start()
-async def start_cleanup_task(client):
-    """Start the cleanup task when bot starts"""
-    asyncio.create_task(cleanup_expired_premium_periodically())
-    print("[PREMIUM] Cleanup task started")
-
