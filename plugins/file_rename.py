@@ -90,18 +90,24 @@ def standardize_quality_name(quality):
         return quality.lower()
     return quality.capitalize()
 
+# Replace the ENTIRE convert_ass_subtitles function in file_rename.py with this:
+
 async def convert_ass_subtitles(input_path, output_path):
-    """Convert ASS subtitles to mov_text format"""
+    """Convert ASS subtitles to mov_text format, ensuring correct container."""
     ffmpeg_cmd = shutil.which('ffmpeg')
     if ffmpeg_cmd is None:
         raise Exception("FFmpeg not found")
+    
+    # Always output to .mkv for full compatibility with subtitle codecs
+    if not output_path.lower().endswith('.mkv'):
+        output_path = output_path.rsplit('.', 1)[0] + '.mkv'
     
     command = [
         ffmpeg_cmd,
         '-i', input_path,
         '-c:v', 'copy',
         '-c:a', 'copy',
-        '-c:s', 'mov_text',
+        '-c:s', 'mov_text',  # Converts ASS to MP4/MKV-compatible text
         '-map', '0',
         '-loglevel', 'error',
         output_path
@@ -117,6 +123,8 @@ async def convert_ass_subtitles(input_path, output_path):
     if process.returncode != 0:
         error_message = stderr.decode()
         raise Exception(f"Subtitle conversion failed: {error_message}")
+    
+    return output_path  # Return the new path, as it may have changed to .mkv
 
 async def convert_to_mkv(input_path, output_path):
     """Convert any video file to MKV format"""
@@ -395,11 +403,12 @@ async def process_rename(client: Client, message: Message):
 
         # Handle metadata
         if is_mp4_with_ass:
-            temp_output = f"{metadata_file_path}.temp.mp4"
-            final_output = f"{metadata_file_path}.final.mp4"
-            await convert_ass_subtitles(path, temp_output)
-            os.replace(temp_output, metadata_file_path)
-            path = metadata_file_path
+    # Let the function handle the proper container (MKV)
+    converted_path = await convert_ass_subtitles(path, metadata_file_path)
+    # Update the path to the new .mkv file
+    path = converted_path
+    # Also update the renamed_file_name to reflect .mkv extension
+    renamed_file_name = f"{format_template}.mkv"
 
         metadata_command = [
             ffmpeg_cmd,
