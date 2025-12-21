@@ -1,7 +1,6 @@
 import motor.motor_asyncio
 import datetime
 import logging
-import time
 from config import Config
 from .utils import send_log
 
@@ -290,102 +289,14 @@ class Database:
         except Exception as e:
             logging.error(f"Error checking global thumb status for user {id}: {e}")
             return False
+# Add these methods to the Database class in database.py
+# Add them anywhere after the existing methods, before the codeflixbots initialization
 
-    # Premium Management Methods
-    async def add_premium_user(self, user_id, days):
-        """Add a user to premium with expiry time"""
-        try:
-            expiry_time = time.time() + (days * 24 * 60 * 60)  # Convert days to seconds
-            await self.col.update_one(
-                {"_id": int(user_id)},
-                {"$set": {
-                    "premium": {
-                        "is_premium": True,
-                        "expiry_time": expiry_time,
-                        "days": days,
-                        "added_at": time.time()
-                    }
-                }},
-                upsert=True
-            )
-            return True
-        except Exception as e:
-            logging.error(f"Error adding premium user {user_id}: {e}")
-            return False
-
-    async def remove_premium_user(self, user_id):
-        """Remove premium status from user"""
-        try:
-            await self.col.update_one(
-                {"_id": int(user_id)},
-                {"$unset": {"premium": ""}}
-            )
-            return True
-        except Exception as e:
-            logging.error(f"Error removing premium user {user_id}: {e}")
-            return False
-
-    async def get_premium_status(self, user_id):
-        """Check if user is premium and not expired"""
-        try:
-            user = await self.col.find_one({"_id": int(user_id)})
-            if user and "premium" in user:
-                premium_data = user["premium"]
-                if premium_data.get("is_premium", False):
-                    expiry_time = premium_data.get("expiry_time", 0)
-                    # Check if premium has expired
-                    if time.time() < expiry_time:
-                        return {
-                            "is_premium": True,
-                            "expiry_time": expiry_time,
-                            "days_left": int((expiry_time - time.time()) / (24 * 60 * 60)) + 1,
-                            "added_at": premium_data.get("added_at", 0)
-                        }
-            return {"is_premium": False}
-        except Exception as e:
-            logging.error(f"Error getting premium status for user {user_id}: {e}")
-            return {"is_premium": False}
-
-    async def get_all_premium_users(self):
-        """Get all premium users with their expiry info"""
-        try:
-            premium_users = []
-            async for user in self.col.find({"premium.is_premium": True}):
-                premium_data = user.get("premium", {})
-                expiry_time = premium_data.get("expiry_time", 0)
-                days_left = int((expiry_time - time.time()) / (24 * 60 * 60)) + 1 if expiry_time > time.time() else 0
-                
-                premium_users.append({
-                    "user_id": user["_id"],
-                    "expiry_time": expiry_time,
-                    "days": premium_data.get("days", 0),
-                    "days_left": days_left if days_left > 0 else 0,
-                    "added_at": premium_data.get("added_at", 0),
-                    "is_expired": time.time() >= expiry_time
-                })
-            return premium_users
-        except Exception as e:
-            logging.error(f"Error getting all premium users: {e}")
-            return []
-
-    async def cleanup_expired_premium(self):
-        """Remove premium status from expired users"""
-        try:
-            current_time = time.time()
-            result = await self.col.update_many(
-                {"premium.expiry_time": {"$lt": current_time}},
-                {"$unset": {"premium": ""}}
-            )
-            return result.modified_count
-        except Exception as e:
-            logging.error(f"Error cleaning up expired premium users: {e}")
-            return 0
-
-    # Verification Status Methods
     async def get_verify_status(self, id):
         try:
             user = await self.col.find_one({"_id": int(id)})
             if user:
+                # Check if user has verify_status field, if not return 0
                 return user.get("verify_status", 0)
             return 0
         except Exception as e:
@@ -417,4 +328,5 @@ class Database:
 
 # Initialize database connection
 codeflixbots = Database(Config.DB_URL, Config.DB_NAME)
+
 
