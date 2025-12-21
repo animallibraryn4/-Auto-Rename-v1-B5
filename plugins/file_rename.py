@@ -403,12 +403,12 @@ async def process_rename(client: Client, message: Message):
 
         # Handle metadata
         if is_mp4_with_ass:
-    # Let the function handle the proper container (MKV)
-    converted_path = await convert_ass_subtitles(path, metadata_file_path)
-    # Update the path to the new .mkv file
-    path = converted_path
-    # Also update the renamed_file_name to reflect .mkv extension
-    renamed_file_name = f"{format_template}.mkv"
+        # Update
+        converted_path = await convert_ass_subtitles(path, metadata_file_path)
+        # Update the path to the new .mkv file
+        path = converted_path
+        # Also update the renamed_file_name to reflect .mkv extension
+        renamed_file_name = f"{format_template}.mkv"
 
         metadata_command = [
             ffmpeg_cmd,
