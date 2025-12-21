@@ -22,7 +22,7 @@ async def plan_menu(bot, message):
     )
 
 # --- Callback Handlers ---
-@Client.on_callback_query()
+@Client.on_callback_query(filters.regex(r'^(main_plan|view_free|view_basic|view_lite|view_standard|view_pro|view_ultra|pay_basic|pay_lite|pay_standard|pay_pro|pay_ultra|upi_|qr_|close)$'))
 async def handle_callbacks(bot, query: CallbackQuery):
     data = query.data
     user_name = query.from_user.first_name
@@ -99,4 +99,3 @@ async def handle_callbacks(bot, query: CallbackQuery):
 
     elif data == "close":
         await query.message.delete()
-
