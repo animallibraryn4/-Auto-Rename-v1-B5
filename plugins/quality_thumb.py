@@ -25,6 +25,7 @@ async def quality_menu(client, message):
         reply_markup=InlineKeyboardMarkup(buttons)
     )
 
+# Handle "global" separately FIRST (more specific)
 @Client.on_callback_query(filters.regex(r'^quality_global$'))
 async def global_thumb_menu(client, callback):
     user_id = callback.from_user.id
@@ -42,6 +43,33 @@ async def global_thumb_menu(client, callback):
     status_text = f"Status: {'✅ Set' if has_thumb else '❌ Not Set'}\nMode: {'🌐 Enabled' if is_enabled else '🚫 Disabled'}"
     await callback.message.edit_text(
         f"⚙️ Global Thumbnail Settings\n\n{status_text}",
+        reply_markup=InlineKeyboardMarkup(buttons)
+    )
+
+# Handle "close" separately
+@Client.on_callback_query(filters.regex(r'^quality_close$'))
+async def close_menu(client, callback):
+    await callback.message.delete()
+
+# Handle quality buttons (except global and close)
+@Client.on_callback_query(filters.regex(r'^quality_(?!global|close)[a-zA-Z0-9]+$'))
+async def quality_handler(client, callback):
+    user_id = callback.from_user.id
+    quality = callback.data.replace("quality_", "", 1)
+    
+    is_global = await codeflixbots.is_global_thumb_enabled(user_id)
+    has_thumb = await codeflixbots.get_quality_thumbnail(user_id, quality)
+    
+    buttons = [
+        [InlineKeyboardButton("👀 View", f"view_{quality}")],
+        [InlineKeyboardButton("🖼️ Set New", f"set_{quality}")],
+        [InlineKeyboardButton("🗑 Delete", f"delete_{quality}")],
+        [InlineKeyboardButton("🔙 Main Menu", "back_to_main")]
+    ]
+    
+    status_text = "🌐 (Global)" if is_global else f"{'✅ Set' if has_thumb else '❌ Not Set'}"
+    await callback.message.edit_text(
+        f"⚙️ {quality.upper()} Settings\n\nStatus: {status_text}",
         reply_markup=InlineKeyboardMarkup(buttons)
     )
 
@@ -143,35 +171,6 @@ async def delete_all_thumbs(client, callback):
         ])
     )
 
-@Client.on_callback_query(filters.regex(r'^quality_([a-zA-Z0-9]+)$'))
-async def quality_handler(client, callback):
-    user_id = callback.from_user.id
-    quality = callback.matches[0].group(1)
-    
-    if quality == "close":
-        await callback.message.delete()
-        return
-    
-    if quality == "global":
-        await global_thumb_menu(client, callback)
-        return
-    
-    is_global = await codeflixbots.is_global_thumb_enabled(user_id)
-    has_thumb = await codeflixbots.get_quality_thumbnail(user_id, quality)
-    
-    buttons = [
-        [InlineKeyboardButton("👀 View", f"view_{quality}")],
-        [InlineKeyboardButton("🖼️ Set New", f"set_{quality}")],
-        [InlineKeyboardButton("🗑 Delete", f"delete_{quality}")],
-        [InlineKeyboardButton("🔙 Main Menu", "back_to_main")]
-    ]
-    
-    status_text = "🌐 (Global)" if is_global else f"{'✅ Set' if has_thumb else '❌ Not Set'}"
-    await callback.message.edit_text(
-        f"⚙️ {quality.upper()} Settings\n\nStatus: {status_text}",
-        reply_markup=InlineKeyboardMarkup(buttons)
-    )
-
 @Client.on_callback_query(filters.regex(r'^set_([a-zA-Z0-9]+)$'))
 async def set_thumbnail_handler(client, callback):
     quality = callback.matches[0].group(1)
@@ -226,4 +225,3 @@ async def delete_thumbnail(client, callback):
             [InlineKeyboardButton("🔙 Back", f"quality_{quality}")]
         ])
     )
-    
