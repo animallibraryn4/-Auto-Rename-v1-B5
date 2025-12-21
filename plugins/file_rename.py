@@ -101,6 +101,7 @@ async def convert_ass_subtitles(input_path, output_path):
         # For MP4: only convert text-based subtitles, skip image-based ones
         command = [
             ffmpeg_cmd,
+            '-y',        # ✅ FIXED: Force overwrite
             '-nostdin',  # ✅ FIXED: Prevent stdin hang
             '-i', input_path,
             '-c:v', 'copy',
@@ -111,17 +112,18 @@ async def convert_ass_subtitles(input_path, output_path):
             '-map', '0',
             '-map', '-0:s:codec=hdmv_pgs_subtitle',  # Skip PGS
             '-map', '-0:s:codec=dvd_subtitle',       # Skip DVD subtitles
-            '-loglevel', 'info',  # ✅ CHANGED: From 'error' to 'info' for debugging
+            '-loglevel', 'error',
             output_path
         ]
     else:
         # For MKV: copy all streams as-is (MKV supports all codecs)
         command = [
             ffmpeg_cmd,
+            '-y',        # ✅ FIXED: Force overwrite
             '-nostdin',  # ✅ FIXED: Prevent stdin hang
             '-i', input_path,
             '-c', 'copy',  # Copy everything
-            '-loglevel', 'info',  # ✅ CHANGED: From 'error' to 'info' for debugging
+            '-loglevel', 'error',
             output_path
         ]
     
@@ -142,10 +144,11 @@ async def convert_ass_subtitles(input_path, output_path):
             mkv_path = output_path.rsplit('.', 1)[0] + '.mkv'
             fallback_command = [
                 ffmpeg_cmd,
+                '-y',        # ✅ FIXED: Force overwrite
                 '-nostdin',  # ✅ FIXED: Prevent stdin hang
                 '-i', input_path,
                 '-c', 'copy',
-                '-loglevel', 'info',  # ✅ CHANGED: From 'error' to 'info' for debugging
+                '-loglevel', 'error',
                 mkv_path
             ]
             fallback_process = await asyncio.create_subprocess_exec(
@@ -171,11 +174,12 @@ async def convert_to_mkv(input_path, output_path):
     
     command = [
         ffmpeg_cmd,
+        '-y',        # ✅ FIXED: Force overwrite
         '-nostdin',  # ✅ FIXED: Prevent stdin hang
         '-i', input_path,
         '-map', '0',
         '-c', 'copy',
-        '-loglevel', 'info',  # ✅ CHANGED: From 'error' to 'info' for debugging
+        '-loglevel', 'error',
         output_path
     ]
     
@@ -374,6 +378,21 @@ async def process_rename(client: Client, message: Message):
     os.makedirs(os.path.dirname(renamed_file_path), exist_ok=True)
     os.makedirs(os.path.dirname(metadata_file_path), exist_ok=True)
 
+    # ✅ FIXED: Clean up existing files before starting
+    if os.path.exists(metadata_file_path):
+        try:
+            os.remove(metadata_file_path)
+            print(f"[CLEANUP] Removed existing metadata file: {metadata_file_path}")
+        except Exception as e:
+            print(f"[CLEANUP WARNING] Could not remove metadata file: {e}")
+
+    if os.path.exists(download_path):
+        try:
+            os.remove(download_path)
+            print(f"[CLEANUP] Removed existing download file: {download_path}")
+        except Exception as e:
+            print(f"[CLEANUP WARNING] Could not remove download file: {e}")
+
     # Download file
     download_msg = await message.reply_text("**__Downloading...__**")
     try:
@@ -447,6 +466,7 @@ async def process_rename(client: Client, message: Message):
 
         metadata_command = [
             ffmpeg_cmd,
+            '-y',        # ✅ FIXED: Force overwrite
             '-nostdin',  # ✅ FIXED: Prevent stdin hang
             '-i', path,
             '-metadata', f'title={await codeflixbots.get_title(user_id)}',
@@ -457,7 +477,7 @@ async def process_rename(client: Client, message: Message):
             '-metadata:s:s', f'title={await codeflixbots.get_subtitle(user_id)}',
             '-map', '0',
             '-c', 'copy',
-            '-loglevel', 'info',  # ✅ CHANGED: From 'error' to 'info' for debugging
+            '-loglevel', 'error',
             metadata_file_path
         ]
 
