@@ -66,8 +66,8 @@ async def start(client, message: Message):
         )
 
 
-# Callback Query Handler
-@Client.on_callback_query()
+# Callback Query Handler - FIXED: Only handles specific callbacks, not all
+@Client.on_callback_query(filters.regex(r'^(home|caption|help|meta|donate|file_names|thumbnail|metadatax|source|premiumx|plans|about|close|setmedia_|on_metadata|off_metadata|metainfo|back_to_welcome|premium_page|close_message)$'))
 async def cb_handler(client, query: CallbackQuery):
     data = query.data
     user_id = query.from_user.id
@@ -177,10 +177,48 @@ async def cb_handler(client, query: CallbackQuery):
         try:
             await query.message.delete()
             await query.message.reply_to_message.delete()
-            await query.message.continue_propagation()
         except:
             await query.message.delete()
-            await query.message.continue_propagation()
+    
+    # Metadata callbacks
+    elif data in ["on_metadata", "off_metadata"]:
+        # Handle metadata toggle here or let metadata.py handle it
+        # Since metadata.py has its own handler, we'll just pass it through
+        pass
+        
+    elif data == "metainfo":
+        await query.message.edit_text(
+            text=Txt.META_TXT,
+            disable_web_page_preview=True,
+            reply_markup=InlineKeyboardMarkup([
+                [
+                    InlineKeyboardButton("Hᴏᴍᴇ", callback_data="home"),
+                    InlineKeyboardButton("Bᴀᴄᴋ", callback_data="help")
+                ]
+            ])
+        )
+    
+    # Verification callbacks
+    elif data == "back_to_welcome":
+        # Let __init__.py handle this
+        pass
+        
+    elif data == "premium_page":
+        # Let __init__.py handle this
+        pass
+        
+    elif data == "close_message":
+        # Let __init__.py handle this
+        pass
+    
+    # Set media preference
+    elif data.startswith("setmedia_"):
+        user_id = query.from_user.id
+        media_type = data.split("_", 1)[1]
+        await codeflixbots.set_media_preference(user_id, media_type)
+        await query.answer(f"Media preference set to: {media_type} ✅")
+        await query.message.edit_text(f"**Media preference set to:** {media_type} ✅")
+
 
 # Donation Command Handler
 @Client.on_message(filters.command("donate"))
@@ -226,4 +264,4 @@ async def help_command(client, message):
             [InlineKeyboardButton('ᴍᴇᴛᴀᴅᴀᴛᴀ', callback_data='meta'), InlineKeyboardButton('ᴅᴏɴᴀᴛᴇ', callback_data='donate')],
             [InlineKeyboardButton('ʜᴏᴍᴇ', callback_data='home')]
         ])
-)
+        )
