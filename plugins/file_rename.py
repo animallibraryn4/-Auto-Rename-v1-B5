@@ -393,6 +393,15 @@ async def process_rename(client: Client, message: Message):
         except Exception as e:
             print(f"[CLEANUP WARNING] Could not remove download file: {e}")
 
+    # ✅ FIXED: Clean up temp metadata file if it exists (from previous runs)
+    temp_metadata_path = f"{metadata_file_path}.temp"
+    if os.path.exists(temp_metadata_path):
+        try:
+            os.remove(temp_metadata_path)
+            print(f"[CLEANUP] Removed existing temp metadata file: {temp_metadata_path}")
+        except Exception as e:
+            print(f"[CLEANUP WARNING] Could not remove temp metadata file: {e}")
+
     # Download file
     download_msg = await message.reply_text("**__Downloading...__**")
     try:
@@ -464,11 +473,14 @@ async def process_rename(client: Client, message: Message):
             if converted_path.lower().endswith('.mkv'):
                 renamed_file_name = f"{format_template}.mkv"
 
+        # ✅ FIXED: Create a temporary output path for metadata processing
+        temp_metadata_path = f"{metadata_file_path}.temp"
+        
         metadata_command = [
             ffmpeg_cmd,
             '-y',        # ✅ FIXED: Force overwrite
             '-nostdin',  # ✅ FIXED: Prevent stdin hang
-            '-i', path,
+            '-i', path,  # Input is the current 'path' (could be original or converted file)
             '-metadata', f'title={await codeflixbots.get_title(user_id)}',
             '-metadata', f'artist={await codeflixbots.get_artist(user_id)}',
             '-metadata', f'author={await codeflixbots.get_author(user_id)}',
@@ -478,7 +490,7 @@ async def process_rename(client: Client, message: Message):
             '-map', '0',
             '-c', 'copy',
             '-loglevel', 'error',
-            metadata_file_path
+            temp_metadata_path  # ✅ FIXED: Output to TEMP file
         ]
 
         process = await asyncio.create_subprocess_exec(
@@ -490,10 +502,17 @@ async def process_rename(client: Client, message: Message):
 
         if process.returncode != 0:
             error_message = stderr.decode()
+            # Clean up temp file if it exists
+            if os.path.exists(temp_metadata_path):
+                os.remove(temp_metadata_path)
             await download_msg.edit(f"**Metadata Error:**\n{error_message}")
             return
 
-        path = metadata_file_path
+        # ✅ FIXED: Metadata succeeded: replace the old file with the new one
+        if os.path.exists(metadata_file_path):
+            os.remove(metadata_file_path)  # Delete the old file
+        os.rename(temp_metadata_path, metadata_file_path)  # Rename temp to final
+        path = metadata_file_path  # Now update 'path' to the final file
         
         # Prepare for upload
         upload_msg = await download_msg.edit("**__Uploading...__**")
@@ -662,6 +681,10 @@ async def process_rename(client: Client, message: Message):
             os.remove(renamed_file_path)
         if os.path.exists(metadata_file_path):
             os.remove(metadata_file_path)
+        # ✅ FIXED: Clean up temp metadata file if it exists
+        temp_metadata_path = f"{metadata_file_path}.temp"
+        if os.path.exists(temp_metadata_path):
+            os.remove(temp_metadata_path)
         if ph_path and os.path.exists(ph_path):
             os.remove(ph_path)
         del renaming_operations[file_id]
