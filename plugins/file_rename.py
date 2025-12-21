@@ -101,6 +101,7 @@ async def convert_ass_subtitles(input_path, output_path):
         # For MP4: only convert text-based subtitles, skip image-based ones
         command = [
             ffmpeg_cmd,
+            '-nostdin',  # ✅ FIXED: Prevent stdin hang
             '-i', input_path,
             '-c:v', 'copy',
             '-c:a', 'copy',
@@ -110,16 +111,17 @@ async def convert_ass_subtitles(input_path, output_path):
             '-map', '0',
             '-map', '-0:s:codec=hdmv_pgs_subtitle',  # Skip PGS
             '-map', '-0:s:codec=dvd_subtitle',       # Skip DVD subtitles
-            '-loglevel', 'error',
+            '-loglevel', 'info',  # ✅ CHANGED: From 'error' to 'info' for debugging
             output_path
         ]
     else:
         # For MKV: copy all streams as-is (MKV supports all codecs)
         command = [
             ffmpeg_cmd,
+            '-nostdin',  # ✅ FIXED: Prevent stdin hang
             '-i', input_path,
             '-c', 'copy',  # Copy everything
-            '-loglevel', 'error',
+            '-loglevel', 'info',  # ✅ CHANGED: From 'error' to 'info' for debugging
             output_path
         ]
     
@@ -140,9 +142,10 @@ async def convert_ass_subtitles(input_path, output_path):
             mkv_path = output_path.rsplit('.', 1)[0] + '.mkv'
             fallback_command = [
                 ffmpeg_cmd,
+                '-nostdin',  # ✅ FIXED: Prevent stdin hang
                 '-i', input_path,
                 '-c', 'copy',
-                '-loglevel', 'error',
+                '-loglevel', 'info',  # ✅ CHANGED: From 'error' to 'info' for debugging
                 mkv_path
             ]
             fallback_process = await asyncio.create_subprocess_exec(
@@ -168,10 +171,11 @@ async def convert_to_mkv(input_path, output_path):
     
     command = [
         ffmpeg_cmd,
+        '-nostdin',  # ✅ FIXED: Prevent stdin hang
         '-i', input_path,
         '-map', '0',
         '-c', 'copy',
-        '-loglevel', 'error',
+        '-loglevel', 'info',  # ✅ CHANGED: From 'error' to 'info' for debugging
         output_path
     ]
     
@@ -443,6 +447,7 @@ async def process_rename(client: Client, message: Message):
 
         metadata_command = [
             ffmpeg_cmd,
+            '-nostdin',  # ✅ FIXED: Prevent stdin hang
             '-i', path,
             '-metadata', f'title={await codeflixbots.get_title(user_id)}',
             '-metadata', f'artist={await codeflixbots.get_artist(user_id)}',
@@ -452,7 +457,7 @@ async def process_rename(client: Client, message: Message):
             '-metadata:s:s', f'title={await codeflixbots.get_subtitle(user_id)}',
             '-map', '0',
             '-c', 'copy',
-            '-loglevel', 'error',
+            '-loglevel', 'info',  # ✅ CHANGED: From 'error' to 'info' for debugging
             metadata_file_path
         ]
 
