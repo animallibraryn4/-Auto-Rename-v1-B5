@@ -205,3 +205,4 @@ Pʀɪᴄɪɴɢ:
     
     QR_TXT = "👋 Hey {},\n\nPay the amount according to your membership price!\n\n📸 <b>QR Code:</b> <a href='https://t.me/Animelibraryn4'>Click here to scan</a>\n\n‼️ You must send a screenshot after payment."
     
+
