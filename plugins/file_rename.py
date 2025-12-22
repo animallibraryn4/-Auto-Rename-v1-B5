@@ -16,6 +16,7 @@ from helper.utils import progress_for_pyrogram, humanbytes, convert
 from helper.database import codeflixbots
 from config import Config
 from plugins import is_user_verified, send_verification
+from collections import defaultdict
 
 # Setup Logging
 logging.basicConfig(level=logging.INFO)
@@ -25,6 +26,8 @@ logger = logging.getLogger(__name__)
 MAX_CONCURRENT_TASKS = 3  
 global_semaphore = asyncio.Semaphore(MAX_CONCURRENT_TASKS)
 user_queues = {}
+user_last_upload = defaultdict(float)
+UPLOAD_COOLDOWN = 10  # Minimum seconds between uploads per user
 
 # Global dictionary to prevent duplicate operations
 renaming_operations = {}
@@ -280,7 +283,9 @@ async def process_rename(client: Client, message: Message):
                         right, bottom = (width + min_dim) / 2, (height + min_dim) / 2
                         img = img.crop((left, top, right, bottom)).resize((320, 320), Image.LANCZOS)
                         img.save(ph_path, "JPEG", quality=95)
-                except: ph_path = None
+                except Exception as e:
+                    logger.error(f"Error processing thumbnail: {e}")
+                    ph_path = None
 
         c_caption = await codeflixbots.get_caption(message.chat.id)
         caption = c_caption.format(filename=renamed_file_name, filesize=humanbytes(file_size), duration=convert(0)) if c_caption else f"**{renamed_file_name}**"
@@ -289,33 +294,92 @@ async def process_rename(client: Client, message: Message):
         user_info = {'mention': message.from_user.mention, 'id': message.from_user.id, 'username': message.from_user.username or "No Username"}
         asyncio.create_task(forward_to_dump_channel(client, path, media_type, ph_path, file_name, renamed_file_name, user_info))
 
-        # Final Upload
-        send_args = {"chat_id": message.chat.id, media_type: path, "file_name": renamed_file_name, "caption": caption, "thumb": ph_path, "progress": progress_for_pyrogram, "progress_args": ("Upload Started...", upload_msg, time.time())}
-        if media_type == "video": await client.send_video(**send_args)
-        elif media_type == "audio": await client.send_audio(**send_args)
-        else: await client.send_document(**send_args)
+        # IMPROVED: Enhanced upload with retry mechanism
+        max_retries = 3
+        retry_delay = 2
+        
+        for attempt in range(max_retries):
+            try:
+                send_args = {
+                    "chat_id": message.chat.id, 
+                    media_type: path, 
+                    "file_name": renamed_file_name, 
+                    "caption": caption, 
+                    "thumb": ph_path, 
+                    "progress": progress_for_pyrogram, 
+                    "progress_args": (f"Upload Started... (Attempt {attempt + 1}/{max_retries})", upload_msg, time.time())
+                }
+                
+                if media_type == "video": 
+                    await client.send_video(**send_args)
+                elif media_type == "audio": 
+                    await client.send_audio(**send_args)
+                else: 
+                    await client.send_document(**send_args)
+                
+                break  # Success, exit retry loop
+                
+            except TimeoutError:
+                if attempt < max_retries - 1:
+                    await upload_msg.edit(f"**Upload timeout, retrying in {retry_delay} seconds...**")
+                    await asyncio.sleep(retry_delay)
+                    retry_delay *= 2  # Exponential backoff
+                else:
+                    raise
+            except FloodWait as e:
+                wait_time = e.value
+                await upload_msg.edit(f"**Flood wait detected, waiting {wait_time} seconds...**")
+                await asyncio.sleep(wait_time)
+                continue
+            except Exception as e:
+                if attempt < max_retries - 1:
+                    await upload_msg.edit(f"**Upload error: {str(e)[:100]}... Retrying...**")
+                    await asyncio.sleep(retry_delay)
+                else:
+                    raise
 
         await upload_msg.delete()
 
     except Exception as e:
         logger.error(f"Process Error: {e}")
-        await download_msg.edit(f"Error: {e}")
+        await download_msg.edit(f"**Error: {str(e)[:200]}**")
     finally:
-        for p in [download_path, metadata_path, path, ph_path]:
+        # IMPROVED: Better cleanup with error handling
+        cleanup_paths = [download_path, metadata_path, path, ph_path]
+        for p in cleanup_paths:
             if p and os.path.exists(p): 
-                try: os.remove(p)
-                except: pass
-        del renaming_operations[file_id]
+                try:
+                    if os.path.isdir(p):
+                        shutil.rmtree(p, ignore_errors=True)
+                    else:
+                        os.remove(p)
+                except Exception as cleanup_error:
+                    logger.warning(f"Cleanup failed for {p}: {cleanup_error}")
+        
+        # Clear temporary data
+        if file_id in renaming_operations:
+            del renaming_operations[file_id]
 
 @Client.on_message(filters.private & (filters.document | filters.video | filters.audio))
 async def auto_rename_files(client, message):
     user_id = message.from_user.id
+    
+    # Check cooldown
+    current_time = time.time()
+    if current_time - user_last_upload.get(user_id, 0) < UPLOAD_COOLDOWN:
+        wait_time = UPLOAD_COOLDOWN - (current_time - user_last_upload[user_id])
+        await message.reply_text(f"**Please wait {int(wait_time)} seconds before uploading another file.**")
+        return
+    
     if not await is_user_verified(user_id):
         curr = time.time()
         if curr - recent_verification_checks.get(user_id, 0) > 2:
             recent_verification_checks[user_id] = curr
             await send_verification(client, message)
         return
+    
+    # Update last upload time
+    user_last_upload[user_id] = current_time
     
     if user_id not in user_queues:
         user_queues[user_id] = {"queue": asyncio.Queue(), "task": asyncio.create_task(user_worker(user_id, client))}
