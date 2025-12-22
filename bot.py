@@ -25,11 +25,9 @@ class Bot(Client):
             api_id=Config.API_ID,
             api_hash=Config.API_HASH,
             bot_token=Config.BOT_TOKEN,
-            workers=100,  # Increased for better parallel processing
-            max_concurrent_transmissions=3,  # Limit concurrent uploads to avoid timeouts
+            workers=50,  # This is already good for parallel processing
             plugins={"root": "plugins"},
-            sleep_threshold=30,  # Increased for larger files
-            workdir="./",  # Explicit work directory
+            sleep_threshold=15,
         )
         # Initialize the bot's start time for uptime calculation
         self.start_time = time.time()
@@ -75,4 +73,5 @@ class Bot(Client):
                 print(f"Failed to send message in chat {chat_id}: {e}")
 
 Bot().run()
+
 
