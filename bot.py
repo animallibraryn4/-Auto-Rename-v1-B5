@@ -14,22 +14,26 @@ import time
 
 pyrogram.utils.MIN_CHANNEL_ID = -1001896877147
 
-# Setting SUPPORT_CHAT directly here
+# Support chat (fallback)
 SUPPORT_CHAT = int(os.environ.get("SUPPORT_CHAT", "-1001896877147"))
+
 
 class Bot(Client):
 
     def __init__(self):
-        # Ensure session directory exists
-        if not os.path.exists("sessions"):
-            os.makedirs("sessions")
+        # 🔥 FIX: absolute & writable session path
+        BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+        SESSION_DIR = os.path.join(BASE_DIR, "sessions")
+
+        # create sessions folder if not exists
+        os.makedirs(SESSION_DIR, exist_ok=True)
 
         super().__init__(
             name="codeflixbots",
             api_id=Config.API_ID,
             api_hash=Config.API_HASH,
             bot_token=Config.BOT_TOKEN,
-            workdir="sessions",   # 🔥 THIS FIXES THE ERROR
+            workdir=SESSION_DIR,     # ✅ IMPORTANT FIX
             workers=50,
             plugins={"root": "plugins"},
             sleep_threshold=15,
@@ -39,17 +43,19 @@ class Bot(Client):
 
     async def start(self):
         await super().start()
+
         me = await self.get_me()
         self.mention = me.mention
-        self.username = me.username  
-        self.uptime = Config.BOT_UPTIME     
+        self.username = me.username
+
         if Config.WEBHOOK:
             app = web.AppRunner(await web_server())
-            await app.setup()       
-            await web.TCPSite(app, "0.0.0.0", 9090).start()     
+            await app.setup()
+            await web.TCPSite(app, "0.0.0.0", 9090).start()
+
         print(f"{me.first_name} Is Started.....✨️")
 
-        # Calculate uptime using timedelta
+        # uptime
         uptime_seconds = int(time.time() - self.start_time)
         uptime_string = str(timedelta(seconds=uptime_seconds))
 
@@ -58,18 +64,20 @@ class Bot(Client):
                 curr = datetime.now(timezone("Asia/Kolkata"))
                 date = curr.strftime('%d %B, %Y')
                 time_str = curr.strftime('%I:%M:%S %p')
-                
-                # Send the message with the photo
+
                 await self.send_photo(
                     chat_id=chat_id,
                     photo=Config.START_PIC,
                     caption=(
-                        "**ᴀɴʏᴀ ɪs ʀᴇsᴛᴀʀᴛᴇᴅ ᴀɢᴀɪɴ  !**\n\n"
-                        f"ɪ ᴅɪᴅɴ'ᴛ sʟᴇᴘᴛ sɪɴᴄᴇ: `{uptime_string}`"
+                        "**ᴀɴʏᴀ ɪs ʀᴇsᴛᴀʀᴛᴇᴅ ᴀɢᴀɪɴ !**\n\n"
+                        f"ɪ ᴅɪᴅɴ'ᴛ sʟᴇᴇᴘ sɪɴᴄᴇ: `{uptime_string}`"
                     ),
                     reply_markup=InlineKeyboardMarkup(
                         [[
-                            InlineKeyboardButton("ᴜᴘᴅᴀᴛᴇs", url="https://t.me/animelibraryn4")
+                            InlineKeyboardButton(
+                                "ᴜᴘᴅᴀᴛᴇs",
+                                url="https://t.me/animelibraryn4"
+                            )
                         ]]
                     )
                 )
@@ -77,5 +85,6 @@ class Bot(Client):
             except Exception as e:
                 print(f"Failed to send message in chat {chat_id}: {e}")
 
-Bot().run()
 
+if __name__ == "__main__":
+    Bot().run()
