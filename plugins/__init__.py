@@ -10,7 +10,8 @@ from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton, Message, 
 from cloudscraper import create_scraper
 from motor.motor_asyncio import AsyncIOMotorClient
 from config import Config, Txt
-from helper.database import codeflixbots  # Import main database
+from helper.database import codeflixbots
+from plugins.premium_manager import check_premium_status, get_user_plan
 
 # =====================================================
 # MEMORY (SIMPLE & STABLE)
@@ -53,8 +54,21 @@ def get_readable_time(seconds):
     return f"{s}s"
 
 async def is_user_verified(user_id):
-    """Check if user is verified using main database"""
-    if not VERIFY_EXPIRE or user_id in PREMIUM_USERS:
+    """Check if user is verified or has premium"""
+    # 1. Check if user is admin
+    if user_id in Config.ADMIN:
+        return True
+    
+    # 2. Check premium status first (bypasses verification)
+    if await check_premium_status(user_id):
+        return True
+    
+    # 3. Check if user is in premium users list
+    if user_id in PREMIUM_USERS:
+        return True
+    
+    # 4. Check free verification
+    if not VERIFY_EXPIRE:
         return True
     
     # Get verification status from main database
@@ -119,18 +133,20 @@ def verify_markup(link):
     return InlineKeyboardMarkup([
         [
             InlineKeyboardButton("Tutorial", url=VERIFY_TUTORIAL),
-            InlineKeyboardButton("Premium", callback_data="premium_page")
+            InlineKeyboardButton("Premium Plans", callback_data="premium_plans")
         ],
-        [InlineKeyboardButton("Get Token", url=link)]
+        [InlineKeyboardButton("Get Token", url=link)],
+        [InlineKeyboardButton("Check My Plan", callback_data="check_my_plan")]
     ])
 
 def welcome_markup():
     return InlineKeyboardMarkup([
-        [InlineKeyboardButton("❌ Cancel", callback_data="close_message")]
+        [InlineKeyboardButton("❌ Close", callback_data="close_message")]
     ])
 
-def premium_markup():
+def premium_plans_markup():
     return InlineKeyboardMarkup([
+        [InlineKeyboardButton("View All Plans", callback_data="main_plan")],
         [InlineKeyboardButton("⬅ Back", callback_data="back_to_welcome")]
     ])
 
@@ -151,7 +167,10 @@ async def send_verification(client, message_or_query):
         mention = message_or_query.from_user.mention
         message_obj = None
 
+    # Check if already verified or premium
     if await is_user_verified(user_id):
+        if message_obj:
+            await send_welcome_message(client, user_id, message_obj)
         return
 
     now = time()
@@ -164,15 +183,40 @@ async def send_verification(client, message_or_query):
     bot = await client.get_me()
     link = await get_verify_token(client, user_id, f"https://t.me/{bot.username}?start=")
 
-    text = (
-        f"Hi 👋 {mention}\n\n"
-        f"To start using this bot, please complete Ads Token verification.\n\n"
-        f"Validity: {get_readable_time(VERIFY_EXPIRE)}"
-    )
-
-    # Store user state as "verification"
-    user_state[user_id] = "verification"
+    # Get user's plan info
+    plan_info = await get_user_plan(user_id)
     
+    if plan_info["type"] == "free_token" and plan_info["active"]:
+        # User has active free token
+        remaining_hours = plan_info["remaining"]
+        text = (
+            f"Hi 👋 {mention}\n\n"
+            f"You have an active free token! 🎉\n"
+            f"⏰ **Remaining:** {remaining_hours} hours\n\n"
+            f"You can continue using the bot, or upgrade for more benefits!"
+        )
+        
+        # Store user state as "verified"
+        user_state[user_id] = "verified"
+        
+        buttons = InlineKeyboardMarkup([
+            [InlineKeyboardButton("💎 View Premium Plans", callback_data="main_plan")],
+            [InlineKeyboardButton("❌ Close", callback_data="close_message")]
+        ])
+    else:
+        # No active plan/token
+        text = (
+            f"Hi 👋 {mention}\n\n"
+            f"To start using this bot, please complete Ads Token verification.\n\n"
+            f"🆓 **Free Access:** {get_readable_time(VERIFY_EXPIRE)}\n"
+            f"💎 **Premium:** Unlimited access (no verification needed)\n\n"
+            f"Choose an option below:"
+        )
+        
+        # Store user state as "verification"
+        user_state[user_id] = "verification"
+        buttons = verify_markup(link)
+
     sent_message = None
     
     # If we have a message object (callback query), edit it
@@ -181,7 +225,7 @@ async def send_verification(client, message_or_query):
             sent_message = await message_obj.edit_media(
                 media=VERIFY_PHOTO,
                 caption=text,
-                reply_markup=verify_markup(link)
+                reply_markup=buttons
             )
         except:
             # If editing fails, send a new message
@@ -190,7 +234,7 @@ async def send_verification(client, message_or_query):
                 chat_id=chat_id,
                 photo=VERIFY_PHOTO,
                 caption=text,
-                reply_markup=verify_markup(link)
+                reply_markup=buttons
             )
     else:
         # Send new message
@@ -198,7 +242,7 @@ async def send_verification(client, message_or_query):
             chat_id=chat_id,
             photo=VERIFY_PHOTO,
             caption=text,
-            reply_markup=verify_markup(link)
+            reply_markup=buttons
         )
     
     # Store the message ID for later deletion
@@ -214,12 +258,30 @@ async def send_welcome_message(client, user_id, message_obj=None):
     # Store user state as "verified"
     user_state[user_id] = "verified"
     
-    text = (
-        f"<b>Welcome Back 😊\n"
-        f"Your token has been successfully verified.\n"
-        f"You can now use me for {get_readable_time(VERIFY_EXPIRE)}.\n\n"
-        f"Enjoy ❤️</b>"
-    )
+    # Get user's plan info
+    plan_info = await get_user_plan(user_id)
+    
+    if plan_info["type"] == "free_token" and plan_info["active"]:
+        text = (
+            f"<b>Welcome Back 😊\n\n"
+            f"Your free token is active!\n"
+            f"⏰ **Remaining:** {plan_info['remaining']} hours\n\n"
+            f"Enjoy your free access! 🎉</b>"
+        )
+    elif plan_info["active"]:
+        text = (
+            f"<b>Welcome Back Premium User! 🎉\n\n"
+            f"✅ **Active Plan:** {plan_info['type'].replace('_', ' ').title()}\n"
+            f"📅 **Days Remaining:** {plan_info['remaining']}\n\n"
+            f"Enjoy unlimited renaming! 🚀</b>"
+        )
+    else:
+        text = (
+            f"<b>Welcome Back 😊\n"
+            f"Your token has been successfully verified.\n"
+            f"You can now use me for {get_readable_time(VERIFY_EXPIRE)}.\n\n"
+            f"Enjoy ❤️</b>"
+        )
     
     # If we have a message object, edit it
     if message_obj:
@@ -293,8 +355,8 @@ async def validate_token(client, message, data):
 # CALLBACKS
 # =====================================================
 
-@Client.on_callback_query(filters.regex("^premium_page$"))
-async def premium_cb(client, query: CallbackQuery):
+@Client.on_callback_query(filters.regex("^premium_plans$"))
+async def premium_plans_cb(client, query: CallbackQuery):
     user_id = query.from_user.id
     # Store current state before going to premium
     if user_id not in user_state:
@@ -303,8 +365,58 @@ async def premium_cb(client, query: CallbackQuery):
     # Edit the current message to show premium page
     await query.message.edit_text(
         Txt.PREMIUM_TXT,
-        reply_markup=premium_markup(),
+        reply_markup=premium_plans_markup(),
         disable_web_page_preview=True
+    )
+
+@Client.on_callback_query(filters.regex("^main_plan$"))
+async def main_plan_cb(client, query: CallbackQuery):
+    user_id = query.from_user.id
+    from plugins.plan_system import plan_menu
+    
+    # We need to call the plan menu function
+    # Since it expects a message, we'll simulate one
+    class SimulatedMessage:
+        def __init__(self, from_user, chat):
+            self.from_user = from_user
+            self.chat = chat
+            self.id = query.message.id
+    
+    simulated_message = SimulatedMessage(
+        from_user=query.from_user,
+        chat=query.message.chat
+    )
+    
+    await plan_menu(client, simulated_message)
+
+@Client.on_callback_query(filters.regex("^check_my_plan$"))
+async def check_my_plan_cb(client, query: CallbackQuery):
+    user_id = query.from_user.id
+    from plugins.premium_manager import get_user_plan, my_plan_command
+    
+    plan_info = await get_user_plan(user_id)
+    
+    if plan_info["active"]:
+        if plan_info["type"] == "free_token":
+            text = f"🆓 **Free Token Active**\n⏰ **Hours Remaining:** {plan_info['remaining']}"
+        else:
+            text = f"✅ **Active Plan:** {plan_info['type'].replace('_', ' ').title()}\n📅 **Days Remaining:** {plan_info['remaining']}"
+        
+        buttons = InlineKeyboardMarkup([
+            [InlineKeyboardButton("💎 View All Plans", callback_data="main_plan")],
+            [InlineKeyboardButton("❌ Close", callback_data="close_message")]
+        ])
+    else:
+        text = "❌ **No Active Plan**\n\nYou don't have an active plan."
+        buttons = InlineKeyboardMarkup([
+            [InlineKeyboardButton("🆓 Get Free Token", callback_data="back_to_welcome")],
+            [InlineKeyboardButton("💎 View Premium Plans", callback_data="main_plan")],
+            [InlineKeyboardButton("❌ Close", callback_data="close_message")]
+        ])
+    
+    await query.message.edit_caption(
+        caption=text,
+        reply_markup=buttons
     )
 
 @Client.on_callback_query(filters.regex("^back_to_welcome$"))
