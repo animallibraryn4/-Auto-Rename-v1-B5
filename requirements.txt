@@ -10,3 +10,4 @@ humanize
 pyromod
 ffmpeg-python
 cloudscraper
+python=3.11
