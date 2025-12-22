@@ -1,13 +1,12 @@
 pyrogram==2.0.80
-TgCrypto
-motor==2.5.1
-pymongo==3.12.3
-dnspython
-hachoir
-Pillow
-aiohttp
-pytz
-humanize
-pyromod
-ffmpeg-python
-cloudscraper
+TgCrypto==1.2.5
+motor==3.3.2  # Downgrade motor instead of Python
+dnspython==2.4.2
+hachoir==3.1.2
+Pillow==10.2.0
+aiohttp==3.9.1
+pytz==2024.1
+humanize==4.9.0
+pyromod==2.0.0
+ffmpeg-python==0.2.0
+cloudscraper==1.2.71
