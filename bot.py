@@ -11,6 +11,7 @@ import pyromod
 from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 import os
 import time
+import sqlite3
 
 pyrogram.utils.MIN_CHANNEL_ID = -1001896877147
 
@@ -25,9 +26,10 @@ class Bot(Client):
             api_id=Config.API_ID,
             api_hash=Config.API_HASH,
             bot_token=Config.BOT_TOKEN,
-            workers=200,  # This is already good for parallel processing
+            workers=200,
             plugins={"root": "plugins"},
             sleep_threshold=15,
+            workdir="./"  # ADD THIS LINE: Set working directory
         )
         # Initialize the bot's start time for uptime calculation
         self.start_time = time.time()
@@ -42,7 +44,7 @@ class Bot(Client):
             app = web.AppRunner(await web_server())
             await app.setup()       
             await web.TCPSite(app, "0.0.0.0", 9090).start()     
-        print(f"{me.first_name} Is Started.....✨️")
+        print(f"{me.first_name} Is Started.....вЬ®пЄП")
 
         # Calculate uptime using timedelta
         uptime_seconds = int(time.time() - self.start_time)
@@ -59,12 +61,12 @@ class Bot(Client):
                     chat_id=chat_id,
                     photo=Config.START_PIC,
                     caption=(
-                        "**ᴀɴʏᴀ ɪs ʀᴇsᴛᴀʀᴛᴇᴅ ᴀɢᴀɪɴ  !**\n\n"
-                        f"ɪ ᴅɪᴅɴ'ᴛ sʟᴇᴘᴛ sɪɴᴄᴇ: `{uptime_string}`"
+                        "**біА…і ПбіА …™s  АбіЗsбіЫбіА АбіЫбіЗбіЕ біА…ҐбіА…™…і  !**\n\n"
+                        f"…™ біЕ…™біЕ…і'біЫ s ЯбіЗбіШбіЫ s…™…ібіДбіЗ: `{uptime_string}`"
                     ),
                     reply_markup=InlineKeyboardMarkup(
                         [[
-                            InlineKeyboardButton("ᴜᴘᴅᴀᴛᴇs", url="https://t.me/animelibraryn4")
+                            InlineKeyboardButton("біЬбіШбіЕбіАбіЫбіЗs", url="https://t.me/animelibraryn4")
                         ]]
                     )
                 )
@@ -73,4 +75,3 @@ class Bot(Client):
                 print(f"Failed to send message in chat {chat_id}: {e}")
 
 Bot().run()
-
