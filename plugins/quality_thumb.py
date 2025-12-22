@@ -159,22 +159,16 @@ async def quality_handler(client, callback):
     is_global = await codeflixbots.is_global_thumb_enabled(user_id)
     has_thumb = await codeflixbots.get_quality_thumbnail(user_id, quality)
     
-    # Get current index and calculate previous/next qualities
-    current_index = QUALITY_TYPES.index(quality)
-    prev_index = (current_index - 1) % len(QUALITY_TYPES)
-    next_index = (current_index + 1) % len(QUALITY_TYPES)
-    prev_quality = QUALITY_TYPES[prev_index]
-    next_quality = QUALITY_TYPES[next_index]
-    
+    # Create buttons in the specified format
     buttons = [
         [InlineKeyboardButton("🖼️ Set New", f"set_{quality}")],
-         [InlineKeyboardButton("👀 View", f"view_{quality}")],
-         [InlineKeyboardButton("🗑 Delete", f"delete_{quality}")],
-         [InlineKeyboardButton("🌐 Global", "quality_global")],
-         [InlineKeyboardButton("◀️", f"prev_{quality}"),
+        [InlineKeyboardButton("👀 View", f"view_{quality}")],
+        [InlineKeyboardButton("🗑 Delete", f"delete_{quality}")],
+        [InlineKeyboardButton("🌐 Global", "quality_global")],
+        [InlineKeyboardButton("◀️", f"prev_{quality}"),
          InlineKeyboardButton("▶️", f"next_{quality}")],
         [InlineKeyboardButton("🔙 Main Menu", "back_to_main")]
-]
+    ]
     
     status_text = "🌐 (Global)" if is_global else f"{'✅ Set' if has_thumb else '❌ Not Set'}"
     await callback.message.edit_text(
@@ -200,21 +194,16 @@ async def prev_quality_handler(client, callback):
     is_global = await codeflixbots.is_global_thumb_enabled(user_id)
     has_thumb = await codeflixbots.get_quality_thumbnail(user_id, new_quality)
     
-    # Calculate new previous/next for the new quality
-    new_prev_index = (prev_index - 1) % len(QUALITY_TYPES)
-    new_next_index = (prev_index + 1) % len(QUALITY_TYPES)
-    prev_quality = QUALITY_TYPES[new_prev_index]
-    next_quality = QUALITY_TYPES[new_next_index]
-    
+    # Create buttons for the new quality
     buttons = [
-        [InlineKeyboardButton("🖼️ Set New", f"set_{quality}")],
-         [InlineKeyboardButton("👀 View", f"view_{quality}")],
-         [InlineKeyboardButton("🗑 Delete", f"delete_{quality}")],
-         [InlineKeyboardButton("🌐 Global", "quality_global")],
-         [InlineKeyboardButton("◀️", f"prev_{quality}"),
-         InlineKeyboardButton("▶️", f"next_{quality}")],
+        [InlineKeyboardButton("🖼️ Set New", f"set_{new_quality}")],
+        [InlineKeyboardButton("👀 View", f"view_{new_quality}")],
+        [InlineKeyboardButton("🗑 Delete", f"delete_{new_quality}")],
+        [InlineKeyboardButton("🌐 Global", "quality_global")],
+        [InlineKeyboardButton("◀️", f"prev_{new_quality}"),
+         InlineKeyboardButton("▶️", f"next_{new_quality}")],
         [InlineKeyboardButton("🔙 Main Menu", "back_to_main")]
-]
+    ]
     
     status_text = "🌐 (Global)" if is_global else f"{'✅ Set' if has_thumb else '❌ Not Set'}"
     await callback.message.edit_text(
@@ -240,19 +229,14 @@ async def next_quality_handler(client, callback):
     is_global = await codeflixbots.is_global_thumb_enabled(user_id)
     has_thumb = await codeflixbots.get_quality_thumbnail(user_id, new_quality)
     
-    # Calculate new previous/next for the new quality
-    new_prev_index = (next_index - 1) % len(QUALITY_TYPES)
-    new_next_index = (next_index + 1) % len(QUALITY_TYPES)
-    prev_quality = QUALITY_TYPES[new_prev_index]
-    next_quality = QUALITY_TYPES[new_next_index]
-    
+    # Create buttons for the new quality
     buttons = [
-        [InlineKeyboardButton("🖼️ Set New", f"set_{quality}")],
-         [InlineKeyboardButton("👀 View", f"view_{quality}")],
-         [InlineKeyboardButton("🗑 Delete", f"delete_{quality}")],
-         [InlineKeyboardButton("🌐 Global", "quality_global")],
-         [InlineKeyboardButton("◀️", f"prev_{quality}"),
-         InlineKeyboardButton("▶️", f"next_{quality}")],
+        [InlineKeyboardButton("🖼️ Set New", f"set_{new_quality}")],
+        [InlineKeyboardButton("👀 View", f"view_{new_quality}")],
+        [InlineKeyboardButton("🗑 Delete", f"delete_{new_quality}")],
+        [InlineKeyboardButton("🌐 Global", "quality_global")],
+        [InlineKeyboardButton("◀️", f"prev_{new_quality}"),
+         InlineKeyboardButton("▶️", f"next_{new_quality}")],
         [InlineKeyboardButton("🔙 Main Menu", "back_to_main")]
     ]
     
