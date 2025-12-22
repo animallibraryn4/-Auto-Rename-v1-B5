@@ -72,6 +72,7 @@ async def save_thumbnail(client, message):
     
     try:
         if quality == "global":
+            # Delete all quality-specific thumbnails when setting global thumb
             await codeflixbots.col.update_one(
                 {"_id": user_id},
                 {"$set": {"global_thumb": message.photo.file_id, "thumbnails": {}}}
@@ -155,17 +156,22 @@ async def quality_handler(client, callback):
         await global_thumb_menu(client, callback)
         return
     
-    # Navigation Logic
-    current_index = QUALITY_TYPES.index(quality)
-    prev_quality = QUALITY_TYPES[(current_index - 1) % len(QUALITY_TYPES)]
-    next_quality = QUALITY_TYPES[(current_index + 1) % len(QUALITY_TYPES)]
-    
     is_global = await codeflixbots.is_global_thumb_enabled(user_id)
     has_thumb = await codeflixbots.get_quality_thumbnail(user_id, quality)
     
+    # Get current index and calculate previous/next qualities
+    current_index = QUALITY_TYPES.index(quality)
+    prev_index = (current_index - 1) % len(QUALITY_TYPES)
+    next_index = (current_index + 1) % len(QUALITY_TYPES)
+    prev_quality = QUALITY_TYPES[prev_index]
+    next_quality = QUALITY_TYPES[next_index]
+    
     buttons = [
-        [InlineKeyboardButton("👀 View", f"view_{quality}"), InlineKeyboardButton("🖼️ Set New", f"set_{quality}"), InlineKeyboardButton("🗑 Delete", f"delete_{quality}")],
-        [InlineKeyboardButton("⬅️", f"quality_{prev_quality}"), InlineKeyboardButton("➡️", f"quality_{next_quality}")],
+        [InlineKeyboardButton("👀 View", f"view_{quality}"),
+         InlineKeyboardButton("🖼️ Set New", f"set_{quality}"),
+         InlineKeyboardButton("🗑 Delete", f"delete_{quality}")],
+        [InlineKeyboardButton("◀️", f"prev_{quality}"),
+         InlineKeyboardButton("▶️", f"next_{quality}")],
         [InlineKeyboardButton("🌐 Global", "quality_global")],
         [InlineKeyboardButton("🔙 Main Menu", "back_to_main")]
     ]
@@ -173,6 +179,86 @@ async def quality_handler(client, callback):
     status_text = "🌐 (Global)" if is_global else f"{'✅ Set' if has_thumb else '❌ Not Set'}"
     await callback.message.edit_text(
         f"⚙️ {quality.upper()} Settings\n\nStatus: {status_text}",
+        reply_markup=InlineKeyboardMarkup(buttons)
+    )
+
+@Client.on_callback_query(filters.regex(r'^prev_([a-zA-Z0-9]+)$'))
+async def prev_quality_handler(client, callback):
+    """Navigate to previous quality"""
+    user_id = callback.from_user.id
+    current_quality = callback.matches[0].group(1)
+    
+    if current_quality not in QUALITY_TYPES:
+        return
+    
+    # Get previous quality
+    current_index = QUALITY_TYPES.index(current_quality)
+    prev_index = (current_index - 1) % len(QUALITY_TYPES)
+    new_quality = QUALITY_TYPES[prev_index]
+    
+    # Show the new quality menu
+    is_global = await codeflixbots.is_global_thumb_enabled(user_id)
+    has_thumb = await codeflixbots.get_quality_thumbnail(user_id, new_quality)
+    
+    # Calculate new previous/next for the new quality
+    new_prev_index = (prev_index - 1) % len(QUALITY_TYPES)
+    new_next_index = (prev_index + 1) % len(QUALITY_TYPES)
+    prev_quality = QUALITY_TYPES[new_prev_index]
+    next_quality = QUALITY_TYPES[new_next_index]
+    
+    buttons = [
+        [InlineKeyboardButton("👀 View", f"view_{new_quality}"),
+         InlineKeyboardButton("🖼️ Set New", f"set_{new_quality}"),
+         InlineKeyboardButton("🗑 Delete", f"delete_{new_quality}")],
+        [InlineKeyboardButton("◀️", f"prev_{new_quality}"),
+         InlineKeyboardButton("▶️", f"next_{new_quality}")],
+        [InlineKeyboardButton("🌐 Global", "quality_global")],
+        [InlineKeyboardButton("🔙 Main Menu", "back_to_main")]
+    ]
+    
+    status_text = "🌐 (Global)" if is_global else f"{'✅ Set' if has_thumb else '❌ Not Set'}"
+    await callback.message.edit_text(
+        f"⚙️ {new_quality.upper()} Settings\n\nStatus: {status_text}",
+        reply_markup=InlineKeyboardMarkup(buttons)
+    )
+
+@Client.on_callback_query(filters.regex(r'^next_([a-zA-Z0-9]+)$'))
+async def next_quality_handler(client, callback):
+    """Navigate to next quality"""
+    user_id = callback.from_user.id
+    current_quality = callback.matches[0].group(1)
+    
+    if current_quality not in QUALITY_TYPES:
+        return
+    
+    # Get next quality
+    current_index = QUALITY_TYPES.index(current_quality)
+    next_index = (current_index + 1) % len(QUALITY_TYPES)
+    new_quality = QUALITY_TYPES[next_index]
+    
+    # Show the new quality menu
+    is_global = await codeflixbots.is_global_thumb_enabled(user_id)
+    has_thumb = await codeflixbots.get_quality_thumbnail(user_id, new_quality)
+    
+    # Calculate new previous/next for the new quality
+    new_prev_index = (next_index - 1) % len(QUALITY_TYPES)
+    new_next_index = (next_index + 1) % len(QUALITY_TYPES)
+    prev_quality = QUALITY_TYPES[new_prev_index]
+    next_quality = QUALITY_TYPES[new_next_index]
+    
+    buttons = [
+        [InlineKeyboardButton("👀 View", f"view_{new_quality}"),
+         InlineKeyboardButton("🖼️ Set New", f"set_{new_quality}"),
+         InlineKeyboardButton("🗑 Delete", f"delete_{new_quality}")],
+        [InlineKeyboardButton("◀️", f"prev_{new_quality}"),
+         InlineKeyboardButton("▶️", f"next_{new_quality}")],
+        [InlineKeyboardButton("🌐 Global", "quality_global")],
+        [InlineKeyboardButton("🔙 Main Menu", "back_to_main")]
+    ]
+    
+    status_text = "🌐 (Global)" if is_global else f"{'✅ Set' if has_thumb else '❌ Not Set'}"
+    await callback.message.edit_text(
+        f"⚙️ {new_quality.upper()} Settings\n\nStatus: {status_text}",
         reply_markup=InlineKeyboardMarkup(buttons)
     )
 
@@ -230,4 +316,3 @@ async def delete_thumbnail(client, callback):
             [InlineKeyboardButton("🔙 Back", f"quality_{quality}")]
         ])
     )
-
