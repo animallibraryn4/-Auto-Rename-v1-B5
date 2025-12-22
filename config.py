@@ -11,7 +11,7 @@ class Config(object):
 
     # database config
     DB_NAME = os.environ.get("DB_NAME","nikhil7858978052")     
-    DB_URL  = os.environ.get("DB_URL","mongodb+srv://mikota44/?retryWrites=true&w=majority")
+    DB_URL  = os.environ.get("DB_URL","")
     PORT = os.environ.get("PORT", "9090")
  
     # other configs
