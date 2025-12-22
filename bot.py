@@ -20,16 +20,21 @@ SUPPORT_CHAT = int(os.environ.get("SUPPORT_CHAT", "-1001896877147"))
 class Bot(Client):
 
     def __init__(self):
+        # Ensure session directory exists
+        if not os.path.exists("sessions"):
+            os.makedirs("sessions")
+
         super().__init__(
             name="codeflixbots",
             api_id=Config.API_ID,
             api_hash=Config.API_HASH,
             bot_token=Config.BOT_TOKEN,
-            workers=50,  # This is already good for parallel processing
+            workdir="sessions",   # 🔥 THIS FIXES THE ERROR
+            workers=50,
             plugins={"root": "plugins"},
             sleep_threshold=15,
         )
-        # Initialize the bot's start time for uptime calculation
+
         self.start_time = time.time()
 
     async def start(self):
