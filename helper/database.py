@@ -1,33 +1,15 @@
 import motor.motor_asyncio
-from motor.motor_asyncio import AsyncIOMotorClient
 import datetime
 import logging
-import ssl
 from config import Config
 from .utils import send_log
 
 class Database:
     def __init__(self, uri, database_name):
         try:
-            # Create SSL context for MongoDB connection
-            ssl_context = ssl.create_default_context(ssl.Purpose.SERVER_AUTH)
-            ssl_context.check_hostname = False
-            ssl_context.verify_mode = ssl.CERT_NONE
-            
-            self._client = AsyncIOMotorClient(
-                uri,
-                ssl=ssl_context,
-                serverSelectionTimeoutMS=5000,
-                connectTimeoutMS=10000,
-                socketTimeoutMS=30000,
-                maxPoolSize=100,
-                minPoolSize=10
-            )
-            
-            # Test connection
-            self._client.admin.command('ping')
+            self._client = motor.motor_asyncio.AsyncIOMotorClient(uri)
+            self._client.server_info()
             logging.info("Successfully connected to MongoDB")
-            
         except Exception as e:
             logging.error(f"Failed to connect to MongoDB: {e}")
             raise e
@@ -307,11 +289,14 @@ class Database:
         except Exception as e:
             logging.error(f"Error checking global thumb status for user {id}: {e}")
             return False
+# Add these methods to the Database class in database.py
+# Add them anywhere after the existing methods, before the codeflixbots initialization
 
     async def get_verify_status(self, id):
         try:
             user = await self.col.find_one({"_id": int(id)})
             if user:
+                # Check if user has verify_status field, if not return 0
                 return user.get("verify_status", 0)
             return 0
         except Exception as e:
@@ -343,4 +328,6 @@ class Database:
 
 # Initialize database connection
 codeflixbots = Database(Config.DB_URL, Config.DB_NAME)
-        
+
+
+
