@@ -7,7 +7,7 @@ import logging
 from datetime import datetime
 from PIL import Image
 from pyrogram import Client, filters
-from pyrogram.errors import FloodWait
+from pyrogram.errors import FloodWait, RPCError
 from pyrogram.types import InputMediaDocument, Message
 from hachoir.metadata import extractMetadata
 from hachoir.parser import createParser
@@ -16,7 +16,6 @@ from helper.utils import progress_for_pyrogram, humanbytes, convert
 from helper.database import codeflixbots
 from config import Config
 from plugins import is_user_verified, send_verification
-from collections import defaultdict
 
 # Setup Logging
 logging.basicConfig(level=logging.INFO)
@@ -26,8 +25,6 @@ logger = logging.getLogger(__name__)
 MAX_CONCURRENT_TASKS = 3  
 global_semaphore = asyncio.Semaphore(MAX_CONCURRENT_TASKS)
 user_queues = {}
-user_last_upload = defaultdict(float)
-UPLOAD_COOLDOWN = 10  # Minimum seconds between uploads per user
 
 # Global dictionary to prevent duplicate operations
 renaming_operations = {}
@@ -47,6 +44,11 @@ pattern8 = re.compile(r'[([<{]?\s*HdRip\s*[)\]>}]?|\bHdRip\b', re.IGNORECASE)
 pattern9 = re.compile(r'[([<{]?\s*4kX264\s*[)\]>}]?', re.IGNORECASE)
 pattern10 = re.compile(r'[([<{]?\s*4kx265\s*[)]>}]?', re.IGNORECASE)
 pattern11 = re.compile(r'Vol(\d+)\s*-\s*Ch(\d+)', re.IGNORECASE)
+
+# Timeout configurations
+DOWNLOAD_TIMEOUT = 300  # 5 minutes for download
+UPLOAD_TIMEOUT = 600    # 10 minutes for upload
+FFMPEG_TIMEOUT = 300    # 5 minutes for ffmpeg operations
 
 async def user_worker(user_id, client):
     """Worker to process files for a specific user"""
@@ -100,9 +102,14 @@ async def convert_subtitles_advanced(input_path, output_path):
         '-movflags', 'faststart', '-loglevel', 'error', '-y', output_path
     ]
     process = await asyncio.create_subprocess_exec(*command, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE)
-    _, stderr = await process.communicate()
-    if process.returncode != 0:
-        logger.error(f"Subtitle Conversion Fail: {stderr.decode()}")
+    try:
+        _, stderr = await asyncio.wait_for(process.communicate(), timeout=FFMPEG_TIMEOUT)
+        if process.returncode != 0:
+            logger.error(f"Subtitle Conversion Fail: {stderr.decode()}")
+    except asyncio.TimeoutError:
+        process.kill()
+        await process.wait()
+        raise Exception("Subtitle conversion timed out")
 
 async def convert_to_mkv_advanced(input_path, output_path):
     """Reliable remuxing of any video to MKV container"""
@@ -110,7 +117,12 @@ async def convert_to_mkv_advanced(input_path, output_path):
     if not ffmpeg_cmd: raise Exception("FFmpeg not found")
     command = [ffmpeg_cmd, '-i', input_path, '-map', '0', '-c', 'copy', '-loglevel', 'error', '-y', output_path]
     process = await asyncio.create_subprocess_exec(*command, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE)
-    await process.communicate()
+    try:
+        await asyncio.wait_for(process.communicate(), timeout=FFMPEG_TIMEOUT)
+    except asyncio.TimeoutError:
+        process.kill()
+        await process.wait()
+        raise Exception("MKV conversion timed out")
 
 def extract_quality(filename):
     for pattern, quality in [(pattern5, lambda m: m.group(1) or m.group(2)), (pattern6, "4k"), (pattern7, "2k"), (pattern8, "HdRip"), (pattern9, "4kX264"), (pattern10, "4kx265")]:
@@ -146,15 +158,81 @@ async def forward_to_dump_channel(client, path, media_type, ph_path, file_name, 
             f"➲ **Renamed To:** `{renamed_file_name}`"
         )
         send_func = {"document": client.send_document, "video": client.send_video, "audio": client.send_audio}.get(media_type, client.send_document)
-        await send_func(
-            Config.DUMP_CHANNEL,
-            **{media_type: path},
-            file_name=renamed_file_name,
-            caption=dump_caption,
-            thumb=ph_path if ph_path else None,
+        await asyncio.wait_for(
+            send_func(
+                Config.DUMP_CHANNEL,
+                **{media_type: path},
+                file_name=renamed_file_name,
+                caption=dump_caption,
+                thumb=ph_path if ph_path else None,
+            ),
+            timeout=UPLOAD_TIMEOUT
         )
+    except asyncio.TimeoutError:
+        logger.error(f"[DUMP ERROR] Forwarding to dump channel timed out")
     except Exception as e:
         logger.error(f"[DUMP ERROR] {e}")
+
+async def download_with_retry(client, message, download_path, download_msg, max_retries=3):
+    """Download with retry logic for timeout handling"""
+    for attempt in range(max_retries):
+        try:
+            path = await asyncio.wait_for(
+                client.download_media(
+                    message, 
+                    file_name=download_path, 
+                    progress=progress_for_pyrogram, 
+                    progress_args=("Download Started...", download_msg, time.time())
+                ),
+                timeout=DOWNLOAD_TIMEOUT
+            )
+            return path
+        except asyncio.TimeoutError:
+            if attempt < max_retries - 1:
+                await download_msg.edit(f"**Download timeout, retrying... (Attempt {attempt + 1}/{max_retries})**")
+                await asyncio.sleep(5)
+            else:
+                raise
+        except Exception as e:
+            if attempt < max_retries - 1:
+                await download_msg.edit(f"**Download error: {str(e)[:100]}, retrying...**")
+                await asyncio.sleep(5)
+            else:
+                raise
+    return None
+
+async def upload_with_retry(client, media_type, send_args, upload_msg, max_retries=3):
+    """Upload with retry logic for timeout handling"""
+    for attempt in range(max_retries):
+        try:
+            if media_type == "video":
+                return await asyncio.wait_for(
+                    client.send_video(**send_args),
+                    timeout=UPLOAD_TIMEOUT
+                )
+            elif media_type == "audio":
+                return await asyncio.wait_for(
+                    client.send_audio(**send_args),
+                    timeout=UPLOAD_TIMEOUT
+                )
+            else:
+                return await asyncio.wait_for(
+                    client.send_document(**send_args),
+                    timeout=UPLOAD_TIMEOUT
+                )
+        except asyncio.TimeoutError:
+            if attempt < max_retries - 1:
+                await upload_msg.edit(f"**Upload timeout, retrying... (Attempt {attempt + 1}/{max_retries})**")
+                await asyncio.sleep(5)
+            else:
+                raise
+        except FloodWait as e:
+            await asyncio.sleep(e.value)
+            if attempt < max_retries - 1:
+                continue
+            else:
+                raise
+    return None
 
 async def process_rename(client: Client, message: Message):
     user_id = message.from_user.id
@@ -209,10 +287,13 @@ async def process_rename(client: Client, message: Message):
 
     download_msg = await message.reply_text("**__Downloading...__**")
     try:
-        path = await client.download_media(message, file_name=download_path, progress=progress_for_pyrogram, progress_args=("Download Started...", download_msg, time.time()))
+        path = await download_with_retry(client, message, download_path, download_msg)
+        if not path:
+            del renaming_operations[file_id]
+            return await download_msg.edit("**Download failed after multiple retries**")
     except Exception as e:
         del renaming_operations[file_id]
-        return await download_msg.edit(f"**Download Error:** {e}")
+        return await download_msg.edit(f"**Download Error:** {str(e)[:200]}")
 
     await download_msg.edit("**__Processing File...__**")
 
@@ -222,22 +303,30 @@ async def process_rename(client: Client, message: Message):
             mkv_path = f"{path}.mkv"
             try:
                 await convert_to_mkv_advanced(path, mkv_path)
-                os.remove(path)
-                path = mkv_path
-                renamed_file_name = f"{format_template}.mkv"
-            except: pass
+                if os.path.exists(mkv_path):
+                    os.remove(path)
+                    path = mkv_path
+                    renamed_file_name = f"{format_template}.mkv"
+            except Exception as e:
+                logger.warning(f"MKV conversion skipped: {e}")
 
         # Advanced Subtitle Fixing for MP4
         if path.lower().endswith('.mp4'):
             ffprobe_cmd = shutil.which('ffprobe')
             if ffprobe_cmd:
                 cmd = [ffprobe_cmd, '-v', 'error', '-select_streams', 's', '-show_entries', 'stream=codec_name', '-of', 'csv=p=0', path]
-                proc = await asyncio.create_subprocess_exec(*cmd, stdout=asyncio.subprocess.PIPE)
-                stdout, _ = await proc.communicate()
-                if any(x in stdout.decode().lower() for x in ['ass', 'ssa', 'subrip']):
-                    fixed_path = f"{path}_fixed.mp4"
-                    await convert_subtitles_advanced(path, fixed_path)
-                    if os.path.exists(fixed_path): os.replace(fixed_path, path)
+                proc = await asyncio.create_subprocess_exec(*cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE)
+                try:
+                    stdout, _ = await asyncio.wait_for(proc.communicate(), timeout=FFMPEG_TIMEOUT)
+                    if any(x in stdout.decode().lower() for x in ['ass', 'ssa', 'subrip']):
+                        fixed_path = f"{path}_fixed.mp4"
+                        await convert_subtitles_advanced(path, fixed_path)
+                        if os.path.exists(fixed_path): 
+                            os.replace(fixed_path, path)
+                except asyncio.TimeoutError:
+                    proc.kill()
+                    await proc.wait()
+                    logger.warning("Subtitle detection timed out")
 
         # Apply Metadata
         final_meta = f"{metadata_path}.mkv" if path.endswith('.mkv') else f"{metadata_path}.mp4"
@@ -248,8 +337,14 @@ async def process_rename(client: Client, message: Message):
             '-map', '0', '-c', 'copy', '-loglevel', 'error', '-y', final_meta
         ]
         proc = await asyncio.create_subprocess_exec(*meta_cmd)
-        await proc.communicate()
-        if os.path.exists(final_meta): path = final_meta
+        try:
+            await asyncio.wait_for(proc.communicate(), timeout=FFMPEG_TIMEOUT)
+            if os.path.exists(final_meta): 
+                path = final_meta
+        except asyncio.TimeoutError:
+            proc.kill()
+            await proc.wait()
+            logger.warning("Metadata application timed out")
 
         # RESTORED: Improved Quality-Based Thumbnail Selection
         upload_msg = await download_msg.edit("**__Uploading...__**")
@@ -272,9 +367,12 @@ async def process_rename(client: Client, message: Message):
         # Precise Center-Crop Processing
         ph_path = None
         if c_thumb:
-            ph_path = await client.download_media(c_thumb)
-            if ph_path:
-                try:
+            try:
+                ph_path = await asyncio.wait_for(
+                    client.download_media(c_thumb),
+                    timeout=DOWNLOAD_TIMEOUT
+                )
+                if ph_path:
                     with Image.open(ph_path) as img:
                         img = img.convert("RGB")
                         width, height = img.size
@@ -283,9 +381,9 @@ async def process_rename(client: Client, message: Message):
                         right, bottom = (width + min_dim) / 2, (height + min_dim) / 2
                         img = img.crop((left, top, right, bottom)).resize((320, 320), Image.LANCZOS)
                         img.save(ph_path, "JPEG", quality=95)
-                except Exception as e:
-                    logger.error(f"Error processing thumbnail: {e}")
-                    ph_path = None
+            except (asyncio.TimeoutError, Exception) as e:
+                logger.warning(f"Thumbnail processing failed: {e}")
+                ph_path = None
 
         c_caption = await codeflixbots.get_caption(message.chat.id)
         caption = c_caption.format(filename=renamed_file_name, filesize=humanbytes(file_size), duration=convert(0)) if c_caption else f"**{renamed_file_name}**"
@@ -294,83 +392,53 @@ async def process_rename(client: Client, message: Message):
         user_info = {'mention': message.from_user.mention, 'id': message.from_user.id, 'username': message.from_user.username or "No Username"}
         asyncio.create_task(forward_to_dump_channel(client, path, media_type, ph_path, file_name, renamed_file_name, user_info))
 
-        # IMPROVED: Enhanced upload with retry mechanism
-        max_retries = 3
-        retry_delay = 2
+        # Final Upload with retry
+        send_args = {
+            "chat_id": message.chat.id, 
+            media_type: path, 
+            "file_name": renamed_file_name, 
+            "caption": caption, 
+            "thumb": ph_path, 
+            "progress": progress_for_pyrogram, 
+            "progress_args": ("Upload Started...", upload_msg, time.time())
+        }
         
-        for attempt in range(max_retries):
-            try:
-                send_args = {
-                    "chat_id": message.chat.id, 
-                    media_type: path, 
-                    "file_name": renamed_file_name, 
-                    "caption": caption, 
-                    "thumb": ph_path, 
-                    "progress": progress_for_pyrogram, 
-                    "progress_args": (f"Upload Started... (Attempt {attempt + 1}/{max_retries})", upload_msg, time.time())
-                }
-                
-                if media_type == "video": 
-                    await client.send_video(**send_args)
-                elif media_type == "audio": 
-                    await client.send_audio(**send_args)
-                else: 
-                    await client.send_document(**send_args)
-                
-                break  # Success, exit retry loop
-                
-            except TimeoutError:
-                if attempt < max_retries - 1:
-                    await upload_msg.edit(f"**Upload timeout, retrying in {retry_delay} seconds...**")
-                    await asyncio.sleep(retry_delay)
-                    retry_delay *= 2  # Exponential backoff
-                else:
-                    raise
-            except FloodWait as e:
-                wait_time = e.value
-                await upload_msg.edit(f"**Flood wait detected, waiting {wait_time} seconds...**")
-                await asyncio.sleep(wait_time)
-                continue
-            except Exception as e:
-                if attempt < max_retries - 1:
-                    await upload_msg.edit(f"**Upload error: {str(e)[:100]}... Retrying...**")
-                    await asyncio.sleep(retry_delay)
-                else:
-                    raise
-
+        await upload_with_retry(client, media_type, send_args, upload_msg)
         await upload_msg.delete()
 
+    except asyncio.TimeoutError:
+        logger.error(f"Process timeout for user {user_id}")
+        await download_msg.edit("**Process timed out. Please try again.**")
     except Exception as e:
-        logger.error(f"Process Error: {e}")
-        await download_msg.edit(f"**Error: {str(e)[:200]}**")
+        logger.error(f"Process Error for user {user_id}: {e}")
+        await download_msg.edit(f"**Error:** {str(e)[:200]}")
     finally:
-        # IMPROVED: Better cleanup with error handling
-        cleanup_paths = [download_path, metadata_path, path, ph_path]
-        for p in cleanup_paths:
+        # Cleanup files
+        for p in [download_path, metadata_path, path, ph_path]:
             if p and os.path.exists(p): 
-                try:
-                    if os.path.isdir(p):
-                        shutil.rmtree(p, ignore_errors=True)
-                    else:
-                        os.remove(p)
-                except Exception as cleanup_error:
-                    logger.warning(f"Cleanup failed for {p}: {cleanup_error}")
+                try: 
+                    os.remove(p)
+                except Exception as e:
+                    logger.warning(f"Failed to remove {p}: {e}")
         
-        # Clear temporary data
+        # Cleanup temporary files
+        for root, dirs, files in os.walk("downloads"):
+            for file in files:
+                if file.endswith(('.mkv', '.mp4', '.jpg', '.jpeg', '.png')):
+                    try:
+                        file_path = os.path.join(root, file)
+                        if os.path.exists(file_path) and os.path.getctime(file_path) < time.time() - 3600:
+                            os.remove(file_path)
+                    except:
+                        pass
+        
+        # Remove from operations tracking
         if file_id in renaming_operations:
             del renaming_operations[file_id]
 
 @Client.on_message(filters.private & (filters.document | filters.video | filters.audio))
 async def auto_rename_files(client, message):
     user_id = message.from_user.id
-    
-    # Check cooldown
-    current_time = time.time()
-    if current_time - user_last_upload.get(user_id, 0) < UPLOAD_COOLDOWN:
-        wait_time = UPLOAD_COOLDOWN - (current_time - user_last_upload[user_id])
-        await message.reply_text(f"**Please wait {int(wait_time)} seconds before uploading another file.**")
-        return
-    
     if not await is_user_verified(user_id):
         curr = time.time()
         if curr - recent_verification_checks.get(user_id, 0) > 2:
@@ -378,10 +446,6 @@ async def auto_rename_files(client, message):
             await send_verification(client, message)
         return
     
-    # Update last upload time
-    user_last_upload[user_id] = current_time
-    
     if user_id not in user_queues:
         user_queues[user_id] = {"queue": asyncio.Queue(), "task": asyncio.create_task(user_worker(user_id, client))}
     await user_queues[user_id]["queue"].put(message)
-
