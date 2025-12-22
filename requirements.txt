@@ -1,6 +1,7 @@
 pyrogram==2.0.80
 TgCrypto
-motor
+motor==2.5.1
+pymongo==3.12.3
 dnspython
 hachoir
 Pillow
