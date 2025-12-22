@@ -72,7 +72,6 @@ async def save_thumbnail(client, message):
     
     try:
         if quality == "global":
-            # Delete all quality-specific thumbnails when setting global thumb
             await codeflixbots.col.update_one(
                 {"_id": user_id},
                 {"$set": {"global_thumb": message.photo.file_id, "thumbnails": {}}}
@@ -156,13 +155,18 @@ async def quality_handler(client, callback):
         await global_thumb_menu(client, callback)
         return
     
+    # Navigation Logic
+    current_index = QUALITY_TYPES.index(quality)
+    prev_quality = QUALITY_TYPES[(current_index - 1) % len(QUALITY_TYPES)]
+    next_quality = QUALITY_TYPES[(current_index + 1) % len(QUALITY_TYPES)]
+    
     is_global = await codeflixbots.is_global_thumb_enabled(user_id)
     has_thumb = await codeflixbots.get_quality_thumbnail(user_id, quality)
     
     buttons = [
-        [InlineKeyboardButton("👀 View", f"view_{quality}")],
-        [InlineKeyboardButton("🖼️ Set New", f"set_{quality}")],
-        [InlineKeyboardButton("🗑 Delete", f"delete_{quality}")],
+        [InlineKeyboardButton("👀 View", f"view_{quality}"), InlineKeyboardButton("🖼️ Set New", f"set_{quality}"), InlineKeyboardButton("🗑 Delete", f"delete_{quality}")],
+        [InlineKeyboardButton("⬅️", f"quality_{prev_quality}"), InlineKeyboardButton("➡️", f"quality_{next_quality}")],
+        [InlineKeyboardButton("🌐 Global", "quality_global")],
         [InlineKeyboardButton("🔙 Main Menu", "back_to_main")]
     ]
     
@@ -226,4 +230,4 @@ async def delete_thumbnail(client, callback):
             [InlineKeyboardButton("🔙 Back", f"quality_{quality}")]
         ])
     )
-    
+
