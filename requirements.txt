@@ -1,6 +1,6 @@
-pyrogram==2.0.80
-TgCrypto==1.2.5
-motor==3.3.2  # Downgrade motor instead of Python
+pymongo==3.13.0
+motor==2.5.1
+TgCrypto==1.2.5  # Downgrade motor instead of Python
 dnspython==2.4.2
 hachoir==3.1.2
 Pillow==10.2.0
