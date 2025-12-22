@@ -34,7 +34,7 @@ VERIFY_PHOTO = os.environ.get(
 )
 SHORTLINK_SITE = os.environ.get("SHORTLINK_SITE", "gplinks.com")
 SHORTLINK_API = os.environ.get("SHORTLINK_API", "596f423cdf22b174e43d0b48a36a8274759ec2a3")
-VERIFY_EXPIRE = int(os.environ.get("VERIFY_EXPIRE", 0))
+VERIFY_EXPIRE = int(os.environ.get("VERIFY_EXPIRE", 7260))
 VERIFY_TUTORIAL = os.environ.get("VERIFY_TUTORIAL", "https://t.me/N4_Society/55")
 
 PREMIUM_USERS = list(map(int, os.environ.get("PREMIUM_USERS", "").split())) if os.environ.get("PREMIUM_USERS") else []
