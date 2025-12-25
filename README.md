@@ -263,7 +263,7 @@ FSUB_CHANNEL_3 = 0  # Set to 0 if not used
 </p>
 
 <h3 align="center">
-    <u>──「 ᴅᴇᴩʟᴏʏ ᴏɴ ᴠᴘs/ʟᴏᴄᴀʟ ᴍᴀᴄʜɪɴᴇ 」──</u>
+    <b><u>──「 ᴅᴇᴩʟᴏʏ ᴏɴ ᴠᴘs/ʟᴏᴄᴀʟ ᴍᴀᴄʜɪɴᴇ 」──</u></b>
 </h3>
 
 1. Clone the Repository
@@ -315,6 +315,8 @@ These platforms are excellent for free-tier hosting. The built-in Flask web serv
 4. Set the required environment variables (API_ID, API_HASH, BOT_TOKEN, MONGO_URI, etc.).
 5. Set the start command to: python3 sequence.py (the platform will handle the web server).
 6. Deploy!
+
+#### Deploy on Heroku
 
 #### Deploy on Railway
 [![Deploy on Railway](https://railway.app/button.svg)](https://railway.app/new/template/1jKLr4)
