@@ -329,5 +329,5 @@ These platforms are excellent for free-tier hosting. The built-in Flask web serv
 · 📝 License: This project is licensed under the MIT License.
 · 🤝 Contributing: Contributions are welcome! Feel free to open pull requests to improve this project.
 · 🙏 Credits:
-  · Made by: N4 BOTS (TG)
-  · Powered by: N4_Bots
+  · Made by: [N4 BOTS (TG)](https://t.me/N4_Bots)
+  · Powered by: [N4_Bots (TG)](https://t.me/N4_Bots)
