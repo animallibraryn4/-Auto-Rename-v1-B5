@@ -248,27 +248,7 @@ The **Sequence Bot** is a specialized tool designed to organize and sequence med
 
 ---
 
-## 🧾 COMMANDS LIST
 
-👤 User Commands
-
-| Command | Description |
-|---------|-------------|
-| `/start` | Start the bot |
-| `/sequence` | Start file sequencing |
-| `/fileseq` | Choose sequencing mode (Episode/Quality flow) |
-| `/ls` | Sequence files from channel links |
-| `/sf` | Switch between File mode and Caption mode |
-| `/leaderboard` | View top users |
-
-👑 Admin Commands (OWNER only)
-
-| Command | Description |
-|---------|-------------|
-| `/status` | Bot uptime, ping, users |
-| `/broadcast` | Send message to all users |
-
----
 
 ## ⚙️ CONFIGURATION (config.py)
 
@@ -279,7 +259,23 @@ The **Sequence Bot** is a specialized tool designed to organize and sequence med
 | BOT_TOKEN | Bot token from @BotFather |
 | MONGO_URI | MongoDB connection URI |
 | OWNER_ID | Telegram user ID of the bot owner |
-| FSUB_CHANNEL | Force subscribe channel ID (0 to disable) |
+| FSUB_CHANNEL | Force subscribe channel ID (0 to disa## 🧾 COMMANDS LIST
+
+👤 User Commands:
+```
+/start - Start the bot
+/sequence - Start file sequencing
+/fileseq - Choose sequencing mode
+/ls - Sequence files from channel links
+/leaderboard - View top users
+/sf - Switch between File mode and Caption mode
+```
+👑 Admin Commands (OWNER only):
+```
+/status - Bot uptime, ping, users
+/broadcast - Send message to all users
+```
+---ble) |
 | FSUB_CHANNEL_2 | Second force subscribe channel (optional) |
 | FSUB_CHANNEL_3 | Third force subscribe channel (optional) |
 
@@ -386,7 +382,7 @@ python3 sequence.py
 
 ---
 
-🤝 SUPPORT
+## 🤝 SUPPORT
 
 <p align="center">
 <a href="https://t.me/N4_Bots">
@@ -399,17 +395,14 @@ python3 sequence.py
 
 ---
 
-LICENSE & CREDITS
+## LICENSE & CREDITS
 
-· 📝 License: This project is licensed under the MIT License.
+· 📝 License: This project is licensed under the MIT License.<br>
+· 🤝 Contributing: Contributions are welcome! Feel free to open pull requests to improve this project.<br>
+· 🙏 Credits:
+  · Made by: [N4 BOTS (TG)](https://t.me/N4_Bots)
+  · Powered by: [N4_Bots (TG)](https://t.me/N4_Bots)
+##
 
-·🤝 Contributing: Contributions are welcome! Feel free to open pull requests to improve this project.
-
-·🙏 Credits:
-· Made by: N4 BOTS (TG)
-· Powered by: N4_Bots (TG)
-
-
-
-Star this Repo if you Liked it ⭐⭐⭐
+   **Star this Repo if you Liked it ⭐⭐⭐**
 
