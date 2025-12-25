@@ -1,7 +1,11 @@
 <h1 align="center"><b>
     ──「 TG FILE SEQUENCE BOT 」──</b>
 </h1>
-
+<p align="center">
+  <a href="https://www.python.org">
+    <img src="http://ForTheBadge.com/images/badges/made-with-python.svg" width ="250">
+  </a>
+</p>
 
 ## 🤖 About the Bot
 
