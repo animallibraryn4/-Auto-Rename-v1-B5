@@ -10,8 +10,8 @@ class Config(object):
     BOT_TOKEN = os.environ.get("BOT_TOKEN", "") 
 
     # database config
-    DB_NAME = os.environ.get("DB_NAME","nikhil7858978052")     
-    DB_URL  = os.environ.get("DB_URL","mongodb+srv://mikota4432:jkJDQuZH6o8pxxZe@cluster0.2vngilq.mongodb.net/?retryWrites=true&w=majority")
+    DB_NAME = os.environ.get("DB_NAME","")     
+    DB_URL  = os.environ.get("DB_URL","")
     PORT = os.environ.get("PORT", "9090")
  
     # other configs
@@ -19,8 +19,8 @@ class Config(object):
     START_PIC   = os.environ.get("START_PIC", "https://images8.alphacoders.com/138/1384114.png")
     ADMIN       = [int(admin) if id_pattern.search(admin) else admin for admin in os.environ.get('ADMIN', '5380609667').split()]
     FORCE_SUB_CHANNELS = os.environ.get('FORCE_SUB_CHANNELS', 'animelibraryn4').split(',')
-    LOG_CHANNEL = int(os.environ.get("LOG_CHANNEL", "-1002263636517"))
-    DUMP_CHANNEL = int(os.environ.get("DUMP_CHANNEL", "-1001896877147"))
+    LOG_CHANNEL = int(os.environ.get("LOG_CHANNEL", ""))
+    DUMP_CHANNEL = int(os.environ.get("DUMP_CHANNEL", ""))
     WEBHOOK = bool(os.environ.get("WEBHOOK", "True"))
     
     # Season Extraction Configuration (New)
