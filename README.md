@@ -269,7 +269,7 @@ FSUB_CHANNEL_3 = 0  # Set to 0 if not used
 1. Clone the Repository
 
 ```bash
-git clone https://github.com/RioShin2025/SequenceBot.git
+git clone https://github.com/N4-Bots/SEQUENCE-BOT.git SequenceBot
 cd SequenceBot
 ```
 
