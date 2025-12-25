@@ -318,19 +318,28 @@ These platforms are excellent for free-tier hosting. The built-in Flask web serv
 
 If you want The fastest way to deploy the application is to click the **button** below.
 
-#### Deploy on Heroku
-<a href="https://www.heroku.com/">
-<img src="https://img.shields.io/badge/Deploy%20to-Heroku-blueviolet?style=for-the-badge&logo=heroku" width="170">
+Deploy on Heroku
+<p><strong>BEFORE YOU DEPLOY ON HEROKU, YOU SHOULD FORK THE REPO AND CHANGE ITS NAME TO ANYTHING ELSE</strong></p>
+
+<a href="https://heroku.com/deploy?template=https://github.com/N4-Bots/SEQUENCE-BOT">
+  <img src="https://www.herokucdn.com/deploy/button.svg" alt="Deploy on Heroku">
 </a>
 
-#### Deploy on Railway
-<a href="https://app.koyeb.com/deploy?type=git&repository=N4-Bots/SEQUENCE-BOT&branch=main&name=sequence-bot">
-<img src="https://img.shields.io/badge/Deploy%20to-Koyeb-blue?style=for-the-badge&logo=koyeb" width="160">
+<br><br>
+
+Deploy on Railway
+<a href="https://railway.app/new/template?template=https://github.com/N4-Bots/SEQUENCE-BOT">
+  <img src="https://railway.app/button.svg" alt="Deploy on Railway" width="147">
 </a>
 
-#### Deploy on Koyeb
-<a href="https://railway.app/new">
-<img src="https://img.shields.io/badge/Deploy%20to-Railway-black?style=for-the-badge&logo=railway" width="170">
+<br><br>
+
+Deploy on Koyeb
+<p><strong>Deploy on Koyeb</strong></p>
+<p>The fastest way to deploy the application is to click the Deploy to Koyeb button below.</p>
+
+<a href="https://app.koyeb.com/deploy?type=git&repository=https://github.com/N4-Bots/SEQUENCE-BOT&branch=main&name=sequence-bot">
+  <img src="https://www.koyeb.com/static/images/deploy/button.svg" alt="Deploy on Koyeb">
 </a>
 
 
