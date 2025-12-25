@@ -285,14 +285,14 @@ Edit theconfig.py file with your credentials as shown above.
 4. Run the Bot
 You need to runtwo commands in separate terminal sessions:
 
-· Command 1: Start the Web Server
-    ```bash
-    python3 webserver.py
-    ```
+· Command 1: Start the Web Server  
+```bash
+python3 webserver.py
+```
 · Command 2: Start the Main Bot Engine
-    ```bash
-    python3 sequence.py
-    ```
+```bash
+python3 sequence.py
+```
 
 <h3 align="center">
     <u>──「 ᴅᴇᴩʟᴏʏ ᴏɴ ʀᴇɴᴅᴇʀ/ᴋᴏʏᴇʙ/ʀᴀɪʟᴡᴀʏ 」──</u>
