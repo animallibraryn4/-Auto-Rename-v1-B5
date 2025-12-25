@@ -1,12 +1,15 @@
-TG FILE SEQUENCE BOT
+<h1 align="center">
+    ──「 TG FILE SEQUENCE BOT 」──
+</h1>
 
-🤖 About the Bot
+
+## 🤖 About the Bot
 
 The TG File Sequence Bot is a specialized tool designed to organize and sequence media files (Movies, Series, Episodes) automatically. It parses filenames to detect Season, Episode, and Quality, ensuring that files are delivered to your users in the perfect order.
 
 ---
 
-✨ KEY FEATURES
+## ✨ KEY FEATURES
 
 <details>
 <summary><b>🔄 SMART FILE PARSING</b></summary>
