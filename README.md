@@ -169,6 +169,52 @@ pip install -r requirements.txt
 
 
 
+Here is the updated Deployment Methods and Run Commands section, formatted specifically for a GitHub README.md file using professional Markdown.
+🚀 DEPLOYMENT METHODS
+<h3 align="center">
+─「 ᴅᴇᴩʟᴏʏ ᴏɴ ᴠᴘs / ʟᴏᴄᴀʟ 」─
+</h3>
+To deploy on a Virtual Private Server (VPS) or your local machine, follow these steps:
+ * Clone the Repository:
+   git clone https://github.com/RioShin2025/SequenceBot
+cd SequenceBot
+
+ * Install Dependencies:
+   pip3 install -r requirements.txt
+
+ * Configure Environment:
+   Edit the config.py file with your API_ID, API_HASH, BOT_TOKEN, and MONGO_URI.
+ * Run the Bot:
+   Follow the Run Commands section below.
+<h3 align="center">
+─「 ᴅᴇᴩʟᴏʏ ᴏɴ ʀᴇɴᴅᴇʀ / ᴋᴏʏᴇʙ / ʀᴀɪʟᴡᴀʏ 」─
+</h3>
+Since these platforms often require a web port to stay active, this bot includes a built-in Flask server.
+ * Fork this repository to your GitHub account.
+ * Create a new Web Service on your preferred platform.
+ * Connect your forked repository.
+ * Add the required Environment Variables (matching those in config.py).
+ * Use the Start Command provided below.
+🛠 RUN COMMANDS
+The bot requires two separate scripts to be active: one for the web server (to keep the bot alive) and one for the actual Telegram logic.
+| Purpose | Command |
+|---|---|
+| Keep-Alive Web Server | python3 webserver.py |
+| Main Bot Engine | python3 sequence.py |
+⚡ Running both simultaneously
+If you are on a VPS, it is recommended to run them in the background using & or a process manager like screen:
+python3 webserver.py & python3 sequence.py
+
+> Note: For platforms like Render or Koyeb, you can set your start command to:
+> python3 webserver.py && python3 sequence.py
+> 
+🛡 PROCESS MANAGEMENT (Optional)
+To ensure the bot restarts automatically after a crash on a VPS, you can use PM2:
+pm2 start webserver.py --name "web-server" --interpreter python3
+pm2 start sequence.py --name "bot-engine" --interpreter python3
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━
+Would you like me to create a start.sh script for you so you can run both commands with a single click?
 
 
 
