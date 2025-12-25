@@ -244,7 +244,7 @@ FSUB_CHANNEL_2 = 0  # Set to 0 if not used
 FSUB_CHANNEL_3 = 0  # Set to 0 if not used
 ```
 </details>
->NOTE: To completely disable the Force Subscribe system, set all FSUB_CHANNEL values to 0.
+> NOTE: To completely disable the Force Subscribe system, set all FSUB_CHANNEL values to 0.
 
 
 
@@ -293,6 +293,15 @@ python3 webserver.py
 ```bash
 python3 sequence.py
 ```
+#### Deploy in your VPS
+````bash
+git clone https://github.com/Sachinanand99/File-Sharing-Bot.git
+cd File-Sharing-Bot
+pip3 install -r requirements.txt
+# <Create config.py appropriately>
+#if you are using any hosting services use dotenvtemplate.txt for putting environment variables
+python3 main.py
+````
 
 <h3 align="center">
     <u>──「 ᴅᴇᴩʟᴏʏ ᴏɴ ʀᴇɴᴅᴇʀ/ᴋᴏʏᴇʙ/ʀᴀɪʟᴡᴀʏ 」──</u>
@@ -306,6 +315,15 @@ These platforms are excellent for free-tier hosting. The built-in Flask web serv
 4. Set the required environment variables (API_ID, API_HASH, BOT_TOKEN, MONGO_URI, etc.).
 5. Set the start command to: python3 sequence.py (the platform will handle the web server).
 6. Deploy!
+
+#### Deploy on Railway
+[![Deploy on Railway](https://railway.app/button.svg)](https://railway.app/new/template/1jKLr4)
+
+#### Deploy on Koyeb
+
+The fastest way to deploy the application is to click the **Deploy to Koyeb** button below.
+
+[![Deploy to Koyeb](https://www.koyeb.com/static/images/deploy/button.svg)](https://app.koyeb.com/deploy?type=git&repository=github.com/Sachinanand99/File-Sharing-Telegram-bot&branch=main&name=FileStoreBot)
 
 
 
