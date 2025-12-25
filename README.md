@@ -200,13 +200,24 @@ Command Description
 👑 Admin Commands (OWNER only)
 
 Command Description
-```/status View bot uptime, ping, and user statistics.
+```
+/status View bot uptime, ping, and user statistics.
 /broadcast Send a message to all bot users.
 ```
 ---
 
 ⚙️ CONFIGURATION (config.py)
 
+| Variable | Description |
+| :--- | :--- |
+| API_ID | Telegram API ID (from my.telegram.org) |
+| API_HASH | Telegram API Hash (from my.telegram.org) |
+| BOT_TOKEN | Bot token from @BotFather |
+| MONGO_URI | MongoDB connection URI |
+| OWNER_ID | Telegram user ID of the bot owner |
+| FSUB_CHANNEL | Force subscribe channel ID (0 to disable) |
+| FSUB_CHANNEL_2 | Second force subscribe channel (optional) |
+| FSUB_CHANNEL_3 | Third force subscribe channel (optional) |
 <details>
 <summary><b>View Configuration Template</b></summary>
 
@@ -232,7 +243,7 @@ FSUB_CHANNEL_2 = 0  # Set to 0 if not used
 FSUB_CHANNEL_3 = 0  # Set to 0 if not used
 ```
 
-NOTE: To completely disable the Force Subscribe system, set all FSUB_CHANNEL values to 0.
+>NOTE: To completely disable the Force Subscribe system, set all FSUB_CHANNEL values to 0.
 
 </details>
 
