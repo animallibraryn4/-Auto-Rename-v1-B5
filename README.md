@@ -316,17 +316,22 @@ These platforms are excellent for free-tier hosting. The built-in Flask web serv
 5. Set the start command to: python3 sequence.py (the platform will handle the web server).
 6. Deploy!
 
+If you want The fastest way to deploy the application is to click the **button** below.
+
 #### Deploy on Heroku
+<a href="https://www.heroku.com/">
+<img src="https://img.shields.io/badge/Deploy%20to-Heroku-blueviolet?style=for-the-badge&logo=heroku" width="170">
+</a>
 
 #### Deploy on Railway
-[![Deploy on Railway](https://railway.app/button.svg)](https://railway.app/new/template/1jKLr4)
+<a href="https://app.koyeb.com/deploy?type=git&repository=N4-Bots/SEQUENCE-BOT&branch=main&name=sequence-bot">
+<img src="https://img.shields.io/badge/Deploy%20to-Koyeb-blue?style=for-the-badge&logo=koyeb" width="160">
+</a>
 
 #### Deploy on Koyeb
-
-The fastest way to deploy the application is to click the **Deploy to Koyeb** button below.
-
-[![Deploy to Koyeb](https://www.koyeb.com/static/images/deploy/button.svg)](https://app.koyeb.com/deploy?type=git&repository=github.com/Sachinanand99/File-Sharing-Telegram-bot&branch=main&name=FileStoreBot)
-
+<a href="https://railway.app/new">
+<img src="https://img.shields.io/badge/Deploy%20to-Railway-black?style=for-the-badge&logo=railway" width="170">
+</a>
 
 
 ---
