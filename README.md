@@ -26,59 +26,82 @@ The **TG File Sequence Bot** is a specialized tool designed to organize and sequ
 <details>
 <summary><b>🎯 TWO SEQUENCING MODES</b></summary>
 
-· MODE 1: EPISODE FLOW
-  · Sorting Order: Season → Episode → Quality
-  · Best for: Anime series, TV shows, episodic content.
-· MODE 2: QUALITY FLOW
-  · Sorting Order: Season → Quality → Episode
-  · Best for: Quality-wise batch uploads and posting.
+MODE 1: EPISODE FLOW
+- Sorting Order:
+  Season -> Episode -> Quality
+- Best for:
+  - Anime series
+  - TV shows
+  - Episodic content
+
+MODE 2: QUALITY FLOW
+- Sorting Order:
+  Season -> Quality -> Episode
+- Best for:
+  - Quality-wise uploads
+  - Batch posting
 
 </details>
 
 <details>
 <summary><b>🔗 LS MODE (LINK SEQUENCE)</b></summary>
 
-· Smart Sequencing: Sequence files using a range of Telegram message links.
-· Wide Compatibility: Works with both Public and Private channels.
-· Automatic Checks: The bot validates links and your admin permissions.
-· Flexible Selection: Specify a range using a start link and an end link.
+- Sequence files using Telegram message links
+- Supports:
+  - Public channels
+  - Private channels
+- Bot automatically:
+  - Validates message links
+  - Checks admin permissions
+- Allows:
+  - Message range selection (start link -> end link)
 
 </details>
 
 <details>
 <summary><b>🔐 FORCE SUBSCRIBE SYSTEM</b></summary>
 
-· Multi-Channel Support: Force users to subscribe to up to 3 channels.
-· Channel Type: Compatible with Public and Private channels.
-· Optional Feature: Can be disabled by setting the channel ID to 0.
-
+- Supports up to 3 channels
+- Compatible with:
+  - Public channels
+  - Private channels
+- Fully optional
+- Can be disabled by setting channel ID to 0
+  
 </details>
 
 <details>
 <summary><b>📊 USER STATISTICS & LEADERBOARD</b></summary>
 
-· MongoDB Tracking: Securely tracks total users and total files sequenced.
-· Live Bot Uptime: Monitor how long the bot has been running.
-· /leaderboard Command: View top users based on activity.
-
+- MongoDB-based tracking
+- Tracks:
+  - Total users
+  - Total files sequenced
+  - Bot uptime
+- Command support: /leaderboard
 </details>
 
 <details>
 <summary><b>📢 ADMIN BROADCAST SYSTEM</b></summary>
 
-· Owner-Only Access: Exclusive to the bot owner for secure messaging.
-· FloodWait Protection: Built-in safety to prevent Telegram limits.
-· Delivery Reports: Tracks successful sends, failures, and blocked users.
-· Database Logging: All broadcast stats are saved for review.
-
+- Owner-only access
+- FloodWait-safe broadcasting
+- Tracks:
+  - Successful deliveries
+  - Failed messages
+  - Blocked users
+- Broadcast stats saved in database
 </details>
 
 <details>
 <summary><b>🌐 WEB SERVER INTEGRATION</b></summary>
 
-· Built-in Flask Server: Keeps the bot alive on cloud platforms.
-· Platform Ready: Works seamlessly on Render, Koyeb, and Railway.
-· No External Services Needed: Self-contained keep-alive solution.
+- Built-in Flask web server
+- Keeps bot alive on:
+  - Render
+  - Koyeb
+  - Railway
+- No external keep-alive service required
 
 </details>
 
