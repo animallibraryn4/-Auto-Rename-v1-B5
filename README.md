@@ -190,19 +190,20 @@ STEP 6: FILE REPOSTING
 
 👤 User Commands
 
-Command Description
-```/start Start the bot and check its status.
-/sequence Start a normal file sequencing session.
-/fileseq Choose your sequencing mode (Episode or Quality Flow).
-/ls Sequence files from Telegram channel message links.
-/leaderboard View the top users based on activity.
+Command Description:
+```
+/start - Start the bot
+/sequence - Start file sequencing
+/fileseq - Choose sequencing mode
+/ls - Sequence files from channel links
+/leaderboard - View top users
 ```
 👑 Admin Commands (OWNER only)
 
-Command Description
+Command Description:
 ```
-/status View bot uptime, ping, and user statistics.
-/broadcast Send a message to all bot users.
+/status - Bot uptime, ping, users
+/broadcast - Send message to all users
 ```
 ---
 
