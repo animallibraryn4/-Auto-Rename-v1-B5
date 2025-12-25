@@ -307,38 +307,39 @@ python3 main.py
     <u>──「 ᴅᴇᴩʟᴏʏ ᴏɴ ʀᴇɴᴅᴇʀ/ᴋᴏʏᴇʙ/ʀᴀɪʟᴡᴀʏ 」──</u>
 </h3>
 
-These platforms are excellent for free-tier hosting. The built-in Flask web server (webserver.py) is specifically designed to keep the bot alive on these services.
+<p>These platforms are excellent for free-tier hosting. The built-in Flask web server (webserver.py) is specifically designed to keep the bot alive on these services.</p>
 
-1. Fork this repository to your GitHub account.
-2. Create a new project/app on your chosen platform (Render, Koyeb, Railway).
-3. Connect your GitHub repository.
-4. Set the required environment variables (API_ID, API_HASH, BOT_TOKEN, MONGO_URI, etc.).
-5. Set the start command to: python3 sequence.py (the platform will handle the web server).
-6. Deploy!
+<ol>
+  <li>Fork this repository to your GitHub account.</li>
+  <li>Create a new project/app on your chosen platform (Render, Koyeb, Railway).</li>
+  <li>Connect your GitHub repository.</li>
+  <li>Set the required environment variables (API_ID, API_HASH, BOT_TOKEN, MONGO_URI, etc.).</li>
+  <li>Set the start command to: <code>python3 sequence.py</code> (the platform will handle the web server).</li>
+  <li>Deploy!</li>
+</ol>
 
-If you want The fastest way to deploy the application is to click the **button** below.
+<p><strong>For the fastest deployment, click the button below for your preferred platform:</strong></p>
 
-Deploy on Heroku
+<h3>Deploy on Heroku</h3>
+<p><strong>BEFORE YOU DEPLOY ON HEROKU, YOU SHOULD FORK THE REPO AND CHANGE ITS NAME TO ANYTHING ELSE</strong></p>
 <a href="https://heroku.com/deploy?template=https://github.com/N4-Bots/SEQUENCE-BOT">
   <img src="https://www.herokucdn.com/deploy/button.svg" alt="Deploy on Heroku">
 </a>
 
 <br><br>
 
-Deploy on Railway
+<h3>Deploy on Railway</h3>
 <a href="https://railway.app/new/template?template=https://github.com/N4-Bots/SEQUENCE-BOT">
   <img src="https://railway.app/button.svg" alt="Deploy on Railway" width="147">
 </a>
 
 <br><br>
 
-<p><strong>Deploy on Koyeb</strong></p>
+<h3>Deploy on Koyeb</h3>
 <p>The fastest way to deploy the application is to click the Deploy to Koyeb button below.</p>
-
 <a href="https://app.koyeb.com/deploy?type=git&repository=https://github.com/N4-Bots/SEQUENCE-BOT&branch=main&name=sequence-bot">
   <img src="https://www.koyeb.com/static/images/deploy/button.svg" alt="Deploy on Koyeb">
 </a>
-
 
 ---
 
