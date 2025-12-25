@@ -1,11 +1,11 @@
-<h1 align="center">
-    ──「 TG FILE SEQUENCE BOT 」──
+<h1 align="center"><b>
+    ──「 TG FILE SEQUENCE BOT 」──</b>
 </h1>
 
 
 ## 🤖 About the Bot
 
-The TG File Sequence Bot is a specialized tool designed to organize and sequence media files (Movies, Series, Episodes) automatically. It parses filenames to detect Season, Episode, and Quality, ensuring that files are delivered to your users in the perfect order.
+The **TG File Sequence Bot** is a specialized tool designed to organize and sequence media files (Movies, Series, Episodes) automatically. It parses filenames to detect Season, Episode, and Quality, ensuring that files are delivered to your users in the perfect order.
 
 ---
 
@@ -14,8 +14,12 @@ The TG File Sequence Bot is a specialized tool designed to organize and sequence
 <details>
 <summary><b>🔄 SMART FILE PARSING</b></summary>
 
-· Automatic Detection: Extracts Season number, Episode number, and Video quality (480p, 720p, 1080p, etc.) directly from filenames.
-· Zero Hassle: Works with your existing file names—no manual renaming required.
+- Automatically detects:
+  - Season number
+  - Episode number
+  - Video quality (480p, 720p, 1080p, etc.)
+- Works directly from filenames
+- No manual renaming required
 
 </details>
 
