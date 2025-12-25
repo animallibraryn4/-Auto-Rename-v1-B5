@@ -186,7 +186,7 @@ STEP 6: FILE REPOSTING
 
 ---
 
-🧾 COMMANDS LIST
+## 🧾 COMMANDS LIST
 
 👤 User Commands
 
@@ -206,7 +206,7 @@ Command Description
 ```
 ---
 
-⚙️ CONFIGURATION (config.py)
+## ⚙️ CONFIGURATION (config.py)
 
 | Variable | Description |
 | :--- | :--- |
@@ -242,14 +242,14 @@ FSUB_CHANNEL = -1001234567890
 FSUB_CHANNEL_2 = 0  # Set to 0 if not used
 FSUB_CHANNEL_3 = 0  # Set to 0 if not used
 ```
-
+</details>
 >NOTE: To completely disable the Force Subscribe system, set all FSUB_CHANNEL values to 0.
 
-</details>
+
 
 ---
 
-🚀 DEPLOYMENT METHODS
+## 🚀 DEPLOYMENT METHODS
 
 <h3 align="center">
     <u>──「 ᴅᴇᴩʟᴏʏ ᴏɴ ʜᴇʀᴏᴋᴜ 」──</u>
@@ -284,14 +284,14 @@ Edit theconfig.py file with your credentials as shown above.
 4. Run the Bot
 You need to runtwo commands in separate terminal sessions:
 
-· Command 1: Start the Web Server
-  ```bash
-  python3 webserver.py
-  ```
-· Command 2: Start the Main Bot Engine
-  ```bash
-  python3 sequence.py
-  ```
+ · Command 1: Start the Web Server
+    ```bash
+    python3 webserver.py
+    ```
+ · Command 2: Start the Main Bot Engine
+    ```bash
+    python3 sequence.py
+    ```
 
 <h3 align="center">
     <u>──「 ᴅᴇᴩʟᴏʏ ᴏɴ ʀᴇɴᴅᴇʀ/ᴋᴏʏᴇʙ/ʀᴀɪʟᴡᴀʏ 」──</u>
