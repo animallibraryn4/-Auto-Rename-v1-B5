@@ -1,5 +1,3 @@
-
-[file content begin]
 <h1 align="center"><b>
     ──「 SEQUENCE BOT 」──</b>
 </h1>
