@@ -220,6 +220,36 @@ Would you like me to create a start.sh script for you so you can run both comman
 
 
 
+# ──「 TG FILE SEQUENCE BOT 」──
+
+## 🤖 About the Bot
+The TG File Sequence Bot is a specialized tool designed to organize and sequence media files (Movies, Series, Episodes) automatically. It parses filenames to detect Season, Episode, and Quality.
+
+---
+
+## 🚀 DEPLOYMENT METHODS
+
+### 1. Deploy on Cloud (Render / Koyeb / Railway)
+1. **Fork** this repository.
+2. Create a new **Web Service** on your platform.
+3. Connect your fork and add your **Environment Variables**.
+4. Use the **Start Command** below to keep it active.
+
+### 2. Deploy on VPS / Local
+```bash
+git clone [https://github.com/RioShin2025/SequenceBot](https://github.com/RioShin2025/SequenceBot)
+cd SequenceBot
+pip3 install -r requirements.txt
+# Edit config.py with your credentials
+python3 webserver.py & python3 sequence.py
+```
+
+🛠 RUN COMMANDS
+The bot requires two scripts to run at the same time:
+```
+Web Server python3 webserver.py Keeps the bot alive on free hosting
+Bot Engine python3 sequence.py Handles the Telegram logic
+```
 
 
 
