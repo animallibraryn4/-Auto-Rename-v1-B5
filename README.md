@@ -293,15 +293,6 @@ python3 webserver.py
 ```bash
 python3 sequence.py
 ```
-#### Deploy in your VPS
-````bash
-git clone https://github.com/Sachinanand99/File-Sharing-Bot.git
-cd File-Sharing-Bot
-pip3 install -r requirements.txt
-# <Create config.py appropriately>
-#if you are using any hosting services use dotenvtemplate.txt for putting environment variables
-python3 main.py
-````
 
 <h3 align="center">
     <u>──「 ᴅᴇᴩʟᴏʏ ᴏɴ ʀᴇɴᴅᴇʀ/ᴋᴏʏᴇʙ/ʀᴀɪʟᴡᴀʏ 」──</u>
@@ -321,22 +312,18 @@ python3 main.py
 <p><strong>For the fastest deployment, click the button below for your preferred platform:</strong></p>
 
 <h3>Deploy on Heroku</h3>
-<p><strong>BEFORE YOU DEPLOY ON HEROKU, YOU SHOULD FORK THE REPO AND CHANGE ITS NAME TO ANYTHING ELSE</strong></p>
 <a href="https://heroku.com/deploy?template=https://github.com/N4-Bots/SEQUENCE-BOT">
   <img src="https://www.herokucdn.com/deploy/button.svg" alt="Deploy on Heroku">
 </a>
 
 <br><br>
-
 <h3>Deploy on Railway</h3>
 <a href="https://railway.app/new/template?template=https://github.com/N4-Bots/SEQUENCE-BOT">
   <img src="https://railway.app/button.svg" alt="Deploy on Railway" width="147">
 </a>
 
 <br><br>
-
 <h3>Deploy on Koyeb</h3>
-<p>The fastest way to deploy the application is to click the Deploy to Koyeb button below.</p>
 <a href="https://app.koyeb.com/deploy?type=git&repository=https://github.com/N4-Bots/SEQUENCE-BOT&branch=main&name=sequence-bot">
   <img src="https://www.koyeb.com/static/images/deploy/button.svg" alt="Deploy on Koyeb">
 </a>
