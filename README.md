@@ -123,7 +123,9 @@ pip install -r requirements.txt
 - Edit config.py with variables as given below then run bot
 
 
-
+<p align="center">
+  <img src="https://i.rj1.dev/Ccvey.png">
+</p>
 
 
 </details>
