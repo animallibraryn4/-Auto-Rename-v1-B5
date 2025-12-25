@@ -284,11 +284,11 @@ Edit theconfig.py file with your credentials as shown above.
 4. Run the Bot
 You need to runtwo commands in separate terminal sessions:
 
- · Command 1: Start the Web Server
+· Command 1: Start the Web Server
     ```bash
     python3 webserver.py
     ```
- · Command 2: Start the Main Bot Engine
+· Command 2: Start the Main Bot Engine
     ```bash
     python3 sequence.py
     ```
@@ -306,29 +306,27 @@ These platforms are excellent for free-tier hosting. The built-in Flask web serv
 5. Set the start command to: python3 sequence.py (the platform will handle the web server).
 6. Deploy!
 
----
 
-📝 LICENSE & CREDITS
-
-· 📝 License: This project is licensed under the MIT License.
-· 🤝 Contributing: Contributions are welcome! Feel free to open pull requests to improve this project.
-· 🙏 Credits:
-  · Made by: Rio Shin (TG)
-  · Powered by: BotsKingdoms
 
 ---
 
-🤝 SUPPORT
+## 🤝 SUPPORT
 
 <p align="center">
-<a href="https://t.me/BOTSKINGDOMSGROUP">
+<a href="https://t.me/N4_Bots">
     <img src="https://img.shields.io/badge/Support%20Group-blue?style=for-the-badge&logo=telegram" alt="Support Group">
 </a>
-<a href="https://t.me/BOTSKINGDOMS">
+<a href="https://t.me/N4_Bots">
     <img src="https://img.shields.io/badge/Support%20Channel-blue?style=for-the-badge&logo=telegram" alt="Support Channel">
 </a>
 </p>
 
 ---
 
-I have reformatted the entire documentation in English using GitHub's Markdown style with ### headers, <b> (bold), <details> sections, and <u> (underlines) for clear structure. This format is perfect for your README.md file. Good luck with your bot
+## 📝 LICENSE & CREDITS
+
+· 📝 License: This project is licensed under the MIT License.
+· 🤝 Contributing: Contributions are welcome! Feel free to open pull requests to improve this project.
+· 🙏 Credits:
+  · Made by: N4 BOTS (TG)
+  · Powered by: N4_Bots
