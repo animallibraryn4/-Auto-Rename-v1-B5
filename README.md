@@ -315,14 +315,12 @@ python3 sequence.py
 <a href="https://heroku.com/deploy?template=https://github.com/N4-Bots/SEQUENCE-BOT">
   <img src="https://www.herokucdn.com/deploy/button.svg" alt="Deploy on Heroku">
 </a>
-
-<br><br>
+<br>
 <h3>Deploy on Railway</h3>
 <a href="https://railway.app/new/template?template=https://github.com/N4-Bots/SEQUENCE-BOT">
   <img src="https://railway.app/button.svg" alt="Deploy on Railway" width="147">
 </a>
-
-<br><br>
+<br>
 <h3>Deploy on Koyeb</h3>
 <a href="https://app.koyeb.com/deploy?type=git&repository=https://github.com/N4-Bots/SEQUENCE-BOT&branch=main&name=sequence-bot">
   <img src="https://www.koyeb.com/static/images/deploy/button.svg" alt="Deploy on Koyeb">
@@ -343,10 +341,16 @@ python3 sequence.py
 
 ---
 
-## 📝 LICENSE & CREDITS
+## LICENSE & CREDITS
 
 · 📝 License: This project is licensed under the MIT License.
+
 · 🤝 Contributing: Contributions are welcome! Feel free to open pull requests to improve this project.
+
 · 🙏 Credits:
   · Made by: [N4 BOTS (TG)](https://t.me/N4_Bots)
   · Powered by: [N4_Bots (TG)](https://t.me/N4_Bots)
+##
+
+   **Star this Repo if you Liked it ⭐⭐⭐**
+   
