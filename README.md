@@ -343,7 +343,7 @@ python3 sequence.py
 
 ## LICENSE & CREDITS
 
-· 📝 License: This project is licensed under the MIT License.
+· 📝 License: This project is licensed under the MIT License.\n
 · 🤝 Contributing: Contributions are welcome! Feel free to open pull requests to improve this project.
 · 🙏 Credits:
   · Made by: [N4 BOTS (TG)](https://t.me/N4_Bots)
