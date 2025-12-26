@@ -16,6 +16,9 @@ from helper.utils import progress_for_pyrogram, humanbytes, convert
 from helper.database import codeflixbots
 from config import Config
 from plugins import is_user_verified, send_verification
+from plugins.merging_system import merging_mode
+
+
 
 # Setup Logging
 logging.basicConfig(level=logging.INFO)
