@@ -310,6 +310,14 @@ async def process_rename(client: Client, message: Message):
 @Client.on_message(filters.private & (filters.document | filters.video | filters.audio))
 async def auto_rename_files(client, message):
     user_id = message.from_user.id
+
+    # 🔁 MERGING MODE CHECK (ADD THIS)
+    from plugins.merging_system import merging_mode
+    if merging_mode.get(user_id, False):
+        # Agar merging ON hai, toh rename system kuch nahi karega
+        return
+
+    # 🔒 Existing verification logic (unchanged)
     if not await is_user_verified(user_id):
         curr = time.time()
         if curr - recent_verification_checks.get(user_id, 0) > 2:
