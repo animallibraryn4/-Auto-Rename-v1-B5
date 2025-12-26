@@ -22,6 +22,7 @@ merging_mode = {}  # user_id -> True/False
 batch1_tracks = {}  # user_id -> {season_episode: {audio_tracks: [], subtitle_tracks: []}}
 batch1_files = {}   # user_id -> list of batch1 file paths (for cleanup)
 batch2_waiting = {} # user_id -> True if waiting for batch2
+user_phase = {}  # user_id -> "batch1" | "batch2"
 
 # Patterns for extracting season/episode
 pattern1 = re.compile(r'S(\d+)(?:E|EP)(\d+)')
@@ -265,7 +266,7 @@ async def merging_callback(client, query: CallbackQuery):
 
     if action == 'on':
         merging_mode[user_id] = True
-
+        
         # Clear any previous batch data
         batch1_tracks.pop(user_id, None)
         batch1_files.pop(user_id, None)
