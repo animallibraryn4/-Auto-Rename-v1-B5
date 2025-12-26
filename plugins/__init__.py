@@ -10,11 +10,7 @@ from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton, Message, 
 from cloudscraper import create_scraper
 from motor.motor_asyncio import AsyncIOMotorClient
 from config import Config, Txt
-from helper.database import codeflixbots
-# Add these imports
-from plugins.dual_batch_handler import dual_batch_handler, batch_command_handler
-from plugins.batch_tracker import batch_tracker
-from plugins.batch_merger import batch_merger
+from helper.database import codeflixbots  # Import main database
 
 # =====================================================
 # MEMORY (SIMPLE & STABLE)
@@ -332,6 +328,11 @@ async def close_cb(client, query: CallbackQuery):
     user_state.pop(user_id, None)
     await query.message.delete()
 
+@Client.on_callback_query(filters.regex(r'^(merging_on|merging_off)$'))
+async def merging_callback_handler(client, query: CallbackQuery):
+    # This will be handled by merging_system.py
+    pass
+
 # =====================================================
 # VERIFY COMMAND
 # =====================================================
@@ -351,4 +352,4 @@ async def verify_cmd(client, message):
 async def get_token_cmd(client, message):
     """New command to get verification token"""
     await send_verification(client, message)
-
+        
