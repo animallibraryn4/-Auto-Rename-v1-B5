@@ -34,9 +34,17 @@ class Bot(Client):
         )
 
         self.start_time = time.time()
+        self.cleanup_task = None
 
     async def start(self):
         await super().start()
+
+        # Start cleanup task
+        try:
+            from plugins.cleanup import start_cleanup_task
+            await start_cleanup_task()
+        except ImportError:
+            print("Could not find cleanup plugin. Ensure plugins/cleanup.py exists.")
 
         me = await self.get_me()
         print(f"{me.first_name} Is Started.....✨️")
@@ -68,3 +76,4 @@ class Bot(Client):
 
 if __name__ == "__main__":
     Bot().run()
+    
