@@ -326,6 +326,103 @@ class Database:
             logging.error(f"Error deleting verify status for user {id}: {e}")
             return False
 
+# Add these methods to your existing Database class in database.py
+
+# Add these methods to the Database class after line 300 (or wherever appropriate)
+
+    async def set_merge_mode(self, id, merge_mode):
+        """Set user's merge mode status"""
+        try:
+            await self.col.update_one(
+                {"_id": int(id)},
+                {"$set": {"merge_mode": merge_mode}},
+                upsert=True
+            )
+        except Exception as e:
+            logging.error(f"Error setting merge mode for user {id}: {e}")
+
+    async def get_merge_mode(self, id):
+        """Get user's merge mode status"""
+        try:
+            user = await self.col.find_one({"_id": int(id)})
+            return user.get("merge_mode", False) if user else False
+        except Exception as e:
+            logging.error(f"Error getting merge mode for user {id}: {e}")
+            return False
+
+    async def clear_merge_data(self, id):
+        """Clear all merge-related temporary data for user"""
+        try:
+            await self.col.update_one(
+                {"_id": int(id)},
+                {"$unset": {
+                    "merge_batch1": "",
+                    "merge_tracks": "",
+                    "merge_format": ""
+                }}
+            )
+        except Exception as e:
+            logging.error(f"Error clearing merge data for user {id}: {e}")
+
+    async def set_merge_batch1(self, id, batch_data):
+        """Store batch 1 file information"""
+        try:
+            await self.col.update_one(
+                {"_id": int(id)},
+                {"$set": {"merge_batch1": batch_data}},
+                upsert=True
+            )
+        except Exception as e:
+            logging.error(f"Error setting merge batch1 for user {id}: {e}")
+
+    async def get_merge_batch1(self, id):
+        """Get batch 1 file information"""
+        try:
+            user = await self.col.find_one({"_id": int(id)})
+            return user.get("merge_batch1", {}) if user else {}
+        except Exception as e:
+            logging.error(f"Error getting merge batch1 for user {id}: {e}")
+            return {}
+
+    async def set_merge_tracks(self, id, tracks):
+        """Store extracted tracks from batch 1"""
+        try:
+            await self.col.update_one(
+                {"_id": int(id)},
+                {"$set": {"merge_tracks": tracks}},
+                upsert=True
+            )
+        except Exception as e:
+            logging.error(f"Error setting merge tracks for user {id}: {e}")
+
+    async def get_merge_tracks(self, id):
+        """Get extracted tracks from batch 1"""
+        try:
+            user = await self.col.find_one({"_id": int(id)})
+            return user.get("merge_tracks", {}) if user else {}
+        except Exception as e:
+            logging.error(f"Error getting merge tracks for user {id}: {e}")
+            return {}
+
+    async def set_merge_format(self, id, format_template):
+        """Store merge output format template"""
+        try:
+            await self.col.update_one(
+                {"_id": int(id)},
+                {"$set": {"merge_format": format_template}},
+                upsert=True
+            )
+        except Exception as e:
+            logging.error(f"Error setting merge format for user {id}: {e}")
+
+    async def get_merge_format(self, id):
+        """Get merge output format template"""
+        try:
+            user = await self.col.find_one({"_id": int(id)})
+            return user.get("merge_format", None) if user else None
+        except Exception as e:
+            logging.error(f"Error getting merge format for user {id}: {e}")
+            return None
 # Initialize database connection
 codeflixbots = Database(Config.DB_URL, Config.DB_NAME)
 
