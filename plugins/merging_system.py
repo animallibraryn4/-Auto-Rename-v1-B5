@@ -4,6 +4,7 @@ import time
 import shutil
 import asyncio
 import logging
+import json  # Add this
 from datetime import datetime
 from pyrogram import Client, filters
 from pyrogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery
