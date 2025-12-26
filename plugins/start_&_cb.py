@@ -173,6 +173,20 @@ async def cb_handler(client, query: CallbackQuery):
                 [InlineKeyboardButton("ʙᴀᴄᴋ", callback_data="home")]
             ])
         )
+
+    # Add merging command to help text in start_&_cb.py:
+    elif data == "help":
+        await query.message.edit_text(
+            text=Txt.HELP_TXT.format(client.mention),
+            disable_web_page_preview=True,
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("ᴀᴜᴛᴏ ʀᴇɴᴀᴍᴇ ғᴏʀᴍᴀᴛ", callback_data='file_names')],
+                [InlineKeyboardButton('ᴛʜᴜᴍʙɴᴀɪʟ', callback_data='thumbnail'), InlineKeyboardButton('ᴄᴀᴘᴛɪᴏɴ', callback_data='caption')],
+                [InlineKeyboardButton('ᴍᴇᴛᴀᴅᴀᴛᴀ', callback_data='meta'), InlineKeyboardButton('ᴅᴏɴᴀᴛᴇ', callback_data='donate')],
+                [InlineKeyboardButton('🔧 ᴍᴇʀɢᴇ ᴛᴏᴏʟ', callback_data='merge_help')],  # Add this line
+                [InlineKeyboardButton('ʜᴏᴍᴇ', callback_data='home')]
+            ])
+        )
     elif data == "close":
         try:
             await query.message.delete()
@@ -219,7 +233,23 @@ async def cb_handler(client, query: CallbackQuery):
         await query.answer(f"Media preference set to: {media_type} ✅")
         await query.message.edit_text(f"**Media preference set to:** {media_type} ✅")
 
-
+# Add this callback handler in start_&_cb.py:
+    elif data == "merge_help":
+        await query.message.edit_text(
+            text="🔧 **Audio/Subtitle Merger Tool**\n\n"
+                 "**Command:** /merging\n\n"
+                 "**Purpose:** Extract audio and subtitles from source files and add them to target files.\n\n"
+                 "**How it works:**\n"
+                 "1. Send source files (containing desired audio/subtitles)\n"
+                 "2. Send target files (to receive the audio/subtitles)\n"
+                 "3. Bot matches files by season/episode numbers\n"
+                 "4. Bot merges tracks without re-encoding\n\n"
+                 "**Note:** Auto-rename is disabled during merging.\n"
+                 "Use /cancel_merge to cancel an active session.",
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("ʙᴀᴄᴋ", callback_data="help")]
+            ])
+)
 # Donation Command Handler
 @Client.on_message(filters.command("donate"))
 async def donation(client, message):
