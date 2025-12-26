@@ -307,9 +307,16 @@ async def process_rename(client: Client, message: Message):
                 except: pass
         del renaming_operations[file_id]
 
+# In file_rename.py, modify the auto_rename_files function:
 @Client.on_message(filters.private & (filters.document | filters.video | filters.audio))
 async def auto_rename_files(client, message):
     user_id = message.from_user.id
+    
+    # Check if merging is active (disable auto-rename during merging)
+    from plugins.merging import user_states as merging_states
+    if user_id in merging_states:
+        return  # Skip auto-rename during merging process
+    
     if not await is_user_verified(user_id):
         curr = time.time()
         if curr - recent_verification_checks.get(user_id, 0) > 2:
@@ -320,4 +327,3 @@ async def auto_rename_files(client, message):
     if user_id not in user_queues:
         user_queues[user_id] = {"queue": asyncio.Queue(), "task": asyncio.create_task(user_worker(user_id, client))}
     await user_queues[user_id]["queue"].put(message)
-
