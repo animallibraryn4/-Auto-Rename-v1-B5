@@ -259,15 +259,22 @@ async def merging_toggle(client, message):
 async def merging_callback(client, query: CallbackQuery):
     user_id = query.from_user.id
     action = query.data.split('_')[1]
-    
+
+    # 🔍 DEBUG LOGGING (ADD THIS)
+    logger.info(f"Merging callback: user_id={user_id}, action={action}")
+
     if action == 'on':
         merging_mode[user_id] = True
+
         # Clear any previous batch data
         batch1_tracks.pop(user_id, None)
         batch1_files.pop(user_id, None)
         batch2_waiting.pop(user_id, None)
         await cleanup_user_temp(user_id)
-        
+
+        # 🔍 DEBUG LOGGING
+        logger.info(f"Merging mode enabled for user {user_id}")
+
         await query.answer("✅ Merging mode enabled! Auto rename is now disabled.")
         text = (
             "🟢 **Merging Mode ENABLED**\n\n"
@@ -275,15 +282,17 @@ async def merging_callback(client, query: CallbackQuery):
             "I will extract audio and subtitle tracks from these.\n\n"
             "⚠️ **Note:** Send all files from Batch 1 first, then I'll ask for Batch 2."
         )
+
     else:
         merging_mode[user_id] = False
-        # Clean up temp files
         await cleanup_user_temp(user_id)
-        
+
+        # 🔍 DEBUG LOGGING
+        logger.info(f"Merging mode disabled for user {user_id}")
+
         await query.answer("✅ Merging mode disabled! Auto rename is now enabled.")
         text = "🔴 **Merging Mode DISABLED**\n\nNormal auto rename is now active."
-    
-    # Update message
+
     await query.message.edit_text(text)
 
 # ===== File Processing Handler =====
