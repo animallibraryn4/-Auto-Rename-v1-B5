@@ -3,6 +3,7 @@ Dual-Batch Handler - Integrates with existing file_rename system
 """
 import os
 import asyncio
+from typing import Dict, Optional, List  # Add this import
 from pyrogram import Client, filters
 from pyrogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton
 from plugins.batch_tracker import batch_tracker
@@ -345,4 +346,4 @@ async def batch_callback_handler(client, callback):
         new_auto = not prefs['auto_merge']
         await dual_batch_handler.set_user_preference(user_id, 'auto_merge', new_auto)
         await callback.answer(f"Auto merge {'enabled' if new_auto else 'disabled'}")
-        await batch_callback_handler(client, callback)  # Refreshresh
+        await batch_callback_handler(client, callback)  # Refresh
