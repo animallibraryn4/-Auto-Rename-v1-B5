@@ -206,25 +206,4 @@ Pʀɪᴄɪɴɢ:
     QR_TXT = "👋 Hey {},\n\nPay the amount according to your membership price!\n\n📸 <b>QR Code:</b> <a href='https://t.me/Animelibraryn4'>Click here to scan</a>\n\n‼️ You must send a screenshot after payment."
     
 # Add to Txt class in config.py:
-    MERGE_HELP_TXT = """🔧 **Audio/Subtitle Merger Tool**
-
-**Command:** /merging
-
-**How to use:**
-1. Type `/merging` to start
-2. Send source files (with audio/subtitles to extract)
-3. Type `/done_sources` when finished
-4. Send target files (to add tracks to)
-5. Type `/done_targets` to start merging
-
-**Features:**
-• No re-encoding (file size preserved)
-• Original filenames maintained
-• Episode-by-episode matching
-• Multiple audio/subtitle tracks supported
-
-**Commands:**
-• `/merging` - Start merging session
-• `/cancel_merge` - Cancel current session
-• `/done_sources` - Finish sending source files
-• `/done_targets` - Finish sending target files"""
+    
