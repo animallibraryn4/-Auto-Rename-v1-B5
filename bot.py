@@ -41,8 +41,8 @@ class Bot(Client):
         await super().start()
 
         # Initialize merge system
-        from init_merge import initialize_merge_system
-        asyncio.create_task(initialize_merge_system())
+        from plugins.init_merge import initialize_merge_system
+        await initialize_merge_system(self)
         
         me = await self.get_me()
         print(f"{me.first_name} Is Started.....✨️")
