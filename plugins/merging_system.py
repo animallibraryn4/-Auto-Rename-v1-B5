@@ -34,6 +34,36 @@ patternX = re.compile(r'(\d+)')
 pattern11 = re.compile(r'Vol(\d+)\s*-\s*Ch(\d+)', re.IGNORECASE)
 
 # ===== Database Helper Functions =====
+# Synchronous wrapper for backward compatibility
+def merging_mode():
+    """Synchronous wrapper for the merging_mode dictionary (backward compatibility)"""
+    class MergingModeDict:
+        def get(self, user_id, default=False):
+            # This will need to be called in an async context
+            # For backward compatibility, we return default
+            import asyncio
+            try:
+                # Try to get from cache first
+                if user_id in merging_mode_cache:
+                    return merging_mode_cache[user_id]
+                return default
+            except:
+                return default
+        
+        def __getitem__(self, user_id):
+            # This is not ideal but maintains backward compatibility
+            import asyncio
+            try:
+                if user_id in merging_mode_cache:
+                    return merging_mode_cache[user_id]
+                raise KeyError(user_id)
+            except:
+                raise KeyError(user_id)
+    
+    return MergingModeDict()
+
+# Create a singleton instance
+merging_mode = merging_mode()
 
 async def get_merging_mode(user_id):
     """Get merging mode from cache or database"""
