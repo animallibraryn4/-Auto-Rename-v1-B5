@@ -42,7 +42,10 @@ class Database:
             audio='By @Animelibraryn4',
             subtitle='By @Animelibraryn4',
             video='Encoded By @Animelibraryn4',
-            media_type=None
+            media_type=None,
+            # Merging system fields
+            merging_mode=False,
+            merging_state={}
         )
 
     async def add_user(self, b, m):
@@ -289,9 +292,8 @@ class Database:
         except Exception as e:
             logging.error(f"Error checking global thumb status for user {id}: {e}")
             return False
-# Add these methods to the Database class in database.py
-# Add them anywhere after the existing methods, before the codeflixbots initialization
 
+    # Verify Status Methods
     async def get_verify_status(self, id):
         try:
             user = await self.col.find_one({"_id": int(id)})
@@ -326,7 +328,51 @@ class Database:
             logging.error(f"Error deleting verify status for user {id}: {e}")
             return False
 
+    # ===== Merging System State Methods =====
+    async def set_merging_mode(self, id, status: bool):
+        try:
+            await self.col.update_one(
+                {"_id": int(id)},
+                {"$set": {"merging_mode": status}},
+                upsert=True
+            )
+        except Exception as e:
+            logging.error(f"Error setting merging mode for user {id}: {e}")
+
+    async def get_merging_mode(self, id):
+        try:
+            user = await self.col.find_one({"_id": int(id)})
+            return user.get("merging_mode", False) if user else False
+        except Exception as e:
+            logging.error(f"Error getting merging mode for user {id}: {e}")
+            return False
+
+    async def set_merging_state(self, id, state_data):
+        try:
+            await self.col.update_one(
+                {"_id": int(id)},
+                {"$set": {"merging_state": state_data}},
+                upsert=True
+            )
+        except Exception as e:
+            logging.error(f"Error setting merging state for user {id}: {e}")
+
+    async def get_merging_state(self, id):
+        try:
+            user = await self.col.find_one({"_id": int(id)})
+            return user.get("merging_state", {}) if user else {}
+        except Exception as e:
+            logging.error(f"Error getting merging state for user {id}: {e}")
+            return {}
+
+    async def clear_merging_state(self, id):
+        try:
+            await self.col.update_one(
+                {"_id": int(id)},
+                {"$unset": {"merging_state": "", "merging_mode": ""}}
+            )
+        except Exception as e:
+            logging.error(f"Error clearing merging state for user {id}: {e}")
+
 # Initialize database connection
 codeflixbots = Database(Config.DB_URL, Config.DB_NAME)
-
-
