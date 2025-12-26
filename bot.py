@@ -38,6 +38,10 @@ class Bot(Client):
     async def start(self):
         await super().start()
 
+        # Initialize merge system
+        from init_merge import initialize_merge_system
+        asyncio.create_task(initialize_merge_system())
+
         me = await self.get_me()
         print(f"{me.first_name} Is Started.....✨️")
 
@@ -68,3 +72,7 @@ class Bot(Client):
 
 if __name__ == "__main__":
     Bot().run()
+
+
+
+
