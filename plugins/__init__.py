@@ -349,3 +349,8 @@ async def get_token_cmd(client, message):
     """New command to get verification token"""
     await send_verification(client, message)
 
+# Create a wrapper for file handlers
+async def check_merge_mode(user_id):
+    """Check if user is in merge mode"""
+    return await codeflixbots.get_merge_mode(user_id)
+    
