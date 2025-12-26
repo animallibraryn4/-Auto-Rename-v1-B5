@@ -4,7 +4,7 @@ import time
 import shutil
 import asyncio
 import logging
-import json  # Add this
+import json
 from datetime import datetime
 from pyrogram import Client, filters
 from pyrogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery
@@ -18,11 +18,11 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # ===== Global State for Merging =====
-merging_mode = {}  # user_id -> True/False
-batch1_tracks = {}  # user_id -> {season_episode: {audio_tracks: [], subtitle_tracks: []}}
-batch1_files = {}   # user_id -> list of batch1 file paths (for cleanup)
-batch2_waiting = {} # user_id -> True if waiting for batch2
-user_phase = {}  # user_id -> "batch1" | "batch2"
+# These will be loaded from database on demand
+merging_mode_cache = {}  # user_id -> True/False (cache)
+batch1_tracks_cache = {}  # user_id -> {season_episode: {audio_tracks: [], subtitle_tracks: []}}
+batch1_files_cache = {}   # user_id -> list of batch1 file paths (for cleanup)
+batch2_waiting_cache = {} # user_id -> True if waiting for batch2
 
 # Patterns for extracting season/episode
 pattern1 = re.compile(r'S(\d+)(?:E|EP)(\d+)')
@@ -32,6 +32,57 @@ pattern3_2 = re.compile(r'(?:\s*-\s*(\d+)\s*)')
 pattern4 = re.compile(r'S(\d+)[^\d]*(\d+)', re.IGNORECASE)
 patternX = re.compile(r'(\d+)')
 pattern11 = re.compile(r'Vol(\d+)\s*-\s*Ch(\d+)', re.IGNORECASE)
+
+# ===== Database Helper Functions =====
+
+async def get_merging_mode(user_id):
+    """Get merging mode from cache or database"""
+    if user_id in merging_mode_cache:
+        return merging_mode_cache[user_id]
+    
+    status = await codeflixbots.get_merging_mode(user_id)
+    merging_mode_cache[user_id] = status
+    return status
+
+async def set_merging_mode(user_id, status):
+    """Set merging mode in both cache and database"""
+    merging_mode_cache[user_id] = status
+    await codeflixbots.set_merging_mode(user_id, status)
+
+async def get_merging_state(user_id):
+    """Get merging state from cache or database"""
+    if user_id in batch1_tracks_cache and user_id in batch2_waiting_cache:
+        return {
+            'batch1_tracks': batch1_tracks_cache.get(user_id, {}),
+            'batch2_waiting': batch2_waiting_cache.get(user_id, False)
+        }
+    
+    state = await codeflixbots.get_merging_state(user_id)
+    batch1_tracks_cache[user_id] = state.get('batch1_tracks', {})
+    batch2_waiting_cache[user_id] = state.get('batch2_waiting', False)
+    return state
+
+async def set_merging_state(user_id, batch1_tracks=None, batch2_waiting=None):
+    """Set merging state in both cache and database"""
+    if batch1_tracks is not None:
+        batch1_tracks_cache[user_id] = batch1_tracks
+    
+    if batch2_waiting is not None:
+        batch2_waiting_cache[user_id] = batch2_waiting
+    
+    state = {
+        'batch1_tracks': batch1_tracks_cache.get(user_id, {}),
+        'batch2_waiting': batch2_waiting_cache.get(user_id, False)
+    }
+    await codeflixbots.set_merging_state(user_id, state)
+
+async def clear_merging_state(user_id):
+    """Clear merging state from cache and database"""
+    merging_mode_cache.pop(user_id, None)
+    batch1_tracks_cache.pop(user_id, None)
+    batch1_files_cache.pop(user_id, None)
+    batch2_waiting_cache.pop(user_id, None)
+    await codeflixbots.clear_merging_state(user_id)
 
 def extract_season_episode(filename):
     """Extract season and episode numbers from filename"""
@@ -238,7 +289,7 @@ async def merging_toggle(client, message):
         ]
     ])
     
-    current_status = merging_mode.get(user_id, False)
+    current_status = await get_merging_mode(user_id)
     status_text = "🟢 **ON**" if current_status else "🔴 **OFF**"
     
     text = (
@@ -265,12 +316,10 @@ async def merging_callback(client, query: CallbackQuery):
     logger.info(f"Merging callback: user_id={user_id}, action={action}")
 
     if action == 'on':
-        merging_mode[user_id] = True
+        await set_merging_mode(user_id, True)
         
         # Clear any previous batch data
-        batch1_tracks.pop(user_id, None)
-        batch1_files.pop(user_id, None)
-        batch2_waiting.pop(user_id, None)
+        await clear_merging_state(user_id)
         await cleanup_user_temp(user_id)
 
         # 🔍 DEBUG LOGGING
@@ -285,8 +334,9 @@ async def merging_callback(client, query: CallbackQuery):
         )
 
     else:
-        merging_mode[user_id] = False
+        await set_merging_mode(user_id, False)
         await cleanup_user_temp(user_id)
+        await clear_merging_state(user_id)
 
         # 🔍 DEBUG LOGGING
         logger.info(f"Merging mode disabled for user {user_id}")
@@ -309,12 +359,13 @@ async def handle_merging_files(client, message):
         return
     
     # Check if merging mode is enabled
-    if not merging_mode.get(user_id, False):
+    if not await get_merging_mode(user_id):
         # Pass to normal auto rename handler
         return
     
     # Check if we're waiting for batch2
-    if batch2_waiting.get(user_id, False):
+    state = await get_merging_state(user_id)
+    if state.get('batch2_waiting', False):
         await process_batch2_file(client, message)
     else:
         await process_batch1_file(client, message)
@@ -323,10 +374,13 @@ async def process_batch1_file(client, message):
     """Process files from batch 1 (extract tracks)"""
     user_id = message.from_user.id
     
-    # Initialize batch1 data if not exists
-    if user_id not in batch1_tracks:
-        batch1_tracks[user_id] = {}
-        batch1_files[user_id] = []
+    # Get current state
+    state = await get_merging_state(user_id)
+    batch1_tracks = state.get('batch1_tracks', {})
+    
+    # Initialize batch1 files if not exists
+    if user_id not in batch1_files_cache:
+        batch1_files_cache[user_id] = []
     
     media = message.document or message.video
     if not media:
@@ -368,16 +422,19 @@ async def process_batch1_file(client, message):
             os.remove(path)
             return
         
-        # Store tracks
-        if key not in batch1_tracks[user_id]:
-            batch1_tracks[user_id][key] = {
+        # Update tracks in state
+        if key not in batch1_tracks:
+            batch1_tracks[key] = {
                 'audio': [],
                 'subtitle': []
             }
         
-        batch1_tracks[user_id][key]['audio'].extend(audio_tracks)
-        batch1_tracks[user_id][key]['subtitle'].extend(subtitle_tracks)
-        batch1_files[user_id].append(path)
+        batch1_tracks[key]['audio'].extend(audio_tracks)
+        batch1_tracks[key]['subtitle'].extend(subtitle_tracks)
+        batch1_files_cache[user_id].append(path)
+        
+        # Save updated state to database
+        await set_merging_state(user_id, batch1_tracks=batch1_tracks)
         
         # Count extracted tracks
         audio_count = len(audio_tracks)
@@ -417,15 +474,18 @@ async def process_batch2_file(client, message):
     key = f"S{season}E{episode}"
     
     # Check if we have tracks for this episode
-    if key not in batch1_tracks.get(user_id, {}):
+    state = await get_merging_state(user_id)
+    batch1_tracks = state.get('batch1_tracks', {})
+    
+    if key not in batch1_tracks:
         await message.reply_text(
             f"⚠️ No tracks found for Season {season}, Episode {episode} in Batch 1.\n"
             f"Skipping this file."
         )
         return
     
-    tracks = batch1_tracks[user_id][key]
-    if not tracks['audio'] and not tracks['subtitle']:
+    tracks = batch1_tracks[key]
+    if not tracks.get('audio') and not tracks.get('subtitle'):
         await message.reply_text(
             f"⚠️ No audio or subtitle tracks available for merging.\n"
             f"Skipping this file."
@@ -478,8 +538,8 @@ async def process_batch2_file(client, message):
         # Merge tracks
         success = await merge_tracks(
             path,
-            tracks['audio'],
-            tracks['subtitle'],
+            tracks.get('audio', []),
+            tracks.get('subtitle', []),
             output_path
         )
         
@@ -540,24 +600,27 @@ async def batch1_done(client, message):
     """Finish batch1 and ask for batch2"""
     user_id = message.from_user.id
     
-    if not merging_mode.get(user_id, False):
+    if not await get_merging_mode(user_id):
         await message.reply_text("❌ Merging mode is not enabled. Use /merging first.")
         return
     
-    if not batch1_tracks.get(user_id):
+    state = await get_merging_state(user_id)
+    batch1_tracks = state.get('batch1_tracks', {})
+    
+    if not batch1_tracks:
         await message.reply_text("❌ No Batch 1 files processed yet.")
         return
     
     # Count total tracks extracted
-    total_episodes = len(batch1_tracks[user_id])
+    total_episodes = len(batch1_tracks)
     total_audio = 0
     total_subtitle = 0
     
-    for episode in batch1_tracks[user_id].values():
-        total_audio += len(episode['audio'])
-        total_subtitle += len(episode['subtitle'])
+    for episode in batch1_tracks.values():
+        total_audio += len(episode.get('audio', []))
+        total_subtitle += len(episode.get('subtitle', []))
     
-    batch2_waiting[user_id] = True
+    await set_merging_state(user_id, batch2_waiting=True)
     
     text = (
         f"✅ **Batch 1 Complete!**\n\n"
@@ -576,7 +639,7 @@ async def batch2_done(client, message):
     """Finish batch2 and clean up"""
     user_id = message.from_user.id
     
-    if not merging_mode.get(user_id, False):
+    if not await get_merging_mode(user_id):
         await message.reply_text("❌ Merging mode is not enabled.")
         return
     
@@ -584,9 +647,7 @@ async def batch2_done(client, message):
     await cleanup_user_temp(user_id)
     
     # Reset user state
-    batch1_tracks.pop(user_id, None)
-    batch1_files.pop(user_id, None)
-    batch2_waiting.pop(user_id, None)
+    await clear_merging_state(user_id)
     
     await message.reply_text(
         "✅ **Merging Complete!**\n\n"
@@ -599,20 +660,24 @@ async def merging_status(client, message):
     """Check current merging status"""
     user_id = message.from_user.id
     
-    status = merging_mode.get(user_id, False)
+    status = await get_merging_mode(user_id)
     status_text = "🟢 **ENABLED**" if status else "🔴 **DISABLED**"
     
     text = f"**Auto Merging Status:** {status_text}\n\n"
     
     if status:
-        if batch2_waiting.get(user_id, False):
+        state = await get_merging_state(user_id)
+        batch2_waiting = state.get('batch2_waiting', False)
+        batch1_tracks = state.get('batch1_tracks', {})
+        
+        if batch2_waiting:
             text += "⏳ **Waiting for Batch 2 files**\n"
-            if batch1_tracks.get(user_id):
-                episodes = len(batch1_tracks[user_id])
+            if batch1_tracks:
+                episodes = len(batch1_tracks)
                 text += f"Batch 1: {episodes} episode(s) processed\n"
         else:
-            if batch1_tracks.get(user_id):
-                episodes = len(batch1_tracks[user_id])
+            if batch1_tracks:
+                episodes = len(batch1_tracks)
                 text += f"📦 **Batch 1 in progress:** {episodes} episode(s)\n"
                 text += "Send /batch1_done when finished\n"
             else:
@@ -632,14 +697,11 @@ async def merging_cancel(client, message):
     await cleanup_user_temp(user_id)
     
     # Reset all states
-    merging_mode.pop(user_id, None)
-    batch1_tracks.pop(user_id, None)
-    batch1_files.pop(user_id, None)
-    batch2_waiting.pop(user_id, None)
+    await clear_merging_state(user_id)
+    await set_merging_mode(user_id, False)
     
     await message.reply_text(
         "✅ **Merging cancelled!**\n\n"
         "All temporary files cleaned up.\n"
         "Auto rename mode is now active."
     )
- 
