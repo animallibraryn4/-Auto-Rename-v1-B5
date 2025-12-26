@@ -10,5 +10,3 @@ humanize
 pyromod
 ffmpeg-python
 cloudscraper
-# Add this line to your existing requirements.txt
-mutagen==1.47.0
