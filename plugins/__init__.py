@@ -81,6 +81,14 @@ async def delete_verification_messages(client, user_id):
 def is_merging_active(user_id):
     """Check if user is in merging mode (disables auto-rename)."""
     return user_id in user_states
+
+def is_merging_active(user_id):
+    """Check if user is in merging mode (disables auto-rename)."""
+    try:
+        from plugins.merging import user_states as merging_states
+        return user_id in merging_states
+    except ImportError:
+        return False
 # =====================================================
 # SHORTLINK
 # =====================================================
@@ -351,4 +359,6 @@ async def verify_cmd(client, message):
 async def get_token_cmd(client, message):
     """New command to get verification token"""
     await send_verification(client, message)
+# Add this function to your existing __init__.py file
+
 
