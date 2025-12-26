@@ -10,7 +10,11 @@ from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton, Message, 
 from cloudscraper import create_scraper
 from motor.motor_asyncio import AsyncIOMotorClient
 from config import Config, Txt
-from helper.database import codeflixbots  # Import main database
+from helper.database import codeflixbots
+# Add these imports
+from plugins.dual_batch_handler import dual_batch_handler, batch_command_handler
+from plugins.batch_tracker import batch_tracker
+from plugins.batch_merger import batch_merger
 
 # =====================================================
 # MEMORY (SIMPLE & STABLE)
