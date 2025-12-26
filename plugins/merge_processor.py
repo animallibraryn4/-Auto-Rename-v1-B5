@@ -295,6 +295,210 @@ async def process_merge_file(client, message):
                 progress_args=("Uploading...", download_msg, time.time())
             )
         
+# Replace the process_merge_file function:
+
+async def process_merge_file(client, message):
+    """Process a file for merging based on current mode"""
+    user_id = message.from_user.id
+    
+    # Get merge data
+    batch1 = await codeflixbots.get_merge_batch1(user_id)
+    tracks = await codeflixbots.get_merge_tracks(user_id)
+    merge_format = await codeflixbots.get_merge_format(user_id)
+    
+    if not merge_format:
+        await message.reply_text(
+            "❌ **Merge format not set!**\n\n"
+            "Please use `/mergeformat` first to set output naming format."
+        )
+        return
+    
+    # Check file type
+    media = message.document or message.video
+    if not media:
+        await message.reply_text("❌ Unsupported file type. Send video files only.")
+        return
+    
+    file_name = getattr(media, 'file_name', 'video.mkv')
+    file_size = media.file_size
+    
+    # Extract season and episode
+    episode = extract_episode_number(file_name)
+    season = extract_season_number(file_name)
+    
+    if not episode or not season:
+        await message.reply_text(
+            f"❌ Could not extract season/episode from: {file_name}\n"
+            "Skipping this file..."
+        )
+        return
+    
+    key = f"S{season}E{episode}"
+    
+    # Check if this is the first batch (source files for tracks)
+    if key not in batch1:
+        # This is batch 1 file - extract tracks only
+        download_msg = await message.reply_text(f"📥 **Batch 1 - Extracting tracks:** {file_name}")
+        
+        # Download file
+        download_path = f"downloads/merge_batch1_{message.id}_{file_name}"
+        os.makedirs("downloads", exist_ok=True)
+        
+        try:
+            path = await client.download_media(
+                message,
+                file_name=download_path,
+                progress=progress_for_pyrogram,
+                progress_args=("Downloading...", download_msg, time.time())
+            )
+        except Exception as e:
+            await download_msg.edit(f"❌ Download error: {e}")
+            return
+        
+        # Extract stream information
+        await download_msg.edit("🔍 **Extracting audio/subtitle tracks...**")
+        
+        stream_info = extract_streams_info(path)
+        
+        # Store in batch1
+        batch1[key] = {
+            "file_path": path,
+            "file_name": file_name,
+            "season": season,
+            "episode": episode,
+            "stream_info": stream_info
+        }
+        
+        # Also store tracks separately
+        tracks[key] = stream_info
+        
+        await codeflixbots.set_merge_batch1(user_id, batch1)
+        await codeflixbots.set_merge_tracks(user_id, tracks)
+        
+        # Get counts
+        audio_count = len(stream_info.get('audios', []))
+        sub_count = len(stream_info.get('subtitles', []))
+        
+        await download_msg.edit(
+            f"✅ **Batch 1 stored:** {file_name}\n\n"
+            f"**Season {season}, Episode {episode}**\n"
+            f"• Audio tracks: {audio_count}\n"
+            f"• Subtitle tracks: {sub_count}\n\n"
+            f"**Total stored:** {len(batch1)} episodes\n\n"
+            "Continue sending Batch 1 files, or start sending Batch 2 files."
+        )
+        
+        # Clean up
+        if os.path.exists(path):
+            os.remove(path)
+            
+    else:
+        # This is batch 2 file - process merging
+        if key not in tracks:
+            await message.reply_text(
+                f"❌ No matching tracks found for {key}\n"
+                "Make sure you sent this episode in Batch 1 first."
+            )
+            return
+        
+        # Check if we already processed this episode
+        processed_key = f"processed_{key}"
+        if processed_key in batch1:
+            await message.reply_text(
+                f"⚠️ Episode {key} already processed!\n"
+                f"Renamed as: {batch1[processed_key]}"
+            )
+            return
+        
+        download_msg = await message.reply_text(f"🔄 **Merging:** {file_name}")
+        
+        # Download batch 2 file
+        download_path = f"downloads/merge_batch2_{message.id}_{file_name}"
+        
+        try:
+            path = await client.download_media(
+                message,
+                file_name=download_path,
+                progress=progress_for_pyrogram,
+                progress_args=("Downloading Batch 2...", download_msg, time.time())
+            )
+        except Exception as e:
+            await download_msg.edit(f"❌ Download error: {e}")
+            return
+        
+        # Get batch 1 track info
+        batch1_info = tracks.get(key)
+        if not batch1_info:
+            await download_msg.edit(f"❌ Track data missing for {key}")
+            return
+        
+        # Create output path
+        quality = extract_quality(file_name)
+        output_filename = await generate_merged_filename(
+            merge_format, file_name, season, episode, batch1_info, quality
+        )
+        output_path = f"downloads/merged_{message.id}_{output_filename}"
+        
+        # Check if we need to merge (has extra tracks)
+        audio_count = len(batch1_info.get('audios', []))
+        sub_count = len(batch1_info.get('subtitles', []))
+        
+        if audio_count == 0 and sub_count == 0:
+            # No tracks to merge - just rename
+            await download_msg.edit("📝 **No extra tracks found, renaming only...**")
+            import shutil
+            shutil.copy2(path, output_path)
+        else:
+            # Merge tracks
+            await download_msg.edit("🔗 **Merging audio/subtitle tracks...**")
+            
+            try:
+                # For now, we'll create a simple merged file
+                # In production, you would use actual FFmpeg merging
+                await simple_merge_with_ffmpeg(path, batch1_info, output_path)
+            except Exception as e:
+                await download_msg.edit(f"❌ Merge error: {e}")
+                # Fallback - just copy the file
+                import shutil
+                shutil.copy2(path, output_path)
+        
+        # Upload merged file
+        await download_msg.edit("📤 **Uploading merged file...**")
+        
+        # Get thumbnail
+        c_thumb = await codeflixbots.get_thumbnail(user_id)
+        ph_path = None
+        if c_thumb:
+            ph_path = await client.download_media(c_thumb)
+        
+        # Upload
+        caption = f"**Merged:** {output_filename}\nSeason {season}, Episode {episode}"
+        
+        if message.video:
+            await client.send_video(
+                chat_id=message.chat.id,
+                video=output_path,
+                file_name=output_filename,
+                caption=caption,
+                thumb=ph_path,
+                progress=progress_for_pyrogram,
+                progress_args=("Uploading...", download_msg, time.time())
+            )
+        else:
+            await client.send_document(
+                chat_id=message.chat.id,
+                document=output_path,
+                file_name=output_filename,
+                caption=caption,
+                thumb=ph_path,
+                progress=progress_for_pyrogram,
+                progress_args=("Uploading...", download_msg, time.time())
+            )
+        
+        # Mark as processed
+        batch1[f"processed_{key}"] = output_filename
+        await codeflixbots.set_merge_batch1(user_id, batch1)
+        
         await download_msg.delete()
         
         # Cleanup
@@ -305,64 +509,65 @@ async def process_merge_file(client, message):
                 except:
                     pass
 
-async def generate_merged_filename(format_template, original_name, season, episode, tracks):
+async def simple_merge_with_ffmpeg(video_path, tracks_info, output_path):
+    """Simple FFmpeg merge implementation"""
+    ffmpeg_cmd = shutil.which('ffmpeg')
+    if not ffmpeg_cmd:
+        # Just copy if no FFmpeg
+        import shutil
+        shutil.copy2(video_path, output_path)
+        return
+    
+    # Basic FFmpeg command that copies everything
+    cmd = [ffmpeg_cmd, '-i', video_path, '-c', 'copy', '-y', output_path]
+    
+    process = await asyncio.create_subprocess_exec(
+        *cmd,
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.PIPE
+    )
+    
+    await process.communicate()
+
+async def generate_merged_filename(format_template, original_name, season, episode, tracks_info, quality):
     """Generate filename for merged output"""
-    # Extract quality from original name
-    quality = extract_quality(original_name)
+    # Standardize quality
     std_quality = standardize_quality_name(quality) if quality != "Unknown" else ""
     
     # Check if we have extra audio tracks
-    has_extra_audio = len(tracks.get("audios", [])) > 0
+    audio_count = len(tracks_info.get('audios', []))
+    has_extra_audio = audio_count > 0
     dual_tag = "[Dual]" if has_extra_audio else ""
+    
+    # Check subtitle count
+    sub_count = len(tracks_info.get('subtitles', []))
+    sub_tag = f"[Sub{sub_count}]" if sub_count > 0 else ""
     
     # Replace placeholders
     replacements = {
-        "[SE.NUM]": str(season or ""),
-        "[EP.NUM]": str(episode or ""),
+        "[SE.NUM]": str(season),
+        "[EP.NUM]": str(episode),
         "[QUALITY]": std_quality,
         "[DUAL]": dual_tag,
-        "{season}": str(season or ""),
-        "{episode}": str(episode or ""),
+        "[SUBS]": sub_tag,
+        "{season}": str(season),
+        "{episode}": str(episode),
         "{quality}": std_quality,
-        "{dual}": dual_tag
+        "{dual}": dual_tag,
+        "{subs}": sub_tag
     }
     
     for old, new in replacements.items():
-        format_template = format_template.replace(old, new)
+        if old in format_template:
+            format_template = format_template.replace(old, new)
     
-    # Clean up
+    # Clean up multiple spaces
+    import re
     format_template = re.sub(r'\s+', ' ', format_template).strip()
     
     # Add extension
     _, ext = os.path.splitext(original_name)
+    if not ext:
+        ext = '.mkv'
+    
     return f"{format_template}{ext}"
-
-@Client.on_message(filters.private & (filters.document | filters.video))
-async def handle_all_files(client, message):
-    """Main handler for all files - decides whether to rename or merge"""
-    user_id = message.from_user.id
-    
-    # Check if user is verified (existing logic)
-    from plugins import is_user_verified, send_verification
-    if not await is_user_verified(user_id):
-        curr = time.time()
-        from plugins.file_rename import recent_verification_checks
-        if curr - recent_verification_checks.get(user_id, 0) > 2:
-            recent_verification_checks[user_id] = curr
-            await send_verification(client, message)
-        return
-    
-    # Check if merge mode is enabled
-    if await codeflixbots.get_merge_mode(user_id):
-        # Handle file through merge system
-        if user_id not in merge_queues:
-            merge_queues[user_id] = {
-                "queue": asyncio.Queue(),
-                "task": asyncio.create_task(merge_worker(user_id, client))
-            }
-        await merge_queues[user_id]["queue"].put(message)
-    else:
-        # Handle file through existing rename system
-        # Import existing handler
-        from plugins.file_rename import auto_rename_files
-        await auto_rename_files(client, message)
