@@ -38,14 +38,14 @@ class Bot(Client):
         self.start_time = time.time()
 
     async def start(self):
-        await super().start()
+    await super().start()
 
-        # Initialize merge system
-        from plugins.init_merge import initialize_merge_system
-        await initialize_merge_system(self)
-        
-        me = await self.get_me()
-        print(f"{me.first_name} Is Started.....✨️")
+    # Initialize merge system
+    from plugins.init_merge import initialize_merge_system
+    await initialize_merge_system(self)
+
+    me = await self.get_me()
+    print(f"{me.first_name} Is Started.....✨️")
 
         uptime_seconds = int(time.time() - self.start_time)
         uptime_string = str(timedelta(seconds=uptime_seconds))
