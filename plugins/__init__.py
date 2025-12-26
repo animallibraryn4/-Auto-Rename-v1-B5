@@ -78,6 +78,9 @@ async def delete_verification_messages(client, user_id):
                 pass
         verify_message_ids.pop(user_id, None)
 
+def is_merging_active(user_id):
+    """Check if user is in merging mode (disables auto-rename)."""
+    return user_id in user_states
 # =====================================================
 # SHORTLINK
 # =====================================================
