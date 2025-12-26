@@ -10,3 +10,5 @@ humanize
 pyromod
 ffmpeg-python
 cloudscraper
+# Add any additional requirements if needed (ffmpeg should already be there)
+ffmpeg-python==0.2.0
