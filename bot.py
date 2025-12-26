@@ -11,6 +11,7 @@ import pyromod
 from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 import os
 import time
+from init_merge import initialize_merge_system
 
 pyrogram.utils.MIN_CHANNEL_ID = -1001896877147
 
