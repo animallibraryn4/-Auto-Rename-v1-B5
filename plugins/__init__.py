@@ -7,6 +7,7 @@ from urllib3 import disable_warnings
 from pyrogram import Client, filters
 from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton, Message, CallbackQuery
 
+from plugins.merging import user_states
 from cloudscraper import create_scraper
 from motor.motor_asyncio import AsyncIOMotorClient
 from config import Config, Txt
