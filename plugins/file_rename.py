@@ -307,9 +307,12 @@ async def process_rename(client: Client, message: Message):
                 except: pass
         del renaming_operations[file_id]
 
+# Replace the auto_rename_files function at the end of file_rename.py:
 @Client.on_message(filters.private & (filters.document | filters.video | filters.audio))
 async def auto_rename_files(client, message):
     user_id = message.from_user.id
+    
+    # Check if user is verified (existing logic)
     if not await is_user_verified(user_id):
         curr = time.time()
         if curr - recent_verification_checks.get(user_id, 0) > 2:
@@ -317,6 +320,14 @@ async def auto_rename_files(client, message):
             await send_verification(client, message)
         return
     
+    # IMPORTANT: Check if merge mode is enabled - if yes, skip auto rename
+    from helper.database import codeflixbots
+    if await codeflixbots.get_merge_mode(user_id):
+        # Don't process through auto rename when merge mode is ON
+        # Let merge_processor.py handle it
+        return
+    
+    # Only proceed with auto rename if merge mode is OFF
     if user_id not in user_queues:
         user_queues[user_id] = {"queue": asyncio.Queue(), "task": asyncio.create_task(user_worker(user_id, client))}
     await user_queues[user_id]["queue"].put(message)
