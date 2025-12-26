@@ -328,10 +328,6 @@ async def close_cb(client, query: CallbackQuery):
     user_state.pop(user_id, None)
     await query.message.delete()
 
-@Client.on_callback_query(filters.regex(r'^(merging_on|merging_off)$'))
-async def merging_callback_handler(client, query: CallbackQuery):
-    # This will be handled by merging_system.py
-    pass
 
 # =====================================================
 # VERIFY COMMAND
