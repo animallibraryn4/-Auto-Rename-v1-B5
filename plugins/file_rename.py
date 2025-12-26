@@ -16,6 +16,7 @@ from helper.utils import progress_for_pyrogram, humanbytes, convert
 from helper.database import codeflixbots
 from config import Config
 from plugins import is_user_verified, send_verification
+from plugins.dual_batch_handler import dual_batch_handler
 
 # Setup Logging
 logging.basicConfig(level=logging.INFO)
@@ -321,3 +322,51 @@ async def auto_rename_files(client, message):
         user_queues[user_id] = {"queue": asyncio.Queue(), "task": asyncio.create_task(user_worker(user_id, client))}
     await user_queues[user_id]["queue"].put(message)
 
+
+# Modify the auto_rename_files function to include batch handling
+@Client.on_message(filters.private & (filters.document | filters.video | filters.audio))
+async def auto_rename_files(client, message):
+    user_id = message.from_user.id
+    if not await is_user_verified(user_id):
+        curr = time.time()
+        if curr - recent_verification_checks.get(user_id, 0) > 2:
+            recent_verification_checks[user_id] = curr
+            await send_verification(client, message)
+        return
+    
+    # Check if batch mode is enabled
+    user_pref = await dual_batch_handler.get_user_preference(user_id)
+    if user_pref.get('batch_mode', False):
+        # Download file for batch processing
+        media = message.document or message.video or message.audio
+        if not media:
+            return
+        
+        file_name = getattr(media, 'file_name', 'video.mp4')
+        download_path = f"batch_downloads/{user_id}/{message.id}_{file_name}"
+        os.makedirs(os.path.dirname(download_path), exist_ok=True)
+        
+        try:
+            path = await client.download_media(message, file_name=download_path)
+            
+            # Let batch handler process the file
+            handled = await dual_batch_handler.handle_dual_batch_file(
+                client, message, path, file_name
+            )
+            
+            if handled:
+                # File was processed as part of batch merge
+                try:
+                    os.remove(path)
+                except:
+                    pass
+                return  # Don't proceed with normal rename
+                
+        except Exception as e:
+            logger.error(f"Error in batch download: {e}")
+            # Fall through to normal processing
+    
+    # Original queue logic for normal processing
+    if user_id not in user_queues:
+        user_queues[user_id] = {"queue": asyncio.Queue(), "task": asyncio.create_task(user_worker(user_id, client))}
+    await user_queues[user_id]["queue"].put(message)
