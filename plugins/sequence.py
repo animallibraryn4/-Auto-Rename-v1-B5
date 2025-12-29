@@ -240,8 +240,13 @@ async def store_file(client, message):
     """Store files for sequencing"""
     user_id = message.from_user.id
     
+    print(f"DEBUG: store_file called for user {user_id}")
+    print(f"DEBUG: user_id in user_sequences: {user_id in user_sequences}")
+    
     # Check if we are currently in a sequence session
     if user_id in user_sequences:
+        print(f"DEBUG: Processing file for sequence user {user_id}")
+        # ... rest of the function
         file_obj = message.document or message.video or message.audio
         current_mode = user_mode.get(user_id, "file")
         
