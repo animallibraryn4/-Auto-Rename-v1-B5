@@ -45,6 +45,9 @@ pattern9 = re.compile(r'[([<{]?\s*4kX264\s*[)\]>}]?', re.IGNORECASE)
 pattern10 = re.compile(r'[([<{]?\s*4kx265\s*[)]>}]?', re.IGNORECASE)
 pattern11 = re.compile(r'Vol(\d+)\s*-\s*Ch(\d+)', re.IGNORECASE)
 
+# Import from sequence.py to check if user is in sequence mode
+from plugins.sequence import user_sequences as sequence_user_sequences
+
 async def user_worker(user_id, client):
     """Worker to process files for a specific user"""
     queue = user_queues[user_id]["queue"]
@@ -574,12 +577,26 @@ async def process_rename(client: Client, message: Message):
 async def auto_rename_files(client, message):
     user_id = message.from_user.id
     
+    # ===== CRITICAL FIX: Check if user is in sequence mode first =====
+    # If user is in sequence mode, let sequence.py handle the file
+    from plugins.sequence import user_sequences
+    if user_id in user_sequences:
+        # File should be handled by sequence.py
+        return
+    
     # Check verification
     if not await is_user_verified(user_id):
         curr = time.time()
         if curr - recent_verification_checks.get(user_id, 0) > 2:
             recent_verification_checks[user_id] = curr
             await send_verification(client, message)
+        return
+    
+    # ===== CHECK IF USER HAS AUTO RENAME FORMAT SET =====
+    format_template = await codeflixbots.get_format_template(user_id)
+    if not format_template:
+        # No auto rename format set, don't process for renaming
+        # Could show a message or just ignore
         return
     
     # Queue management
