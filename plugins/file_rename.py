@@ -248,6 +248,8 @@ async def process_rename(client: Client, message: Message):
         await proc.communicate()
         if os.path.exists(final_meta): path = final_meta
 
+        # ... (keep the beginning of the file the same until the thumbnail processing section)
+
         # RESTORED: Improved Quality-Based Thumbnail Selection
         upload_msg = await download_msg.edit("**__Uploading...__**")
         c_thumb = None
@@ -266,7 +268,7 @@ async def process_rename(client: Client, message: Message):
         if not c_thumb and media_type == "video" and message.video and message.video.thumbs:
             c_thumb = message.video.thumbs[0].file_id
 
-        # Precise Center-Crop Processing
+        # Otherwise, keep the original aspect ratio for videos
         ph_path = None
         if c_thumb:
             ph_path = await client.download_media(c_thumb)
@@ -274,13 +276,25 @@ async def process_rename(client: Client, message: Message):
                 try:
                     with Image.open(ph_path) as img:
                         img = img.convert("RGB")
-                        width, height = img.size
-                        min_dim = min(width, height)
-                        left, top = (width - min_dim) / 2, (height - min_dim) / 2
-                        right, bottom = (width + min_dim) / 2, (height + min_dim) / 2
-                        img = img.crop((left, top, right, bottom)).resize((320, 320), Image.LANCZOS)
+                        
+                        # Only crop to square if media preference is "document"
+                        if media_type == "document":
+                            # Square crop for documents (center crop)
+                            width, height = img.size
+                            min_dim = min(width, height)
+                            left, top = (width - min_dim) / 2, (height - min_dim) / 2
+                            right, bottom = (width + min_dim) / 2, (height + min_dim) / 2
+                            img = img.crop((left, top, right, bottom)).resize((320, 320), Image.LANCZOS)
+                        else:
+                            # For videos, just resize while maintaining aspect ratio
+                            # Telegram video thumbnails should maintain 16:9 aspect ratio
+                            img.thumbnail((320, 320), Image.LANCZOS)
+                        
                         img.save(ph_path, "JPEG", quality=95)
-                except: ph_path = None
+                except Exception as crop_error:
+                    logger.error(f"Thumbnail processing error: {crop_error}")
+                    ph_path = None
+
 
         c_caption = await codeflixbots.get_caption(message.chat.id)
         caption = c_caption.format(filename=renamed_file_name, filesize=humanbytes(file_size), duration=convert(0)) if c_caption else f"**{renamed_file_name}**"
