@@ -880,6 +880,10 @@ async def cleanup_user_data(user_id):
         if task and not task.done():
             task.cancel()
 
+def get_user_sequences():
+    """Helper function to access user_sequences from other modules"""
+    return user_sequences
+
 # =====================================================
 # SEQUENCE HELP TEXT
 # =====================================================
