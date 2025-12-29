@@ -583,9 +583,9 @@ async def process_rename(client: Client, message: Message):
         if file_id in renaming_operations:
             del renaming_operations[file_id]
 
-
-@Client.on_message(filters.private & (filters.document | filters.video | filters.audio))
+@Client.on_message(filters.private & (filters.document | filters.video | filters.audio), group=0)
 async def auto_rename_files(client, message):
+    
     user_id = message.from_user.id
     
     # IMPORTANT: Skip if user is in sequence mode
