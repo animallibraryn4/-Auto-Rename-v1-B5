@@ -235,7 +235,7 @@ async def start_sequence(client, message):
         f"Send your files now. I'll sequence them in the configured order.</blockquote>"
     )
 
-@Client.on_message(filters.private & (filters.document | filters.video | filters.audio))
+@Client.on_message(filters.private & (filters.document | filters.video | filters.audio), group=-1)
 async def store_file(client, message):
     """Store files for sequencing"""
     user_id = message.from_user.id
