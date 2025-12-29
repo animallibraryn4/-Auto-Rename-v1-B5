@@ -583,17 +583,24 @@ async def process_rename(client: Client, message: Message):
         if file_id in renaming_operations:
             del renaming_operations[file_id]
 
+
 @Client.on_message(filters.private & (filters.document | filters.video | filters.audio))
 async def auto_rename_files(client, message):
     user_id = message.from_user.id
     
-    # ===== CRITICAL FIX: Check if user is in sequence mode first =====
-    # If user is in sequence mode, let sequence.py handle the file
-    from plugins.sequence import user_sequences
-    if user_id in user_sequences:
-        # File should be handled by sequence.py
-        return
+    # IMPORTANT: Skip if user is in sequence mode
+    try:
+        # Direct import each time (less efficient but works)
+        from plugins.sequence import user_sequences
+        if user_id in user_sequences:
+            print(f"DEBUG: Skipping rename for user {user_id} - in sequence mode")
+            return
+    except ImportError:
+        pass
+    except Exception as e:
+        print(f"DEBUG: Error checking sequence: {e}")
     
+    # Rest of your existing code continues here...
     # Check verification
     if not await is_user_verified(user_id):
         curr = time.time()
