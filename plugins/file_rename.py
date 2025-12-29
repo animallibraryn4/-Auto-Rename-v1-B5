@@ -575,7 +575,7 @@ async def process_rename(client: Client, message: Message):
 
 @Client.on_message(filters.private & (filters.document | filters.video | filters.audio), group=0)
 async def auto_rename_files(client, message):
-    
+    user_id = message.from_user.id
     
     # ===== CRITICAL FIX: Check if user is in sequence mode first =====
     # If user is in sequence mode, let sequence.py handle the file
@@ -607,3 +607,8 @@ async def auto_rename_files(client, message):
         }
     
     await user_queues[user_id]["queue"].put(message)
+
+
+    
+    
+    
