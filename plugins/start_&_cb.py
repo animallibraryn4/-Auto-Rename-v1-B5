@@ -94,16 +94,20 @@ async def cb_handler(client, query: CallbackQuery):
         )
 
     elif data == "help":
-        await query.message.edit_text(
-            text=Txt.HELP_TXT.format(client.mention),
-            disable_web_page_preview=True,
-            reply_markup=InlineKeyboardMarkup([
-                [InlineKeyboardButton("ᴀᴜᴛᴏ ʀᴇɴᴀᴍᴇ ғᴏʀᴍᴀᴛ", callback_data='file_names')],
-                [InlineKeyboardButton('ᴛʜᴜᴍʙɴᴀɪʟ', callback_data='thumbnail'), InlineKeyboardButton('ᴄᴀᴘᴛɪᴏɴ', callback_data='caption')],
-                [InlineKeyboardButton('ᴍᴇᴛᴀᴅᴀᴛᴀ', callback_data='meta'), InlineKeyboardButton('ᴅᴏɴᴀᴛᴇ', callback_data='donate')],
-                [InlineKeyboardButton('ʜᴏᴍᴇ', callback_data='home')]
-            ])
-        )
+    # Get bot info properly
+    bot = await client.get_me()
+    mention = bot.mention if hasattr(bot, 'mention') else f"@{bot.username}"
+    
+    await query.message.edit_text(
+        text=Txt.HELP_TXT.format(mention=mention),
+        disable_web_page_preview=True,
+        reply_markup=InlineKeyboardMarkup([
+            [InlineKeyboardButton("ᴀᴜᴛᴏ ʀᴇɴᴀᴍᴇ ғᴏʀᴍᴀᴛ •", callback_data='file_names')],
+            [InlineKeyboardButton('ᴛʜᴜᴍʙɴᴀɪʟ', callback_data='thumbnail'), InlineKeyboardButton('ᴄᴀᴘᴛɪᴏɴ', callback_data='caption')],
+            [InlineKeyboardButton('ᴍᴇᴛᴀᴅᴀᴛᴀ', callback_data='meta'), InlineKeyboardButton('ᴅᴏɴᴀᴛᴇ', callback_data='donate')],
+            [InlineKeyboardButton('ʜᴏᴍᴇ', callback_data='home')]
+        ])
+    )
 
     elif data == "meta":
         await query.message.edit_text(
@@ -252,8 +256,9 @@ async def bought(client, message):
 
 @Client.on_message(filters.private & filters.command("help"))
 async def help_command(client, message):
+    # Get bot info properly
     bot = await client.get_me()
-    mention = bot.mention
+    mention = bot.mention if hasattr(bot, 'mention') else f"@{bot.username}"
 
     await message.reply_text(
         text=Txt.HELP_TXT.format(mention=mention),
@@ -264,4 +269,4 @@ async def help_command(client, message):
             [InlineKeyboardButton('ᴍᴇᴛᴀᴅᴀᴛᴀ', callback_data='meta'), InlineKeyboardButton('ᴅᴏɴᴀᴛᴇ', callback_data='donate')],
             [InlineKeyboardButton('ʜᴏᴍᴇ', callback_data='home')]
         ])
-        )
+    )
