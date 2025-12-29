@@ -16,13 +16,17 @@ from helper.utils import progress_for_pyrogram, humanbytes, convert
 from helper.database import codeflixbots
 from config import Config
 from plugins import is_user_verified, send_verification
-# At the top of file_rename.py, replace this line:
-from plugins.sequence import user_sequences as sequence_user_sequences
 
-# With this:
+user_sequences_from_sequence = None
+async def get_sequence_status():
+    """Dynamic import to avoid circular imports"""
+    global user_sequences_from_sequence
+    if user_sequences_from_sequence is None:
+        from plugins.sequence import user_sequences
+        user_sequences_from_sequence = user_sequences
+    return user_sequences_from_sequence
 
     
-
 # Setup Logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
