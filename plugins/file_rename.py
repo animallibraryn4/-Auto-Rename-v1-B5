@@ -16,6 +16,12 @@ from helper.utils import progress_for_pyrogram, humanbytes, convert
 from helper.database import codeflixbots
 from config import Config
 from plugins import is_user_verified, send_verification
+# At the top of file_rename.py, replace this line:
+from plugins.sequence import user_sequences as sequence_user_sequences
+
+# With this:
+
+    
 
 # Setup Logging
 logging.basicConfig(level=logging.INFO)
