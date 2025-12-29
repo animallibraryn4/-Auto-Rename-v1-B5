@@ -84,6 +84,7 @@ async def cb_handler(client, query: CallbackQuery):
                 [InlineKeyboardButton('ᴀʙᴏᴜᴛ', callback_data='about'), InlineKeyboardButton('sᴏᴜʀᴄᴇ', callback_data='source')]
             ])
         )
+        
     elif data == "caption":
         await query.message.edit_text(
             text=Txt.CAPTION_TXT,
