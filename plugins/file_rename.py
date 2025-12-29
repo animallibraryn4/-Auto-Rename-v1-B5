@@ -1,4 +1,4 @@
-import os
+
 import re
 import time
 import shutil
@@ -271,8 +271,8 @@ async def process_rename(client: Client, message: Message):
         if c_thumb:
             ph_path = await client.download_media(c_thumb)
             if ph_path:
-                # Only crop if media_type is document
                 if media_type == "document":
+                    # Documents ke liye square crop zaroori hai
                     try:
                         with Image.open(ph_path) as img:
                             img = img.convert("RGB")
@@ -284,15 +284,15 @@ async def process_rename(client: Client, message: Message):
                             img.save(ph_path, "JPEG", quality=95)
                     except Exception as e:
                         logger.error(f"Crop Error: {e}")
-                        ph_path = ph_path # Keep original if crop fails
                 else:
-                    # If it's a video/audio, we just ensure it's a valid image file 
-                    # but skip the square cropping to preserve aspect ratio.
+                    # Video aur Audio ke liye sirf image format check karein bina crop kiye
                     try:
                         with Image.open(ph_path) as img:
-                            img.verify() 
-                    except:
-                        ph_path = None                 
+                            img.load() # Ye file ko valid check karta hai aur close bhi kar deta hai
+                    except Exception as e:
+                        logger.error(f"Thumbnail Check Error: {e}")
+                        ph_path = None # Agar image corrupt hai toh thumb remove kar dein
+                                         
 
         c_caption = await codeflixbots.get_caption(message.chat.id)
         caption = c_caption.format(filename=renamed_file_name, filesize=humanbytes(file_size), duration=convert(0)) if c_caption else f"**{renamed_file_name}**"
