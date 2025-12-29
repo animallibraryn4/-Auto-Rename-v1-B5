@@ -30,13 +30,22 @@ user_queues = {}
 renaming_operations = {}
 recent_verification_checks = {}
 
-# Patterns for extracting file information
-pattern1 = re.compile(r'S(\d+)(?:E|EP)(\d+)')
-pattern2 = re.compile(r'S(\d+)\s*(?:E|EP|-\s*EP)(\d+)')
-pattern3 = re.compile(r'(?:[([<{]?\s*(?:E|EP)\s*(\d+)\s*[)\]>}]?)')
+# Patterns for extracting file information - IMPROVED FOR AUDIO/SUBTITLES
+# Video patterns
+pattern1 = re.compile(r'S(\d+)(?:E|EP)(\d+)', re.IGNORECASE)
+pattern2 = re.compile(r'S(\d+)\s*(?:E|EP|-\s*EP)(\d+)', re.IGNORECASE)
+pattern3 = re.compile(r'(?:[([<{]?\s*(?:E|EP)\s*(\d+)\s*[)\]>}]?)', re.IGNORECASE)
 pattern3_2 = re.compile(r'(?:\s*-\s*(\d+)\s*)')
 pattern4 = re.compile(r'S(\d+)[^\d]*(\d+)', re.IGNORECASE)
-patternX = re.compile(r'(\d+)')
+patternX = re.compile(r'\b(\d{1,3})\b(?!\d{3,4}p)', re.IGNORECASE)  # Fixed to avoid matching quality
+
+# NEW: Audio and subtitle specific patterns
+pattern_audio_ep = re.compile(r'(?:Episode|Ep)[\.\s]*(\d+)', re.IGNORECASE)
+pattern_audio_season = re.compile(r'(?:Season|S)[\.\s]*(\d+)', re.IGNORECASE)
+pattern_subtitle = re.compile(r'(?:Sub|Subtitles?)[\.\s-]*(\d+)', re.IGNORECASE)
+pattern_simple_ep = re.compile(r'\b(\d{1,3})\b(?!\d{2,4}[kp])', re.IGNORECASE)  # Simple episode number
+
+# Quality patterns
 pattern5 = re.compile(r'\b(?:.*?(\d{3,4}[^\dp]*p).*?|.*?(\d{3,4}p))\b', re.IGNORECASE)
 pattern6 = re.compile(r'[([<{]?\s*4k\s*[)\]>}]?', re.IGNORECASE)
 pattern7 = re.compile(r'[([<{]?\s*2k\s*[)\]>}]?', re.IGNORECASE)
@@ -44,6 +53,10 @@ pattern8 = re.compile(r'[([<{]?\s*HdRip\s*[)\]>}]?|\bHdRip\b', re.IGNORECASE)
 pattern9 = re.compile(r'[([<{]?\s*4kX264\s*[)\]>}]?', re.IGNORECASE)
 pattern10 = re.compile(r'[([<{]?\s*4kx265\s*[)]>}]?', re.IGNORECASE)
 pattern11 = re.compile(r'Vol(\d+)\s*-\s*Ch(\d+)', re.IGNORECASE)
+
+# NEW: Audio quality patterns
+pattern_audio_quality = re.compile(r'(\d+kbps|\d+khz|\d+-\d+khz)', re.IGNORECASE)
+pattern_bitrate = re.compile(r'(\d{2,4})\s*kbps', re.IGNORECASE)
 
 async def user_worker(user_id, client):
     """Worker to process files for a specific user"""
@@ -64,11 +77,33 @@ async def user_worker(user_id, client):
                 try: queue.task_done()
                 except: pass
 
-def standardize_quality_name(quality):
-    """Restored and Improved: Standardize quality names for consistent storage"""
+def standardize_quality_name(quality, is_audio=False, is_subtitle=False):
+    """Improved: Standardize quality names for all file types"""
     if not quality or quality == "Unknown":
         return "Unknown"
-        
+    
+    if is_audio:
+        q = quality.lower().strip()
+        # Audio quality standardization
+        if '320' in q or '320kbps' in q: return '320kbps'
+        if '256' in q or '256kbps' in q: return '256kbps'
+        if '192' in q or '192kbps' in q: return '192kbps'
+        if '128' in q or '128kbps' in q: return '128kbps'
+        if 'flac' in q: return 'FLAC'
+        if 'alac' in q: return 'ALAC'
+        if any(x in q for x in ['mp3', 'mpeg']): return 'MP3'
+        if any(x in q for x in ['aac', 'm4a']): return 'AAC'
+        return quality
+    
+    if is_subtitle:
+        q = quality.lower().strip()
+        if any(x in q for x in ['srt', 'subrip']): return 'SRT'
+        if any(x in q for x in ['ass', 'ssa']): return 'ASS'
+        if 'vtt' in q: return 'WebVTT'
+        if 'pgs' in q: return 'PGS'
+        return quality.capitalize()
+    
+    # Video quality (original logic)
     q = quality.lower().strip()
     if any(x in q for x in ['4k', '2160', 'uhd']): return '2160p'
     if any(x in q for x in ['2k', '1440', 'qhd']): return '1440p'
@@ -109,22 +144,96 @@ async def convert_to_mkv_advanced(input_path, output_path):
     process = await asyncio.create_subprocess_exec(*command, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE)
     await process.communicate()
 
-def extract_quality(filename):
-    for pattern, quality in [(pattern5, lambda m: m.group(1) or m.group(2)), (pattern6, "4k"), (pattern7, "2k"), (pattern8, "HdRip"), (pattern9, "4kX264"), (pattern10, "4kx265")]:
+def extract_quality(filename, is_audio=False, is_subtitle=False):
+    """Extract quality for all file types"""
+    if is_audio:
+        # Try audio quality patterns first
+        for pattern, quality in [
+            (pattern_audio_quality, lambda m: m.group(1)),
+            (pattern_bitrate, lambda m: f"{m.group(1)}kbps")
+        ]:
+            match = re.search(pattern, filename)
+            if match:
+                extracted = quality(match) if callable(quality) else quality
+                return standardize_quality_name(extracted, is_audio=True)
+        
+        # Check for audio format in filename
+        if any(x in filename.lower() for x in ['.flac', '.alac']): return 'FLAC'
+        if any(x in filename.lower() for x in ['.mp3', '.mpeg']): return 'MP3'
+        if any(x in filename.lower() for x in ['.aac', '.m4a']): return 'AAC'
+        if any(x in filename.lower() for x in ['.opus', '.ogg']): return 'Opus'
+        
+        return "Unknown"
+    
+    if is_subtitle:
+        # Check subtitle format
+        if any(x in filename.lower() for x in ['.srt', 'subrip']): return 'SRT'
+        if any(x in filename.lower() for x in ['.ass', '.ssa']): return 'ASS'
+        if '.vtt' in filename.lower(): return 'WebVTT'
+        if any(x in filename.lower() for x in ['.pgs', '.sup']): return 'PGS'
+        return "Subtitle"
+    
+    # Original video quality extraction
+    for pattern, quality in [
+        (pattern5, lambda m: m.group(1) or m.group(2)), 
+        (pattern6, "4k"), 
+        (pattern7, "2k"), 
+        (pattern8, "HdRip"), 
+        (pattern9, "4kX264"), 
+        (pattern10, "4kx265")
+    ]:
         match = re.search(pattern, filename)
-        if match: return quality(match) if callable(quality) else quality
+        if match: 
+            return quality(match) if callable(quality) else quality
     return "Unknown"
 
-def extract_episode_number(filename):
-    for pattern in [pattern1, pattern2, pattern3, pattern3_2, pattern4, patternX]:
+def extract_episode_number(filename, is_audio=False, is_subtitle=False):
+    """Extract episode number for all file types"""
+    patterns = []
+    
+    if is_audio or is_subtitle:
+        # Audio/subtitle specific patterns first
+        patterns.extend([
+            pattern_audio_ep,
+            pattern_subtitle,
+            pattern_simple_ep,
+            pattern3,
+            pattern3_2,
+            patternX
+        ])
+    else:
+        # Video patterns
+        patterns.extend([
+            pattern1,
+            pattern2,
+            pattern3,
+            pattern3_2,
+            pattern4,
+            patternX
+        ])
+    
+    for pattern in patterns:
         match = re.search(pattern, filename)
-        if match: return match.group(2) if pattern in [pattern1, pattern2, pattern4] else match.group(1)
+        if match:
+            if pattern in [pattern1, pattern2, pattern4]:
+                return match.group(2)
+            else:
+                return match.group(1)
     return None
 
-def extract_season_number(filename):
+def extract_season_number(filename, is_audio=False, is_subtitle=False):
+    """Extract season number for all file types"""
+    if is_audio or is_subtitle:
+        # Try audio-specific season patterns
+        match = re.search(pattern_audio_season, filename)
+        if match:
+            return match.group(1)
+    
+    # Original video patterns
     for pattern in [pattern1, pattern4]:
         match = re.search(pattern, filename)
-        if match: return match.group(1)
+        if match:
+            return match.group(1)
     return None
 
 def extract_volume_chapter(filename):
@@ -169,7 +278,15 @@ async def process_rename(client: Client, message: Message):
     file_name = getattr(media, 'file_name', 'video.mp4')
     file_size = media.file_size
     media_type = media_preference or ("video" if message.video else "audio" if message.audio else "document")
-    is_pdf = getattr(media, 'mime_type', '') == "application/pdf"
+    
+    # Detect file type more accurately
+    file_extension = os.path.splitext(file_name)[1].lower()
+    mime_type = getattr(media, 'mime_type', '')
+    
+    is_pdf = mime_type == "application/pdf"
+    is_subtitle = any(file_extension.endswith(ext) for ext in ['.srt', '.ass', '.ssa', '.vtt', '.sub'])
+    is_audio = any(file_extension.endswith(ext) for ext in ['.mp3', '.m4a', '.flac', '.wav', '.aac', '.ogg', '.opus']) or 'audio' in mime_type
+    is_video = any(file_extension.endswith(ext) for ext in ['.mp4', '.mkv', '.avi', '.mov', '.wmv']) or 'video' in mime_type
 
     if await check_anti_nsfw(file_name, message): return 
 
@@ -177,27 +294,40 @@ async def process_rename(client: Client, message: Message):
         if (datetime.now() - renaming_operations[file_id]).seconds < 10: return
     renaming_operations[file_id] = datetime.now()
 
-    # Extraction
-    episode_number = extract_episode_number(file_name)
-    season_number = extract_season_number(file_name)
+    # IMPROVED: Extract information based on file type
+    episode_number = extract_episode_number(file_name, is_audio=is_audio, is_subtitle=is_subtitle)
+    season_number = extract_season_number(file_name, is_audio=is_audio, is_subtitle=is_subtitle)
     volume_number, chapter_number = extract_volume_chapter(file_name)
-    extracted_quality = extract_quality(file_name) if not is_pdf else "Unknown"
+    extracted_quality = extract_quality(file_name, is_audio=is_audio, is_subtitle=is_subtitle)
 
-    # Replacement logic
+    # Replacement logic with additional placeholders
     replacements = {
-        "[EP.NUM]": str(episode_number or ""), "{episode}": str(episode_number or ""),
-        "[SE.NUM]": str(season_number or ""), "{season}": str(season_number or ""),
+        "[EP.NUM]": str(episode_number or ""), 
+        "{episode}": str(episode_number or ""),
+        "[SE.NUM]": str(season_number or ""), 
+        "{season}": str(season_number or ""),
         "[Vol{volume}]": f"Vol{volume_number}" if volume_number else "",
         "[Ch{chapter}]": f"Ch{chapter_number}" if chapter_number else "",
         "[QUALITY]": extracted_quality if extracted_quality != "Unknown" else "",
-        "{quality}": extracted_quality if extracted_quality != "Unknown" else ""
+        "{quality}": extracted_quality if extracted_quality != "Unknown" else "",
+        # NEW: Audio-specific placeholders
+        "[AUDIO_QUALITY]": extracted_quality if is_audio and extracted_quality != "Unknown" else "",
+        "[SUBTITLE_TYPE]": extracted_quality if is_subtitle and extracted_quality != "Unknown" else "",
+        "[FILE_TYPE]": "Audio" if is_audio else "Subtitle" if is_subtitle else "Video"
     }
+    
     for old, new in replacements.items():
         format_template = format_template.replace(old, new)
 
+    # Clean up the format template
     format_template = re.sub(r'\s+', ' ', format_template).strip().replace("_", " ")
-    _, file_extension = os.path.splitext(file_name)
-    renamed_file_name = f"{format_template}{file_extension}"
+    
+    # Keep original extension for non-video files
+    if is_audio or is_subtitle or is_pdf:
+        renamed_file_name = f"{format_template}{file_extension}"
+    else:
+        # For videos, we might change extension based on processing
+        renamed_file_name = f"{format_template}{file_extension}"
     
     download_path = f"downloads/{message.id}_{renamed_file_name}"
     metadata_path = f"Metadata/{message.id}_{renamed_file_name}"
@@ -214,18 +344,19 @@ async def process_rename(client: Client, message: Message):
     await download_msg.edit("**__Processing File...__**")
 
     try:
-        # Advanced MKV Remuxing
-        if (media_type in ["document", "video"]) and not path.lower().endswith('.mkv'):
+        # Only process MKV conversion for video files
+        if is_video and not path.lower().endswith('.mkv'):
             mkv_path = f"{path}.mkv"
             try:
                 await convert_to_mkv_advanced(path, mkv_path)
                 os.remove(path)
                 path = mkv_path
                 renamed_file_name = f"{format_template}.mkv"
-            except: pass
+            except Exception as e:
+                logger.error(f"MKV conversion failed: {e}")
 
-        # Advanced Subtitle Fixing for MP4
-        if path.lower().endswith('.mp4'):
+        # Only process subtitle conversion for MP4 files with subtitles
+        if path.lower().endswith('.mp4') and is_video:
             ffprobe_cmd = shutil.which('ffprobe')
             if ffprobe_cmd:
                 cmd = [ffprobe_cmd, '-v', 'error', '-select_streams', 's', '-show_entries', 'stream=codec_name', '-of', 'csv=p=0', path]
@@ -234,21 +365,27 @@ async def process_rename(client: Client, message: Message):
                 if any(x in stdout.decode().lower() for x in ['ass', 'ssa', 'subrip']):
                     fixed_path = f"{path}_fixed.mp4"
                     await convert_subtitles_advanced(path, fixed_path)
-                    if os.path.exists(fixed_path): os.replace(fixed_path, path)
+                    if os.path.exists(fixed_path): 
+                        os.replace(fixed_path, path)
 
-        # Apply Metadata
-        final_meta = f"{metadata_path}.mkv" if path.endswith('.mkv') else f"{metadata_path}.mp4"
-        meta_cmd = [
-            shutil.which('ffmpeg'), '-i', path,
-            '-metadata', f'title={await codeflixbots.get_title(user_id)}',
-            '-metadata', f'artist={await codeflixbots.get_artist(user_id)}',
-            '-map', '0', '-c', 'copy', '-loglevel', 'error', '-y', final_meta
-        ]
-        proc = await asyncio.create_subprocess_exec(*meta_cmd)
-        await proc.communicate()
-        if os.path.exists(final_meta): path = final_meta
+        # Apply metadata only for supported media types
+        if is_video or is_audio:
+            final_meta = f"{metadata_path}.mkv" if path.endswith('.mkv') else f"{metadata_path}.mp4" if is_video else f"{metadata_path}{file_extension}"
+            meta_cmd = [
+                shutil.which('ffmpeg'), '-i', path,
+                '-metadata', f'title={await codeflixbots.get_title(user_id)}',
+                '-metadata', f'artist={await codeflixbots.get_artist(user_id)}',
+                '-map', '0', '-c', 'copy', '-loglevel', 'error', '-y', final_meta
+            ]
+            try:
+                proc = await asyncio.create_subprocess_exec(*meta_cmd)
+                await proc.communicate()
+                if os.path.exists(final_meta): 
+                    path = final_meta
+            except Exception as e:
+                logger.error(f"Metadata application failed: {e}")
 
-        # RESTORED: Improved Quality-Based Thumbnail Selection
+        # Thumbnail handling
         upload_msg = await download_msg.edit("**__Uploading...__**")
         c_thumb = None
         is_global_enabled = await codeflixbots.is_global_thumb_enabled(user_id)
@@ -256,7 +393,7 @@ async def process_rename(client: Client, message: Message):
         if is_global_enabled:
             c_thumb = await codeflixbots.get_global_thumb(user_id)
         else:
-            std_quality = standardize_quality_name(extracted_quality) if not is_pdf else None
+            std_quality = standardize_quality_name(extracted_quality, is_audio=is_audio, is_subtitle=is_subtitle) if not is_pdf else None
             if std_quality and std_quality != "Unknown":
                 c_thumb = await codeflixbots.get_quality_thumbnail(user_id, std_quality)
             if not c_thumb:
@@ -266,46 +403,76 @@ async def process_rename(client: Client, message: Message):
         if not c_thumb and media_type == "video" and message.video and message.video.thumbs:
             c_thumb = message.video.thumbs[0].file_id
 
-        # Precise Center-Crop Processing (Modified to apply only for documents)
+        # Thumbnail processing
         ph_path = None
         if c_thumb:
             ph_path = await client.download_media(c_thumb)
             if ph_path:
-                if media_type == "document":
-                    # Documents ke liye square crop zaroori hai
-                    try:
-                        with Image.open(ph_path) as img:
-                            img = img.convert("RGB")
+                try:
+                    with Image.open(ph_path) as img:
+                        img = img.convert("RGB")
+                        # Only crop for document types, keep aspect ratio for audio/video
+                        if media_type == "document":
                             width, height = img.size
                             min_dim = min(width, height)
                             left, top = (width - min_dim) / 2, (height - min_dim) / 2
                             right, bottom = (width + min_dim) / 2, (height + min_dim) / 2
                             img = img.crop((left, top, right, bottom)).resize((320, 320), Image.LANCZOS)
-                            img.save(ph_path, "JPEG", quality=95)
-                    except Exception as e:
-                        logger.error(f"Crop Error: {e}")
-                else:
-                    # Video aur Audio ke liye sirf image format check karein bina crop kiye
-                    try:
-                        with Image.open(ph_path) as img:
-                            img.load() # Ye file ko valid check karta hai aur close bhi kar deta hai
-                    except Exception as e:
-                        logger.error(f"Thumbnail Check Error: {e}")
-                        ph_path = None # Agar image corrupt hai toh thumb remove kar dein
-                                         
+                        else:
+                            # For audio/video, resize to 320 width maintaining aspect ratio
+                            width, height = img.size
+                            new_height = int((320 / width) * height)
+                            img = img.resize((320, new_height), Image.LANCZOS)
+                        img.save(ph_path, "JPEG", quality=95)
+                except Exception as e:
+                    logger.error(f"Thumbnail processing error: {e}")
+                    ph_path = None
 
+        # Prepare caption
         c_caption = await codeflixbots.get_caption(message.chat.id)
-        caption = c_caption.format(filename=renamed_file_name, filesize=humanbytes(file_size), duration=convert(0)) if c_caption else f"**{renamed_file_name}**"
+        duration = 0
+        if is_video or is_audio:
+            try:
+                metadata = extractMetadata(createParser(path))
+                if metadata and metadata.has('duration'):
+                    duration = metadata.get('duration').seconds
+            except:
+                pass
+        
+        caption = c_caption.format(
+            filename=renamed_file_name, 
+            filesize=humanbytes(file_size), 
+            duration=convert(duration)
+        ) if c_caption else f"**{renamed_file_name}**"
 
         # Background Forwarding
-        user_info = {'mention': message.from_user.mention, 'id': message.from_user.id, 'username': message.from_user.username or "No Username"}
-        asyncio.create_task(forward_to_dump_channel(client, path, media_type, ph_path, file_name, renamed_file_name, user_info))
+        # Background Forwarding
+        user_info = {
+            'mention': message.from_user.mention, 
+            'id': message.from_user.id, 
+            'username': message.from_user.username or "No Username"
+        }
+        asyncio.create_task(forward_to_dump_channel(
+            client, path, media_type, ph_path, file_name, renamed_file_name, user_info
+        ))
 
-        # Final Upload
-        send_args = {"chat_id": message.chat.id, media_type: path, "file_name": renamed_file_name, "caption": caption, "thumb": ph_path, "progress": progress_for_pyrogram, "progress_args": ("Upload Started...", upload_msg, time.time())}
-        if media_type == "video": await client.send_video(**send_args)
-        elif media_type == "audio": await client.send_audio(**send_args)
-        else: await client.send_document(**send_args)
+        # Final Upload based on media type
+        send_args = {
+            "chat_id": message.chat.id, 
+            media_type: path, 
+            "file_name": renamed_file_name, 
+            "caption": caption, 
+            "thumb": ph_path, 
+            "progress": progress_for_pyrogram, 
+            "progress_args": ("Upload Started...", upload_msg, time.time())
+        }
+        
+        if media_type == "video": 
+            await client.send_video(**send_args)
+        elif media_type == "audio": 
+            await client.send_audio(**send_args)
+        else: 
+            await client.send_document(**send_args)
 
         await upload_msg.delete()
 
@@ -313,10 +480,13 @@ async def process_rename(client: Client, message: Message):
         logger.error(f"Process Error: {e}")
         await download_msg.edit(f"Error: {e}")
     finally:
+        # Cleanup files
         for p in [download_path, metadata_path, path, ph_path]:
             if p and os.path.exists(p): 
-                try: os.remove(p)
-                except: pass
+                try: 
+                    os.remove(p)
+                except: 
+                    pass
         del renaming_operations[file_id]
 
 @Client.on_message(filters.private & (filters.document | filters.video | filters.audio))
@@ -330,6 +500,8 @@ async def auto_rename_files(client, message):
         return
     
     if user_id not in user_queues:
-        user_queues[user_id] = {"queue": asyncio.Queue(), "task": asyncio.create_task(user_worker(user_id, client))}
+        user_queues[user_id] = {
+            "queue": asyncio.Queue(), 
+            "task": asyncio.create_task(user_worker(user_id, client))
+        }
     await user_queues[user_id]["queue"].put(message)
-
