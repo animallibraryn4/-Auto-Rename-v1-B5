@@ -1,35 +1,3 @@
-        # Precise Center-Crop Processing (Modified to apply only for documents)
-        ph_path = None
-        if c_thumb:
-            ph_path = await client.download_media(c_thumb)
-            if ph_path:
-                # Only crop if media_type is document
-                if media_type == "document":
-                    try:
-                        with Image.open(ph_path) as img:
-                            img = img.convert("RGB")
-                            width, height = img.size
-                            min_dim = min(width, height)
-                            left, top = (width - min_dim) / 2, (height - min_dim) / 2
-                            right, bottom = (width + min_dim) / 2, (height + min_dim) / 2
-                            img = img.crop((left, top, right, bottom)).resize((320, 320), Image.LANCZOS)
-                            img.save(ph_path, "JPEG", quality=95)
-                    except Exception as e:
-                        logger.error(f"Crop Error: {e}")
-                        ph_path = ph_path # Keep original if crop fails
-                else:
-                    # If it's a video/audio, we just ensure it's a valid image file 
-                    # but skip the square cropping to preserve aspect ratio.
-                    try:
-                        with Image.open(ph_path) as img:
-                            img.verify() 
-                    except:
-                        ph_path = None
-
-
-
-
-
 import os
 import re
 import time
