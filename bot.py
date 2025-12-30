@@ -30,7 +30,7 @@ class Bot(Client):
 
             workers=50,
             plugins={"root": "plugins"},
-            sleep_threshold=60,
+            sleep_threshold=120,
         )
 
         self.start_time = time.time()
