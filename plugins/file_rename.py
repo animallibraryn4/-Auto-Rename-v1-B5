@@ -16,6 +16,7 @@ from helper.utils import progress_for_pyrogram, humanbytes, convert
 from helper.database import codeflixbots
 from config import Config
 from plugins import is_user_verified, send_verification
+from plugins.sequence import user_sequences as sequence_user_sequences
 
 # Setup Logging
 logging.basicConfig(level=logging.INFO)
@@ -45,8 +46,144 @@ pattern9 = re.compile(r'[([<{]?\s*4kX264\s*[)\]>}]?', re.IGNORECASE)
 pattern10 = re.compile(r'[([<{]?\s*4kx265\s*[)]>}]?', re.IGNORECASE)
 pattern11 = re.compile(r'Vol(\d+)\s*-\s*Ch(\d+)', re.IGNORECASE)
 
-# Import from sequence.py to check if user is in sequence mode
-from plugins.sequence import user_sequences as sequence_user_sequences
+# NEW: Enhanced patterns for caption mode
+caption_episode_patterns = [
+    # "Episode :- 02" format
+    re.compile(r'[Ee]pisode\s*[:-]\s*(\d+)', re.IGNORECASE),
+    # "EP 02" format
+    re.compile(r'[Ee][Pp](?:isode)?\s+(\d+)', re.IGNORECASE),
+    # "E02" format
+    re.compile(r'[Ee](\d+)', re.IGNORECASE),
+    # "Episode 02" format
+    re.compile(r'[Ee]pisode\s+(\d+)', re.IGNORECASE),
+    # "[EP 02]" or "(EP 02)" format
+    re.compile(r'[\[\(\{]\s*[Ee][Pp]\s*(\d+)\s*[\]\)\}]', re.IGNORECASE),
+    # Just episode number in brackets
+    re.compile(r'[\[\(\{]\s*(\d+)\s*[\]\)\}]'),
+]
+
+caption_season_patterns = [
+    # "[ SEASON :- 10 ]" format
+    re.compile(r'[\[\(\{]\s*[Ss]eason\s*[:-]\s*(\d+)\s*[\]\)\}]', re.IGNORECASE),
+    # "Season :- 10" format
+    re.compile(r'[Ss]eason\s*[:-]\s*(\d+)', re.IGNORECASE),
+    # "S10" format
+    re.compile(r'[Ss](\d+)', re.IGNORECASE),
+    # "Season 10" format
+    re.compile(r'[Ss]eason\s+(\d+)', re.IGNORECASE),
+    # "SEA 10" format
+    re.compile(r'[Ss][Ee][Aa]\s+(\d+)', re.IGNORECASE),
+]
+
+# Quality patterns (already exist, keep them)
+pattern5 = re.compile(r'\b(?:.*?(\d{3,4}[^\dp]*p).*?|.*?(\d{3,4}p))\b', re.IGNORECASE)
+pattern6 = re.compile(r'[([<{]?\s*4k\s*[)\]>}]?', re.IGNORECASE)
+pattern7 = re.compile(r'[([<{]?\s*2k\s*[)\]>}]?', re.IGNORECASE)
+pattern8 = re.compile(r'[([<{]?\s*HdRip\s*[)\]>}]?|\bHdRip\b', re.IGNORECASE)
+pattern9 = re.compile(r'[([<{]?\s*4kX264\s*[)\]>}]?', re.IGNORECASE)
+pattern10 = re.compile(r'[([<{]?\s*4kx265\s*[)\]>}]?', re.IGNORECASE)
+
+def extract_episode_number(text_source, is_caption_mode=False):
+    """
+    Extract episode number from text source.
+    Uses different patterns for caption mode vs file mode.
+    """
+    if not text_source:
+        return None
+    
+    if is_caption_mode:
+        # Try caption patterns first
+        for pattern in caption_episode_patterns:
+            match = re.search(pattern, text_source)
+            if match:
+                return match.group(1)
+    
+    # Try original patterns (for backward compatibility)
+    for pattern in [pattern1, pattern2, pattern3, pattern3_2, pattern4, patternX]:
+        match = re.search(pattern, text_source)
+        if match: 
+            if pattern in [pattern1, pattern2, pattern4]:
+                return match.group(2) 
+            else:
+                return match.group(1)
+    
+    return None
+
+def extract_season_number(text_source, is_caption_mode=False):
+    """
+    Extract season number from text source.
+    Uses different patterns for caption mode vs file mode.
+    """
+    if not text_source:
+        return None
+    
+    if is_caption_mode:
+        # Try caption patterns first
+        for pattern in caption_season_patterns:
+            match = re.search(pattern, text_source)
+            if match:
+                return match.group(1)
+    
+    # Try original patterns
+    for pattern in [pattern1, pattern4]:
+        match = re.search(pattern, text_source)
+        if match: 
+            return match.group(1)
+    
+    return None
+
+def extract_volume_chapter(text_source, is_caption_mode=False):
+    """
+    Extract volume and chapter from text source.
+    """
+    if not text_source:
+        return None, None
+    
+    match = re.search(pattern11, text_source)
+    if match:
+        return match.group(1), match.group(2)
+    
+    # Additional patterns for caption mode
+    if is_caption_mode:
+        # Try "Volume 1 Chapter 2" format
+        vol_chap_pattern = re.compile(r'[Vv]olume\s+(\d+)\s*[Cc]hapter\s+(\d+)', re.IGNORECASE)
+        match = re.search(vol_chap_pattern, text_source)
+        if match:
+            return match.group(1), match.group(2)
+    
+    return None, None
+
+def extract_quality(text_source, is_caption_mode=False):
+    """
+    Extract quality from text source.
+    """
+    # These patterns work for both filename and caption
+    for pattern, quality in [(pattern5, lambda m: m.group(1) or m.group(2)), 
+                            (pattern6, "4k"), 
+                            (pattern7, "2k"), 
+                            (pattern8, "HdRip"), 
+                            (pattern9, "4kX264"), 
+                            (pattern10, "4kx265")]:
+        match = re.search(pattern, text_source)
+        if match: 
+            return quality(match) if callable(quality) else quality
+    
+    # Additional quality patterns for caption mode
+    if is_caption_mode:
+        caption_quality_patterns = [
+            (re.compile(r'[Qq]uality\s*[:-]\s*(\d{3,4}[pP])', re.IGNORECASE), lambda m: m.group(1)),
+            (re.compile(r'[Rr]esolution\s*[:-]\s*(\d{3,4}[pP])', re.IGNORECASE), lambda m: m.group(1)),
+            (re.compile(r'[\[\(\{]\s*(\d{3,4}[pP])\s*[\]\)\}]'), lambda m: m.group(1)),
+            (re.compile(r'\b([Ff][Uu][Ll][Ll]\s*[Hh][Dd])\b'), "1080p"),
+            (re.compile(r'\b([Hh][Dd]\s*[Rr][Ii][Pp])\b'), "HDrip"),
+        ]
+        
+        for pattern, quality in caption_quality_patterns:
+            match = re.search(pattern, text_source)
+            if match:
+                return quality(match) if callable(quality) else quality
+    
+    return "Unknown"
 
 async def user_worker(user_id, client):
     """Worker to process files for a specific user"""
