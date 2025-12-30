@@ -326,6 +326,37 @@ class Database:
             logging.error(f"Error deleting verify status for user {id}: {e}")
             return False
 
+    async def get_rename_mode(self, id):
+        """Get user's rename mode (file or caption)"""
+        try:
+            user = await self.col.find_one({"_id": int(id)})
+            return user.get("rename_mode", "file")  # Default to "file" mode
+        except Exception as e:
+            logging.error(f"Error getting rename mode for user {id}: {e}")
+            return "file"
+
+    async def set_rename_mode(self, id, mode):
+        """Set user's rename mode"""
+        try:
+            await self.col.update_one(
+                {"_id": int(id)},
+                {"$set": {"rename_mode": mode}},
+                upsert=True
+            )
+        except Exception as e:
+            logging.error(f"Error setting rename mode for user {id}: {e}")
+
+    async def toggle_rename_mode(self, id):
+        """Toggle between 'file' and 'caption' modes"""
+        try:
+            current_mode = await self.get_rename_mode(id)
+            new_mode = "caption" if current_mode == "file" else "file"
+            await self.set_rename_mode(id, new_mode)
+            return new_mode
+        except Exception as e:
+            logging.error(f"Error toggling rename mode for user {id}: {e}")
+            return "file"
+
 # Initialize database connection
 codeflixbots = Database(Config.DB_URL, Config.DB_NAME)
 
