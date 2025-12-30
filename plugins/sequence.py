@@ -410,7 +410,7 @@ async def switch_mode_cmd(client, message):
     
     text = (
         f"<b>🔄 Mode Settings</b>\n\n"
-        f"<blockquote><b>Current Mode:</b> {'File Mode' if current_mode == 'file' else 'Caption Mode'}\n\n"
+        f"<blockquote><b>Current Mode:</b> {'File Mode' if current_mode == 'file' else 'Caption Mode'}</blockquote>\n\n"
         f"<b>This mode controls where the bot reads information from.\n\n"
         f"<b>📝 File Mode→</b> Uses file names\n"
         f"<b>🏷️ Caption Mode→</b> Uses file captions\n\n"
@@ -624,7 +624,7 @@ async def mode_callback_handler(client, query):
             "<b>Current Mode:</b> Caption Mode\n\n"
             "<b>📝 File Mode:</b> Uses file names\n"
             "<b>🏷️ Caption Mode:</b> Uses file captions\n\n"
-            "ℹ️ If no caption is found in Caption Mode, those files will be skipped.\n\n"
+            "If no caption is found in Caption Mode, those files will be skipped.\n\n"
             "<i>✅ Mode switched to Caption Mode!</i>"
         )
         
