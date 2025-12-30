@@ -376,7 +376,7 @@ async def process_rename(client: Client, message: Message):
     if not format_template:
         return await message.reply_text("Please Set An Auto Rename Format First Using /autorename")
 
-    # Get user's rename mode
+    # Get user's rename mode from database
     rename_mode = await codeflixbots.get_rename_mode(user_id)
     
     # Determine file type and get basic info
@@ -401,15 +401,20 @@ async def process_rename(client: Client, message: Message):
     else:
         return await message.reply_text("Unsupported File Type")
 
-    # Use caption text if mode is set to caption and caption exists
-    text_source = file_name
+    # ===== CRITICAL FIX: Force File Mode to use filename only =====
+    text_source = file_name  # Default to filename
     is_caption_mode = False
     
+    # Only use caption if explicitly in caption mode AND caption exists
     if rename_mode == "caption" and message.caption:
         text_source = message.caption
         is_caption_mode = True
-        # Log that we're using caption mode with more detail
         logger.info(f"User {user_id} using caption mode. Source: {text_source}")
+    else:
+        # File Mode: Use filename only, ignore caption
+        logger.info(f"User {user_id} using file mode. Filename: {file_name}")
+        # Ensure caption is not used in any way
+        pass
     
     # Check for duplicate operations
     if file_id in renaming_operations:
@@ -421,6 +426,7 @@ async def process_rename(client: Client, message: Message):
 
     # DEBUG: Log the original text source
     logger.info(f"Text source for parsing: {text_source}")
+    logger.info(f"Is caption mode: {is_caption_mode}")
     
     # ===== Extract and process information from text_source =====
     # Use enhanced parsing functions (they now handle both modes automatically)
@@ -429,47 +435,7 @@ async def process_rename(client: Client, message: Message):
     
     # DEBUG: Log what was extracted
     logger.info(f"Extracted season: {season_number}, episode: {episode_number}")
-    
-    if episode_number:
-        format_template = format_template.replace("[EP.NUM]", str(episode_number)).replace("{episode}", str(episode_number))
-    else:
-        format_template = format_template.replace("[EP.NUM]", "").replace("{episode}", "")
-
-    # Extract season number
-    if season_number:
-        format_template = format_template.replace("[SE.NUM]", str(season_number)).replace("{season}", str(season_number))
-    else:
-        format_template = format_template.replace("[SE.NUM]", "").replace("{season}", "")
-
-    # Extract volume and chapter
-    volume_number, chapter_number = extract_volume_chapter(text_source, is_caption_mode)
-    if volume_number and chapter_number:
-        format_template = format_template.replace("[Vol{volume}]", f"Vol{volume_number}").replace("[Ch{chapter}]", f"Ch{chapter_number}")
-    else:
-        format_template = format_template.replace("[Vol{volume}]", "").replace("[Ch{chapter}]", "")
-
-    # Extract quality (not for PDFs)
-    if not is_pdf:
-        extracted_quality = extract_quality(text_source, is_caption_mode)
-        if extracted_quality != "Unknown":
-            format_template = format_template.replace("[QUALITY]", extracted_quality).replace("{quality}", extracted_quality)
-        else:
-            format_template = format_template.replace("[QUALITY]", "").replace("{quality}", "")
-
-    # Clean up the format template
-    format_template = re.sub(r'\s+', ' ', format_template).strip()
-    format_template = format_template.replace("_", " ")
-    format_template = re.sub(r'\[\s*\]', '', format_template)
-
-    # DEBUG: Log the final format template
-    logger.info(f"Final format template: {format_template}")
-    
-    # Create renamed file name
-    _, file_extension = os.path.splitext(file_name)
-    renamed_file_name = f"{format_template}{file_extension}"
-    
-    # DEBUG: Log the renamed filename
-    logger.info(f"Renamed filename: {renamed_file_name}")
+    # ===== CONTINUE WITH THE REST OF THE FUNCTION =====
     
     # Create paths
     download_path = f"downloads/{message.id}_{renamed_file_name}"
