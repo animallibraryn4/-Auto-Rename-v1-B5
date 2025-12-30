@@ -100,24 +100,16 @@ def extract_episode_number(text_source, is_caption_mode=False):
     """
     Extract episode number from text source.
     Uses different patterns for caption mode vs file mode.
-    IMPROVED: Now properly handles full words like "Episode :- 01"
     """
     if not text_source:
         return None
     
     # DEBUG: Log what we're trying to parse
     logger.info(f"DEBUG: Extracting episode from: {text_source[:100]}")
+    logger.info(f"DEBUG: Mode is caption mode: {is_caption_mode}")
     
-    # First try full word patterns for better accuracy
-    for pattern in [pattern_episode_full, pattern_ep_full]:
-        match = re.search(pattern, text_source)
-        if match:
-            result = match.group(1)
-            logger.info(f"DEBUG: Found episode '{result}' with full word pattern")
-            return result
-    
+    # If we're in caption mode, try caption patterns first
     if is_caption_mode:
-        # Try caption patterns first
         for pattern in caption_episode_patterns:
             match = re.search(pattern, text_source)
             if match:
@@ -125,7 +117,7 @@ def extract_episode_number(text_source, is_caption_mode=False):
                 logger.info(f"DEBUG: Found episode '{result}' with caption pattern")
                 return result
     
-    # Try original patterns (for backward compatibility)
+    # ALWAYS try original filename patterns (even in caption mode if caption patterns didn't match)
     for pattern in [pattern1, pattern2, pattern3, pattern3_2, pattern4, patternX]:
         match = re.search(pattern, text_source)
         if match: 
@@ -143,23 +135,16 @@ def extract_season_number(text_source, is_caption_mode=False):
     """
     Extract season number from text source.
     Uses different patterns for caption mode vs file mode.
-    IMPROVED: Now properly handles full words like "SEASON :- 10"
     """
     if not text_source:
         return None
     
     # DEBUG: Log what we're trying to parse
     logger.info(f"DEBUG: Extracting season from: {text_source[:100]}")
+    logger.info(f"DEBUG: Mode is caption mode: {is_caption_mode}")
     
-    # First try full word patterns for better accuracy
-    match = re.search(pattern_season_full, text_source)
-    if match:
-        result = match.group(1)
-        logger.info(f"DEBUG: Found season '{result}' with full word pattern")
-        return result
-    
+    # If we're in caption mode, try caption patterns first
     if is_caption_mode:
-        # Try caption patterns first
         for pattern in caption_season_patterns:
             match = re.search(pattern, text_source)
             if match:
@@ -167,7 +152,7 @@ def extract_season_number(text_source, is_caption_mode=False):
                 logger.info(f"DEBUG: Found season '{result}' with caption pattern")
                 return result
     
-    # Try original patterns
+    # ALWAYS try original filename patterns
     for pattern in [pattern1, pattern4]:
         match = re.search(pattern, text_source)
         if match: 
@@ -379,6 +364,9 @@ async def process_rename(client: Client, message: Message):
     # Get user's rename mode
     rename_mode = await codeflixbots.get_rename_mode(user_id)
     
+    # DEBUG: Log the current mode
+    logger.info(f"User {user_id} rename mode: {rename_mode}")
+    
     # Determine file type and get basic info
     if message.document:
         file_id = message.document.file_id
@@ -401,15 +389,25 @@ async def process_rename(client: Client, message: Message):
     else:
         return await message.reply_text("Unsupported File Type")
 
-    # Use caption text if mode is set to caption and caption exists
-    text_source = file_name
+    # ===== CRITICAL FIX: Determine text source based on mode =====
+    text_source = file_name  # Default to filename
     is_caption_mode = False
     
-    if rename_mode == "caption" and message.caption:
-        text_source = message.caption
-        is_caption_mode = True
-        # Log that we're using caption mode with more detail
-        logger.info(f"User {user_id} using caption mode. Source: {text_source}")
+    if rename_mode == "caption":
+        # User explicitly wants caption mode
+        if message.caption:
+            text_source = message.caption
+            is_caption_mode = True
+            logger.info(f"User {user_id} using CAPTION mode. Source: {text_source}")
+        else:
+            # No caption available, fall back to filename
+            logger.info(f"User {user_id} in caption mode but no caption found. Using filename.")
+            is_caption_mode = False
+    else:
+        # User is in FILE mode - ALWAYS use filename
+        text_source = file_name
+        is_caption_mode = False
+        logger.info(f"User {user_id} using FILE mode. Source: {text_source}")
     
     # Check for duplicate operations
     if file_id in renaming_operations:
