@@ -602,7 +602,7 @@ async def mode_callback_handler(client, query):
             [InlineKeyboardButton("❌ Close", callback_data="close_mode")]
         ])
         text = (
-            "<blockquote><b>🔄 Switch File & Mode Caption Mode</b>\n\n</blockquote>"
+            "<blockquote><b>🔄 Switch Caption Mode & File Mode</b>\n\n</blockquote>"
             "<blockquote><b>Current Mode:</b> File Mode\n\n"
             "<b>📝 File Mode:</b> Uses file names\n"
             "<b>🏷️ Caption Mode:</b> Uses file captions\n\n"
@@ -620,7 +620,7 @@ async def mode_callback_handler(client, query):
             [InlineKeyboardButton("❌ Close", callback_data="close_mode")]
         ])
         text = (
-            "<blockquote><b>🔄 Sequence Mode Settings</b></blockquote>\n\n"
+            "<blockquote><b>🔄 Switch Caption Mode & File Mode</b></blockquote>\n\n"
             "<blockquote><b>Current Mode:</b> Caption Mode\n\n"
             "<b>📝 File Mode:</b> Uses file names\n"
             "<b>🏷️ Caption Mode:</b> Uses file captions\n\n"
