@@ -409,13 +409,12 @@ async def switch_mode_cmd(client, message):
         ])
     
     text = (
-        f"<b>🔄Mode Settings</b>\n\n"
+        f"<b>🔄 Mode Settings</b>\n\n"
         f"<blockquote><b>Current Mode:</b> {'File Mode' if current_mode == 'file' else 'Caption Mode'}\n\n"
         f"<b>This mode controls where the bot reads information from.\n\n"
         f"<b>📝 File Mode→</b> Uses file names\n"
         f"<b>🏷️ Caption Mode→</b> Uses file captions\n\n"
         f"<b>Note:</b> This setting is applied to both Auto File Rename and File Sequencing.\n\n"
-        f"<i>ℹ️ If no caption is found in Caption Mode, those files will be skipped.</i></blockquote>"
     )
     
     await message.reply_text(text, reply_markup=buttons)
@@ -603,11 +602,11 @@ async def mode_callback_handler(client, query):
             [InlineKeyboardButton("❌ Close", callback_data="close_mode")]
         ])
         text = (
-            "<b>🔄 Sequence Mode Settings</b>\n\n"
+            "<blockquote><b>🔄 Switch File & Mode Caption Mode</b>\n\n</blockquote>"
             "<blockquote><b>Current Mode:</b> File Mode\n\n"
-            "<b>📝 File Mode:</b> Sequence files using filename\n"
-            "<b>🏷️ Caption Mode:</b> Sequence files using file caption\n\n"
-            "✅ <i>Mode switched to File Mode!</i></blockquote>"
+            "<b>📝 File Mode:</b> Uses file names\n"
+            "<b>🏷️ Caption Mode:</b> Uses file captions\n\n"
+            "<blockquote>✅ <i>Mode switched to File Mode!</i></blockquote>"
         )
         
         await query.message.edit_text(text, reply_markup=buttons)
@@ -621,11 +620,12 @@ async def mode_callback_handler(client, query):
             [InlineKeyboardButton("❌ Close", callback_data="close_mode")]
         ])
         text = (
-            "<b>🔄 Sequence Mode Settings</b>\n\n"
+            "<blockquote><b>🔄 Sequence Mode Settings</b></blockquote>\n\n"
             "<blockquote><b>Current Mode:</b> Caption Mode\n\n"
-            "<b>📝 File Mode:</b> Sequence files using filename\n"
-            "<b>🏷️ Caption Mode:</b> Sequence files using file caption\n\n"
-            "✅ <i>Mode switched to Caption Mode!</i></blockquote>"
+            "<b>📝 File Mode:</b> Uses file names\n"
+            "<b>🏷️ Caption Mode:</b> Uses file captions\n\n"
+            "<b>ℹ️ If no caption is found in Caption Mode, those files will be skipped.\n\n"
+            "<blockquote>✅ <i>Mode switched to Caption Mode!</i></blockquote>"
         )
         
         await query.message.edit_text(text, reply_markup=buttons)
