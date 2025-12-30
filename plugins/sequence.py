@@ -603,10 +603,10 @@ async def mode_callback_handler(client, query):
         ])
         text = (
             "<blockquote><b>🔄 Switch Caption Mode & File Mode</b>\n\n</blockquote>"
-            "<blockquote><b>Current Mode:</b> File Mode\n\n"
+            "<b>Current Mode:</b> File Mode\n\n"
             "<b>📝 File Mode:</b> Uses file names\n"
             "<b>🏷️ Caption Mode:</b> Uses file captions\n\n"
-            "<b>✅ <i>Mode switched to File Mode!</i>"
+            "<i>✅ Mode switched to File Mode!</i>"
         )
         
         await query.message.edit_text(text, reply_markup=buttons)
@@ -621,11 +621,11 @@ async def mode_callback_handler(client, query):
         ])
         text = (
             "<blockquote><b>🔄 Switch Caption Mode & File Mode</b></blockquote>\n\n"
-            "<blockquote><b>Current Mode:</b> Caption Mode\n\n"
+            "<b>Current Mode:</b> Caption Mode\n\n"
             "<b>📝 File Mode:</b> Uses file names\n"
             "<b>🏷️ Caption Mode:</b> Uses file captions\n\n"
-            "<b>ℹ️ If no caption is found in Caption Mode, those files will be skipped.\n\n"
-            "<b>✅ <i>Mode switched to Caption Mode!</i>"
+            "ℹ️ If no caption is found in Caption Mode, those files will be skipped.\n\n"
+            "<i>✅ Mode switched to Caption Mode!</i>"
         )
         
         await query.message.edit_text(text, reply_markup=buttons)
