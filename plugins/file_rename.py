@@ -1,22 +1,3 @@
-caption_episode_patterns = [
-    # "Episode :- 02" ya "Episode - 02" format ko handle karne ke liye
-    re.compile(r'[Ee]pisode\s*[:\-\s]*\s*(\d+)', re.IGNORECASE),
-    re.compile(r'[Ee][Pp](?:isode)?\s*[:\-\s]*\s*(\d+)', re.IGNORECASE),
-    # Baaki patterns...
-]
-
-caption_season_patterns = [
-    # "SEASON :- 10" format ke liye
-    re.compile(r'[Ss]eason\s*[:\-\s]*\s*(\d+)', re.IGNORECASE),
-    # Baaki patterns...
-]
-
-
-
-
-
-
-
 import os
 import re
 import time
