@@ -1,3 +1,5 @@
+#[file name]: database.py
+#[file content begin]
 import motor.motor_asyncio
 import datetime
 import logging
@@ -17,35 +19,35 @@ class Database:
         self.col = self.codeflixbots.user
 
     def new_user(self, id):
-    return dict(
-        _id=int(id),
-        join_date=datetime.date.today().isoformat(),
-        file_id=None,
-        caption=None,
-        metadata=True,
-        metadata_code="Telegram : @Animelibraryn4",
-        format_template=None,
-        thumbnails={},
-        temp_quality=None,
-        use_global_thumb=False,
-        global_thumb=None,
-        ban_status=dict(
-            is_banned=False,
-            ban_duration=0,
-            banned_on=datetime.date.max.isoformat(),
-            ban_reason=''
-        ),
-        # Add rename mode field
-        rename_mode="file",  # Default to file mode
-        # Preserving all existing metadata fields
-        title='Encoded by @Animelibraryn4',
-        author='@Animelibraryn4',
-        artist='@Animelibraryn4',
-        audio='By @Animelibraryn4',
-        subtitle='By @Animelibraryn4',
-        video='Encoded By @Animelibraryn4',
-        media_type=None
-    )
+        return dict(
+            _id=int(id),
+            join_date=datetime.date.today().isoformat(),
+            file_id=None,
+            caption=None,
+            metadata=True,
+            metadata_code="Telegram : @Animelibraryn4",
+            format_template=None,
+            thumbnails={},
+            temp_quality=None,
+            use_global_thumb=False,  # New field for global thumbnail toggle
+            global_thumb=None,       # Stores the global thumbnail file_id
+            ban_status=dict(
+                is_banned=False,
+                ban_duration=0,
+                banned_on=datetime.date.max.isoformat(),
+                ban_reason=''
+            ),
+            # Add rename mode field
+            rename_mode="file",  # Default to file mode
+            # Preserving all existing metadata fields
+            title='Encoded by @Animelibraryn4',
+            author='@Animelibraryn4',
+            artist='@Animelibraryn4',
+            audio='By @Animelibraryn4',
+            subtitle='By @Animelibraryn4',
+            video='Encoded By @Animelibraryn4',
+            media_type=None
+        )
 
     async def add_user(self, b, m):
         u = m.from_user
@@ -291,9 +293,8 @@ class Database:
         except Exception as e:
             logging.error(f"Error checking global thumb status for user {id}: {e}")
             return False
-# Add these methods to the Database class in database.py
-# Add them anywhere after the existing methods, before the codeflixbots initialization
 
+    # Verification status methods
     async def get_verify_status(self, id):
         try:
             user = await self.col.find_one({"_id": int(id)})
@@ -328,6 +329,7 @@ class Database:
             logging.error(f"Error deleting verify status for user {id}: {e}")
             return False
 
+    # Rename Mode Methods
     async def get_rename_mode(self, id):
         """Get user's rename mode (file or caption)"""
         try:
@@ -361,5 +363,4 @@ class Database:
 
 # Initialize database connection
 codeflixbots = Database(Config.DB_URL, Config.DB_NAME)
-
 
