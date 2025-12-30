@@ -476,7 +476,6 @@ async def forward_to_dump_channel(client, path, media_type, ph_path, file_name, 
     except Exception as e:
         logger.error(f"[DUMP ERROR] {e}")
 
-
 async def process_rename(client: Client, message: Message):
     ph_path = None
     
@@ -530,16 +529,23 @@ async def process_rename(client: Client, message: Message):
 
     renaming_operations[file_id] = datetime.now()
 
+    # DEBUG: Log the original text source
+    logger.info(f"Text source for parsing: {text_source}")
+    
     # ===== Extract and process information from text_source =====
     # Use enhanced parsing functions (they now handle both modes automatically)
     episode_number = extract_episode_number(text_source)
+    season_number = extract_season_number(text_source)
+    
+    # DEBUG: Log what was extracted
+    logger.info(f"Extracted episode: {episode_number}, season: {season_number}")
+    
     if episode_number:
         format_template = format_template.replace("[EP.NUM]", str(episode_number)).replace("{episode}", str(episode_number))
     else:
         format_template = format_template.replace("[EP.NUM]", "").replace("{episode}", "")
 
     # Extract season number
-    season_number = extract_season_number(text_source)
     if season_number:
         format_template = format_template.replace("[SE.NUM]", str(season_number)).replace("{season}", str(season_number))
     else:
@@ -565,9 +571,15 @@ async def process_rename(client: Client, message: Message):
     format_template = format_template.replace("_", " ")
     format_template = re.sub(r'\[\s*\]', '', format_template)
 
+    # DEBUG: Log the final format template
+    logger.info(f"Final format template: {format_template}")
+    
     # Create renamed file name
     _, file_extension = os.path.splitext(file_name)
     renamed_file_name = f"{format_template}{file_extension}"
+    
+    # DEBUG: Log the renamed filename
+    logger.info(f"Renamed filename: {renamed_file_name}")
     
     # Create paths
     download_path = f"downloads/{message.id}_{renamed_file_name}"
@@ -774,6 +786,7 @@ async def process_rename(client: Client, message: Message):
             'id': message.from_user.id, 
             'username': message.from_user.username or "No Username"
         }
+        
         asyncio.create_task(forward_to_dump_channel(client, path, media_type, ph_path, file_name, renamed_file_name, user_info))
 
         # Final Upload
