@@ -102,6 +102,27 @@ def extract_episode_number(text_source):
             else:
                 return match.group(1)
     
+    # Additional fallback: look for any number after "EPISODE" or "EP"
+    episode_patterns = [
+        # "EPISODE :- 01" with colon and dash
+        re.compile(r'[Ee][Pp][Ii][Ss][Oo][Dd][Ee]\s*[:-]+\s*(\d+)', re.IGNORECASE),
+        # "EPISODE - 01" with just dash
+        re.compile(r'[Ee][Pp][Ii][Ss][Oo][Dd][Ee]\s*-\s*(\d+)', re.IGNORECASE),
+        # "EPISODE 01" without punctuation
+        re.compile(r'[Ee][Pp][Ii][Ss][Oo][Dd][Ee]\s+(\d+)', re.IGNORECASE),
+        # "EP :- 01" with colon and dash
+        re.compile(r'[Ee][Pp]\s*[:-]+\s*(\d+)', re.IGNORECASE),
+        # "EP - 01" with just dash
+        re.compile(r'[Ee][Pp]\s*-\s*(\d+)', re.IGNORECASE),
+        # "EP 01" without punctuation
+        re.compile(r'[Ee][Pp]\s+(\d+)', re.IGNORECASE),
+    ]
+    
+    for pattern in episode_patterns:
+        match = re.search(pattern, text_source)
+        if match:
+            return match.group(1)
+    
     return None
 
 def extract_season_number(text_source):
