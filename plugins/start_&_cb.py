@@ -66,8 +66,7 @@ async def start(client, message: Message):
         )
 
 
-# Callback Query Handler - FIXED: Only handles specific callbacks, not all
-@Client.on_callback_query(filters.regex(r'^(home|caption|help|meta|donate|file_names|thumbnail|metadatax|source|premiumx|plans|about|close|setmedia_|on_metadata|off_metadata|metainfo|back_to_welcome|premium_page|close_message)$'))
+@Client.on_callback_query(filters.regex(r'^(home|caption|help|meta|donate|file_names|thumbnail|metadatax|source|premiumx|plans|about|close|setmedia_|on_metadata|off_metadata|metainfo|back_to_welcome|premium_page|close_message|toggle_rename_mode)$'))
 async def cb_handler(client, query: CallbackQuery):
     data = query.data
     user_id = query.from_user.id
@@ -184,6 +183,11 @@ async def cb_handler(client, query: CallbackQuery):
             await query.message.reply_to_message.delete()
         except:
             await query.message.delete()
+
+    elif data == "toggle_rename_mode":
+        # This will be handled by sequence.py, so we don't need to do anything here
+        # The callback query will be processed by the handler in sequence.py
+        pass
     
     # Metadata callbacks
     elif data in ["on_metadata", "off_metadata"]:
@@ -271,3 +275,7 @@ async def help_command(client, message):
             [InlineKeyboardButton('ʜᴏᴍᴇ', callback_data='home')]
         ])
     )
+
+
+
+    # ... rest of existing code ...
