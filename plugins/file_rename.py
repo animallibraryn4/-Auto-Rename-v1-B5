@@ -352,7 +352,6 @@ async def forward_to_dump_channel(client, path, media_type, ph_path, file_name, 
     except Exception as e:
         logger.error(f"[DUMP ERROR] {e}")
 
-# Update the process_rename function in file_rename.py
 
 async def process_rename(client: Client, message: Message):
     ph_path = None
@@ -369,6 +368,7 @@ async def process_rename(client: Client, message: Message):
 
     # Get user's rename mode
     rename_mode = await codeflixbots.get_rename_mode(user_id)
+    is_caption_mode = (rename_mode == "caption")
     
     # Determine file type and get basic info
     if message.document:
@@ -408,30 +408,30 @@ async def process_rename(client: Client, message: Message):
     renaming_operations[file_id] = datetime.now()
 
     # ===== Extract and process information from text_source =====
-    # Extract episode number from text_source (either filename or caption)
-    episode_number = extract_episode_number(text_source)
+    # Use enhanced parsing functions with caption mode flag
+    episode_number = extract_episode_number(text_source, is_caption_mode)
     if episode_number:
         format_template = format_template.replace("[EP.NUM]", str(episode_number)).replace("{episode}", str(episode_number))
     else:
         format_template = format_template.replace("[EP.NUM]", "").replace("{episode}", "")
 
-    # Extract season number
-    season_number = extract_season_number(text_source)
+    # Extract season number with caption mode flag
+    season_number = extract_season_number(text_source, is_caption_mode)
     if season_number:
         format_template = format_template.replace("[SE.NUM]", str(season_number)).replace("{season}", str(season_number))
     else:
         format_template = format_template.replace("[SE.NUM]", "").replace("{season}", "")
 
-    # Extract volume and chapter
-    volume_number, chapter_number = extract_volume_chapter(text_source)
+    # Extract volume and chapter with caption mode flag
+    volume_number, chapter_number = extract_volume_chapter(text_source, is_caption_mode)
     if volume_number and chapter_number:
         format_template = format_template.replace("[Vol{volume}]", f"Vol{volume_number}").replace("[Ch{chapter}]", f"Ch{chapter_number}")
     else:
         format_template = format_template.replace("[Vol{volume}]", "").replace("[Ch{chapter}]", "")
 
-    # Extract quality (not for PDFs)
+    # Extract quality with caption mode flag (not for PDFs)
     if not is_pdf:
-        extracted_quality = extract_quality(text_source)
+        extracted_quality = extract_quality(text_source, is_caption_mode)
         if extracted_quality != "Unknown":
             format_template = format_template.replace("[QUALITY]", extracted_quality).replace("{quality}", extracted_quality)
         else:
