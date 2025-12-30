@@ -31,6 +31,8 @@ user_queues = {}
 renaming_operations = {}
 recent_verification_checks = {}
 
+# ===== Enhanced Patterns for Caption Mode =====
+
 # Original patterns for filenames (keep these)
 pattern1 = re.compile(r'S(\d+)(?:E|EP)(\d+)')
 pattern2 = re.compile(r'S(\d+)\s*(?:E|EP|-\s*EP)(\d+)')
@@ -77,6 +79,113 @@ pattern8 = re.compile(r'[([<{]?\s*HdRip\s*[)\]>}]?|\bHdRip\b', re.IGNORECASE)
 pattern9 = re.compile(r'[([<{]?\s*4kX264\s*[)\]>}]?', re.IGNORECASE)
 pattern10 = re.compile(r'[([<{]?\s*4kx265\s*[)\]>}]?', re.IGNORECASE)
 
+def extract_episode_number(text_source):
+    """
+    Extract episode number from text source.
+    Automatically detects caption-style formats.
+    """
+    if not text_source:
+        return None
+    
+    # First try caption patterns (for caption mode)
+    for pattern in caption_episode_patterns:
+        match = re.search(pattern, text_source)
+        if match:
+            return match.group(1)
+    
+    # Then try original patterns (for file mode)
+    for pattern in [pattern1, pattern2, pattern3, pattern3_2, pattern4, patternX]:
+        match = re.search(pattern, text_source)
+        if match: 
+            if pattern in [pattern1, pattern2, pattern4]:
+                return match.group(2) 
+            else:
+                return match.group(1)
+    
+    return None
+
+def extract_season_number(text_source):
+    """
+    Extract season number from text source.
+    Automatically detects caption-style formats.
+    """
+    if not text_source:
+        return None
+    
+    # First try caption patterns (for caption mode)
+    for pattern in caption_season_patterns:
+        match = re.search(pattern, text_source)
+        if match:
+            return match.group(1)
+    
+    # Then try original patterns (for file mode)
+    for pattern in [pattern1, pattern4]:
+        match = re.search(pattern, text_source)
+        if match: 
+            return match.group(1)
+    
+    return None
+
+def extract_volume_chapter(text_source):
+    """
+    Extract volume and chapter from text source.
+    """
+    if not text_source:
+        return None, None
+    
+    match = re.search(pattern11, text_source)
+    if match:
+        return match.group(1), match.group(2)
+    
+    # Additional patterns for caption mode
+    # Try "Volume 1 Chapter 2" format
+    vol_chap_pattern = re.compile(r'[Vv]olume\s+(\d+)\s*[Cc]hapter\s+(\d+)', re.IGNORECASE)
+    match = re.search(vol_chap_pattern, text_source)
+    if match:
+        return match.group(1), match.group(2)
+    
+    # Try "Vol.1 Ch.2" format
+    vol_chap_pattern2 = re.compile(r'[Vv]ol\.?\s*(\d+)\s*[Cc]h\.?\s*(\d+)', re.IGNORECASE)
+    match = re.search(vol_chap_pattern2, text_source)
+    if match:
+        return match.group(1), match.group(2)
+    
+    return None, None
+
+def extract_quality(text_source):
+    """
+    Extract quality from text source.
+    Works for both filename and caption.
+    """
+    # Common quality patterns for both modes
+    for pattern, quality in [(pattern5, lambda m: m.group(1) or m.group(2)), 
+                            (pattern6, "4k"), 
+                            (pattern7, "2k"), 
+                            (pattern8, "HdRip"), 
+                            (pattern9, "4kX264"), 
+                            (pattern10, "4kx265")]:
+        match = re.search(pattern, text_source)
+        if match: 
+            return quality(match) if callable(quality) else quality
+    
+    # Additional quality patterns for caption mode
+    caption_quality_patterns = [
+        (re.compile(r'[Qq]uality\s*[:-]\s*(\d{3,4}[pP])', re.IGNORECASE), lambda m: m.group(1)),
+        (re.compile(r'[Rr]esolution\s*[:-]\s*(\d{3,4}[pP])', re.IGNORECASE), lambda m: m.group(1)),
+        (re.compile(r'[\[\(\{]\s*(\d{3,4}[pP])\s*[\]\)\}]'), lambda m: m.group(1)),
+        (re.compile(r'\b([Ff][Uu][Ll][Ll]\s*[Hh][Dd])\b'), "1080p"),
+        (re.compile(r'\b([Hh][Dd]\s*[Rr][Ii][Pp])\b'), "HDrip"),
+        (re.compile(r'\b([Ww][Ee][Bb]\s*[Dd][Ll])\b'), "WEB-DL"),
+        (re.compile(r'\b([Ww][Ee][Bb])\b'), "WEB"),
+    ]
+    
+    for pattern, quality in caption_quality_patterns:
+        match = re.search(pattern, text_source)
+        if match:
+            return quality(match) if callable(quality) else quality
+    
+    return "Unknown"
+    
 def extract_episode_number(text_source, is_caption_mode=False):
     """
     Extract episode number from text source.
