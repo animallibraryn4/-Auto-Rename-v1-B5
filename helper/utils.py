@@ -5,70 +5,164 @@ from config import Config, Txt
 from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 import re
 
+# Cache for last update times to prevent too frequent updates
+_last_update_times = {}
 
 async def progress_for_pyrogram(current, total, ud_type, message, start):
+    """Optimized progress bar for large files with reduced update frequency"""
+    
     now = time.time()
     diff = now - start
-    if round(diff % 5.00) == 0 or current == total:        
-        percentage = current * 100 / total
-        speed = current / diff
-        elapsed_time = round(diff) * 1000
-        time_to_completion = round((total - current) / speed) * 1000
-        estimated_total_time = elapsed_time + time_to_completion
+    
+    # Get unique identifier for this upload/download
+    task_id = f"{message.chat.id}_{message.id}"
+    
+    # Get last update time for this task
+    last_update = _last_update_times.get(task_id, 0)
+    
+    # Calculate progress percentage
+    percentage = current * 100 / total
+    
+    # DECREASE UPDATE FREQUENCY FOR LARGE FILES
+    # Update conditions:
+    # 1. If it's the first update
+    # 2. If progress is complete (100%)
+    # 3. If at least 3 seconds have passed since last update
+    # 4. If significant progress has been made (10% increment for small files, 5% for large)
+    update_interval = 3  # Minimum seconds between updates
+    
+    # For large files (over 500MB), increase interval
+    if total > 500 * 1024 * 1024:  # 500MB
+        update_interval = 5
+        progress_increment = 2  # Update every 2% for very large files
+    elif total > 100 * 1024 * 1024:  # 100MB
+        update_interval = 4
+        progress_increment = 3  # Update every 3% for large files
+    else:
+        progress_increment = 5  # Update every 5% for smaller files
+    
+    # Calculate progress since last update
+    last_percentage = _last_update_times.get(f"{task_id}_percent", 0)
+    percent_diff = percentage - last_percentage
+    
+    should_update = (
+        current == total or  # Always update on completion
+        diff == 0 or  # First update
+        (now - last_update >= update_interval and percent_diff >= progress_increment) or  # Time + progress threshold
+        percent_diff >= 10  # Significant progress made
+    )
+    
+    if not should_update and current != total:
+        return
+    
+    # Calculate speed and ETA
+    speed = current / diff if diff > 0 else 0
+    
+    # Format speed
+    if speed > 0:
+        estimated_total_time = (total - current) / speed
+        eta = TimeFormatter(milliseconds=estimated_total_time * 1000)
+    else:
+        eta = "Calculating..."
+    
+    # Update last update time and percentage
+    _last_update_times[task_id] = now
+    _last_update_times[f"{task_id}_percent"] = percentage
+    
+    # Create progress bar (simplified for large files)
+    progress_width = 20
+    filled_length = int(progress_width * percentage // 100)
+    
+    # Use simpler characters for faster rendering
+    if total > 100 * 1024 * 1024:  # For files > 100MB
+        progress_bar = '▓' * filled_length + '░' * (progress_width - filled_length)
+    else:
+        progress_bar = '█' * filled_length + '▒' * (progress_width - filled_length)
+    
+    # Format file sizes
+    current_size = humanbytes(current)
+    total_size = humanbytes(total)
+    speed_formatted = humanbytes(speed) + "/s" if speed > 0 else "0 B/s"
+    
+    # Create progress text
+    progress_text = f"""
+**{ud_type}**
 
-        elapsed_time = TimeFormatter(milliseconds=elapsed_time)
-        estimated_total_time = TimeFormatter(milliseconds=estimated_total_time)
+{progress_bar} **{percentage:.1f}%**
 
-        progress = "{0}{1}".format(
-            ''.join(["■" for i in range(math.floor(percentage / 5))]),
-            ''.join(["□" for i in range(20 - math.floor(percentage / 5))])
-        )            
-        tmp = progress + Txt.PROGRESS_BAR.format( 
-            round(percentage, 2),
-            humanbytes(current),
-            humanbytes(total),
-            humanbytes(speed),            
-            estimated_total_time if estimated_total_time != '' else "0 s"
+📊 **Progress:** {current_size} / {total_size}
+⚡ **Speed:** {speed_formatted}
+⏰ **ETA:** {eta}
+🕐 **Elapsed:** {TimeFormatter(milliseconds=diff * 1000)}
+"""
+    
+    try:
+        await message.edit(
+            text=progress_text,
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("❌ ᴄᴀɴᴄᴇʟ", callback_data="close")]
+            ]) if current != total else None
         )
-        try:
-            await message.edit(
-                text=f"{ud_type}\n\n{tmp}",               
-                reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("ᴄᴀɴᴄᴇʟ", callback_data="close")]])                                               
-            )
-        except:
-            pass
+    except Exception as e:
+        # Silent fail for progress updates to prevent breaking the main process
+        pass
 
 def humanbytes(size):    
-    if not size:
-        return ""
-    power = 2**10
+    """Optimized human-readable bytes formatter"""
+    if not size or size <= 0:
+        return "0 B"
+    
+    # Use power of 1024 for binary prefixes
+    power = 1024
     n = 0
-    Dic_powerN = {0: ' ', 1: 'K', 2: 'M', 3: 'G', 4: 'T'}
-    while size > power:
+    power_labels = {0: 'B', 1: 'KB', 2: 'MB', 3: 'GB', 4: 'TB'}
+    
+    while size >= power and n < len(power_labels) - 1:
         size /= power
         n += 1
-    return str(round(size, 2)) + " " + Dic_powerN[n] + 'ʙ'
-
+    
+    # Format with appropriate decimal places
+    if n == 0:  # Bytes
+        return f"{int(size)} {power_labels[n]}"
+    elif n <= 2:  # KB or MB - 2 decimal places
+        return f"{size:.2f} {power_labels[n]}"
+    else:  # GB or TB - 1 decimal place
+        return f"{size:.1f} {power_labels[n]}"
 
 def TimeFormatter(milliseconds: int) -> str:
-    seconds, milliseconds = divmod(int(milliseconds), 1000)
+    """Optimized time formatter for progress updates"""
+    if milliseconds <= 0:
+        return "0s"
+    
+    seconds = milliseconds // 1000
     minutes, seconds = divmod(seconds, 60)
     hours, minutes = divmod(minutes, 60)
     days, hours = divmod(hours, 24)
-    tmp = ((str(days) + "ᴅ, ") if days else "") + \
-        ((str(hours) + "ʜ, ") if hours else "") + \
-        ((str(minutes) + "ᴍ, ") if minutes else "") + \
-        ((str(seconds) + "ꜱ, ") if seconds else "") + \
-        ((str(milliseconds) + "ᴍꜱ, ") if milliseconds else "")
-    return tmp[:-2] 
+    
+    # Build time string efficiently
+    parts = []
+    if days > 0:
+        parts.append(f"{days}d")
+    if hours > 0:
+        parts.append(f"{hours}h")
+    if minutes > 0:
+        parts.append(f"{minutes}m")
+    if seconds > 0 or not parts:  # Always show seconds if nothing else
+        parts.append(f"{seconds}s")
+    
+    return " ".join(parts) if parts else "0s"
 
 def convert(seconds):
-    seconds = seconds % (24 * 3600)
-    hour = seconds // 3600
-    seconds %= 3600
-    minutes = seconds // 60
-    seconds %= 60      
-    return "%d:%02d:%02d" % (hour, minutes, seconds)
+    """Convert seconds to HH:MM:SS format"""
+    seconds = int(seconds)
+    hours = seconds // 3600
+    minutes = (seconds % 3600) // 60
+    seconds = seconds % 60
+    
+    if hours > 0:
+        return f"{hours}:{minutes:02d}:{seconds:02d}"
+    else:
+        return f"{minutes}:{seconds:02d}"
 
 async def send_log(b, u):
     if Config.LOG_CHANNEL is not None:
@@ -83,22 +177,20 @@ async def send_log(b, u):
         )
 
 def add_prefix_suffix(input_string, prefix='', suffix=''):
-    pattern = r'(?P<filename>.*?)(\.\w+)?$'
-    match = re.search(pattern, input_string)
-    if match:
-        filename = match.group('filename')
-        extension = match.group(2) or ''
-        if prefix == None:
-            if suffix == None:
-                return f"{filename}{extension}"
-            return f"{filename} {suffix}{extension}"
-        elif suffix == None:
-            if prefix == None:
-               return f"{filename}{extension}"
-            return f"{prefix}{filename}{extension}"
-        else:
-            return f"{prefix}{filename} {suffix}{extension}"
-
-
-    else:
+    """Add prefix and suffix to filename"""
+    if not input_string:
         return input_string
+    
+    # Find the last dot for extension
+    dot_pos = input_string.rfind('.')
+    
+    if dot_pos == -1:  # No extension
+        filename = input_string
+        extension = ''
+    else:
+        filename = input_string[:dot_pos]
+        extension = input_string[dot_pos:]
+    
+    # Apply prefix and suffix
+    result = f"{prefix}{filename}{suffix}{extension}"
+    return result.strip()
