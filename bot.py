@@ -30,7 +30,7 @@ class Bot(Client):
 
             workers=50,
             plugins={"root": "plugins"},
-            sleep_threshold=120,
+            sleep_threshold=60,
         )
 
         self.start_time = time.time()
@@ -65,6 +65,7 @@ class Bot(Client):
             except Exception as e:
                 print(e)
 
-
 if __name__ == "__main__":
-    Bot().run()
+    bot = Bot()
+    bot.run()
+
