@@ -1,3 +1,22 @@
+caption_episode_patterns = [
+    # "Episode :- 02" ya "Episode - 02" format ko handle karne ke liye
+    re.compile(r'[Ee]pisode\s*[:\-\s]*\s*(\d+)', re.IGNORECASE),
+    re.compile(r'[Ee][Pp](?:isode)?\s*[:\-\s]*\s*(\d+)', re.IGNORECASE),
+    # Baaki patterns...
+]
+
+caption_season_patterns = [
+    # "SEASON :- 10" format ke liye
+    re.compile(r'[Ss]eason\s*[:\-\s]*\s*(\d+)', re.IGNORECASE),
+    # Baaki patterns...
+]
+
+
+
+
+
+
+
 import os
 import re
 import time
@@ -45,7 +64,8 @@ pattern11 = re.compile(r'Vol(\d+)\s*-\s*Ch(\d+)', re.IGNORECASE)
 # NEW: Enhanced patterns for caption mode
 caption_episode_patterns = [
     # "Episode :- 02" format
-    re.compile(r'[Ee]pisode\s*[:-]\s*(\d+)', re.IGNORECASE),
+    re.compile(r'[Ee]pisode\s*[:\-\s]*\s*(\d+)', re.IGNORECASE),
+    re.compile(r'[Ee][Pp](?:isode)?\s*[:\-\s]*\s*(\d+)', re.IGNORECASE),
     # "EP 02" format
     re.compile(r'[Ee][Pp](?:isode)?\s+(\d+)', re.IGNORECASE),
     # "E02" format
@@ -61,8 +81,8 @@ caption_episode_patterns = [
 caption_season_patterns = [
     # "[ SEASON :- 10 ]" format
     re.compile(r'[\[\(\{]\s*[Ss]eason\s*[:-]\s*(\d+)\s*[\]\)\}]', re.IGNORECASE),
-    # "Season :- 10" format
-    re.compile(r'[Ss]eason\s*[:-]\s*(\d+)', re.IGNORECASE),
+    # "SEASON :- 10" format ke liye
+    re.compile(r'[Ss]eason\s*[:\-\s]*\s*(\d+)', re.IGNORECASE),
     # "S10" format
     re.compile(r'[Ss](\d+)', re.IGNORECASE),
     # "Season 10" format
