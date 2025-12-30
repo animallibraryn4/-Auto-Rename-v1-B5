@@ -7,6 +7,7 @@ from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton, CallbackQ
 from pyrogram.errors import UserNotParticipant, FloodWait, ChatAdminRequired, ChannelPrivate
 from config import Config, Txt
 from helper.database import codeflixbots
+from pyrogram.types import Message
 
 
 # Global dictionaries for sequence management
