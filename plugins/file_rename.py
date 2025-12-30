@@ -42,11 +42,10 @@ pattern4 = re.compile(r'S(\d+)[^\d]*(\d+)', re.IGNORECASE)
 patternX = re.compile(r'(\d+)')
 pattern11 = re.compile(r'Vol(\d+)\s*-\s*Ch(\d+)', re.IGNORECASE)
 
-# NEW: Enhanced patterns for caption mode
+# NEW: Enhanced patterns for caption mode - IMPROVED WITH FULL WORD PATTERNS
 caption_episode_patterns = [
-    # "Episode :- 02" format
-    re.compile(r'[Ee]pisode\s*[:\-\s]*\s*(\d+)', re.IGNORECASE),
-    re.compile(r'[Ee][Pp](?:isode)?\s*[:\-\s]*\s*(\d+)', re.IGNORECASE),
+    # "Episode :- 02" format (improved)
+    re.compile(r'[Ee]pisode\s*[:-]+\s*(\d+)', re.IGNORECASE),
     # "EP 02" format
     re.compile(r'[Ee][Pp](?:isode)?\s+(\d+)', re.IGNORECASE),
     # "E02" format
@@ -57,20 +56,37 @@ caption_episode_patterns = [
     re.compile(r'[\[\(\{]\s*[Ee][Pp]\s*(\d+)\s*[\]\)\}]', re.IGNORECASE),
     # Just episode number in brackets
     re.compile(r'[\[\(\{]\s*(\d+)\s*[\]\)\}]'),
+    # NEW: Full word "EPISODE" with various separators
+    re.compile(r'[Ee][Pp][Ii][Ss][Oo][Dd][Ee]\s*[:-]+\s*(\d+)', re.IGNORECASE),
+    # NEW: "EP" with colon and dash
+    re.compile(r'[Ee][Pp]\s*[:-]+\s*(\d+)', re.IGNORECASE),
+    # NEW: "EPISODE - 01" with just dash
+    re.compile(r'[Ee][Pp][Ii][Ss][Oo][Dd][Ee]\s*-\s*(\d+)', re.IGNORECASE),
+    # NEW: "EP - 01" with just dash
+    re.compile(r'[Ee][Pp]\s*-\s*(\d+)', re.IGNORECASE),
 ]
 
 caption_season_patterns = [
     # "[ SEASON :- 10 ]" format
-    re.compile(r'[\[\(\{]\s*[Ss]eason\s*[:-]\s*(\d+)\s*[\]\)\}]', re.IGNORECASE),
-    # "SEASON :- 10" format ke liye
-    re.compile(r'[Ss]eason\s*[:\-\s]*\s*(\d+)', re.IGNORECASE),
+    re.compile(r'[\[\(\{]\s*[Ss]eason\s*[:-]+\s*(\d+)\s*[\]\)\}]', re.IGNORECASE),
+    # "Season :- 10" format
+    re.compile(r'[Ss]eason\s*[:-]+\s*(\d+)', re.IGNORECASE),
     # "S10" format
     re.compile(r'[Ss](\d+)', re.IGNORECASE),
     # "Season 10" format
     re.compile(r'[Ss]eason\s+(\d+)', re.IGNORECASE),
     # "SEA 10" format
     re.compile(r'[Ss][Ee][Aa]\s+(\d+)', re.IGNORECASE),
+    # NEW: Full word "SEASON" with various separators
+    re.compile(r'[Ss][Ee][Aa][Ss][Oo][Nn]\s*[:-]+\s*(\d+)', re.IGNORECASE),
+    # NEW: "SEASON - 10" with just dash
+    re.compile(r'[Ss][Ee][Aa][Ss][Oo][Nn]\s*-\s*(\d+)', re.IGNORECASE),
 ]
+
+# NEW: Additional patterns for full word matching
+pattern_season_full = re.compile(r'[Ss][Ee][Aa][Ss][Oo][Nn]\s*[:-]?\s*(\d+)', re.IGNORECASE)
+pattern_episode_full = re.compile(r'[Ee][Pp][Ii][Ss][Oo][Dd][Ee]\s*[:-]?\s*(\d+)', re.IGNORECASE)
+pattern_ep_full = re.compile(r'[Ee][Pp]\s*[:-]?\s*(\d+)', re.IGNORECASE)
 
 # Quality patterns (already exist, keep them)
 pattern5 = re.compile(r'\b(?:.*?(\d{3,4}[^\dp]*p).*?|.*?(\d{3,4}p))\b', re.IGNORECASE)
@@ -80,181 +96,86 @@ pattern8 = re.compile(r'[([<{]?\s*HdRip\s*[)\]>}]?|\bHdRip\b', re.IGNORECASE)
 pattern9 = re.compile(r'[([<{]?\s*4kX264\s*[)\]>}]?', re.IGNORECASE)
 pattern10 = re.compile(r'[([<{]?\s*4kx265\s*[)\]>}]?', re.IGNORECASE)
 
-def extract_episode_number(text_source):
-    """
-    Extract episode number from text source.
-    Automatically detects caption-style formats.
-    """
-    if not text_source:
-        return None
-    
-    # First try caption patterns (for caption mode)
-    for pattern in caption_episode_patterns:
-        match = re.search(pattern, text_source)
-        if match:
-            return match.group(1)
-    
-    # Then try original patterns (for file mode)
-    for pattern in [pattern1, pattern2, pattern3, pattern3_2, pattern4, patternX]:
-        match = re.search(pattern, text_source)
-        if match: 
-            if pattern in [pattern1, pattern2, pattern4]:
-                return match.group(2) 
-            else:
-                return match.group(1)
-    
-    # Additional fallback: look for any number after "EPISODE" or "EP"
-    episode_patterns = [
-        # "EPISODE :- 01" with colon and dash
-        re.compile(r'[Ee][Pp][Ii][Ss][Oo][Dd][Ee]\s*[:-]+\s*(\d+)', re.IGNORECASE),
-        # "EPISODE - 01" with just dash
-        re.compile(r'[Ee][Pp][Ii][Ss][Oo][Dd][Ee]\s*-\s*(\d+)', re.IGNORECASE),
-        # "EPISODE 01" without punctuation
-        re.compile(r'[Ee][Pp][Ii][Ss][Oo][Dd][Ee]\s+(\d+)', re.IGNORECASE),
-        # "EP :- 01" with colon and dash
-        re.compile(r'[Ee][Pp]\s*[:-]+\s*(\d+)', re.IGNORECASE),
-        # "EP - 01" with just dash
-        re.compile(r'[Ee][Pp]\s*-\s*(\d+)', re.IGNORECASE),
-        # "EP 01" without punctuation
-        re.compile(r'[Ee][Pp]\s+(\d+)', re.IGNORECASE),
-    ]
-    
-    for pattern in episode_patterns:
-        match = re.search(pattern, text_source)
-        if match:
-            return match.group(1)
-    
-    return None
-
-def extract_season_number(text_source):
-    """
-    Extract season number from text source.
-    Automatically detects caption-style formats.
-    """
-    if not text_source:
-        return None
-    
-    # First try caption patterns (for caption mode)
-    for pattern in caption_season_patterns:
-        match = re.search(pattern, text_source)
-        if match:
-            return match.group(1)
-    
-    # Then try original patterns (for file mode)
-    for pattern in [pattern1, pattern4]:
-        match = re.search(pattern, text_source)
-        if match: 
-            return match.group(1)
-    
-    return None
-
-def extract_volume_chapter(text_source):
-    """
-    Extract volume and chapter from text source.
-    """
-    if not text_source:
-        return None, None
-    
-    match = re.search(pattern11, text_source)
-    if match:
-        return match.group(1), match.group(2)
-    
-    # Additional patterns for caption mode
-    # Try "Volume 1 Chapter 2" format
-    vol_chap_pattern = re.compile(r'[Vv]olume\s+(\d+)\s*[Cc]hapter\s+(\d+)', re.IGNORECASE)
-    match = re.search(vol_chap_pattern, text_source)
-    if match:
-        return match.group(1), match.group(2)
-    
-    # Try "Vol.1 Ch.2" format
-    vol_chap_pattern2 = re.compile(r'[Vv]ol\.?\s*(\d+)\s*[Cc]h\.?\s*(\d+)', re.IGNORECASE)
-    match = re.search(vol_chap_pattern2, text_source)
-    if match:
-        return match.group(1), match.group(2)
-    
-    return None, None
-
-def extract_quality(text_source):
-    """
-    Extract quality from text source.
-    Works for both filename and caption.
-    """
-    # Common quality patterns for both modes
-    for pattern, quality in [(pattern5, lambda m: m.group(1) or m.group(2)), 
-                            (pattern6, "4k"), 
-                            (pattern7, "2k"), 
-                            (pattern8, "HdRip"), 
-                            (pattern9, "4kX264"), 
-                            (pattern10, "4kx265")]:
-        match = re.search(pattern, text_source)
-        if match: 
-            return quality(match) if callable(quality) else quality
-    
-    # Additional quality patterns for caption mode
-    caption_quality_patterns = [
-        (re.compile(r'[Qq]uality\s*[:-]\s*(\d{3,4}[pP])', re.IGNORECASE), lambda m: m.group(1)),
-        (re.compile(r'[Rr]esolution\s*[:-]\s*(\d{3,4}[pP])', re.IGNORECASE), lambda m: m.group(1)),
-        (re.compile(r'[\[\(\{]\s*(\d{3,4}[pP])\s*[\]\)\}]'), lambda m: m.group(1)),
-        (re.compile(r'\b([Ff][Uu][Ll][Ll]\s*[Hh][Dd])\b'), "1080p"),
-        (re.compile(r'\b([Hh][Dd]\s*[Rr][Ii][Pp])\b'), "HDrip"),
-        (re.compile(r'\b([Ww][Ee][Bb]\s*[Dd][Ll])\b'), "WEB-DL"),
-        (re.compile(r'\b([Ww][Ee][Bb])\b'), "WEB"),
-    ]
-    
-    for pattern, quality in caption_quality_patterns:
-        match = re.search(pattern, text_source)
-        if match:
-            return quality(match) if callable(quality) else quality
-    
-    return "Unknown"
-    
 def extract_episode_number(text_source, is_caption_mode=False):
     """
     Extract episode number from text source.
     Uses different patterns for caption mode vs file mode.
+    IMPROVED: Now properly handles full words like "Episode :- 01"
     """
     if not text_source:
         return None
+    
+    # DEBUG: Log what we're trying to parse
+    logger.info(f"DEBUG: Extracting episode from: {text_source[:100]}")
+    
+    # First try full word patterns for better accuracy
+    for pattern in [pattern_episode_full, pattern_ep_full]:
+        match = re.search(pattern, text_source)
+        if match:
+            result = match.group(1)
+            logger.info(f"DEBUG: Found episode '{result}' with full word pattern")
+            return result
     
     if is_caption_mode:
         # Try caption patterns first
         for pattern in caption_episode_patterns:
             match = re.search(pattern, text_source)
             if match:
-                return match.group(1)
+                result = match.group(1)
+                logger.info(f"DEBUG: Found episode '{result}' with caption pattern")
+                return result
     
     # Try original patterns (for backward compatibility)
     for pattern in [pattern1, pattern2, pattern3, pattern3_2, pattern4, patternX]:
         match = re.search(pattern, text_source)
         if match: 
             if pattern in [pattern1, pattern2, pattern4]:
-                return match.group(2) 
+                result = match.group(2)
             else:
-                return match.group(1)
+                result = match.group(1)
+            logger.info(f"DEBUG: Found episode '{result}' with original pattern")
+            return result
     
+    logger.info("DEBUG: No episode number found")
     return None
 
 def extract_season_number(text_source, is_caption_mode=False):
     """
     Extract season number from text source.
     Uses different patterns for caption mode vs file mode.
+    IMPROVED: Now properly handles full words like "SEASON :- 10"
     """
     if not text_source:
         return None
+    
+    # DEBUG: Log what we're trying to parse
+    logger.info(f"DEBUG: Extracting season from: {text_source[:100]}")
+    
+    # First try full word patterns for better accuracy
+    match = re.search(pattern_season_full, text_source)
+    if match:
+        result = match.group(1)
+        logger.info(f"DEBUG: Found season '{result}' with full word pattern")
+        return result
     
     if is_caption_mode:
         # Try caption patterns first
         for pattern in caption_season_patterns:
             match = re.search(pattern, text_source)
             if match:
-                return match.group(1)
+                result = match.group(1)
+                logger.info(f"DEBUG: Found season '{result}' with caption pattern")
+                return result
     
     # Try original patterns
     for pattern in [pattern1, pattern4]:
         match = re.search(pattern, text_source)
         if match: 
-            return match.group(1)
+            result = match.group(1)
+            logger.info(f"DEBUG: Found season '{result}' with original pattern")
+            return result
     
+    logger.info("DEBUG: No season number found")
     return None
 
 def extract_volume_chapter(text_source, is_caption_mode=False):
@@ -413,41 +334,6 @@ async def convert_to_mkv(input_path, output_path):
         error_message = stderr.decode()
         raise Exception(f"MKV conversion failed: {error_message}")
 
-def extract_quality(filename):
-    for pattern, quality in [(pattern5, lambda m: m.group(1) or m.group(2)), 
-                            (pattern6, "4k"), 
-                            (pattern7, "2k"), 
-                            (pattern8, "HdRip"), 
-                            (pattern9, "4kX264"), 
-                            (pattern10, "4kx265")]:
-        match = re.search(pattern, filename)
-        if match: 
-            return quality(match) if callable(quality) else quality
-    return "Unknown"
-
-def extract_episode_number(filename):
-    for pattern in [pattern1, pattern2, pattern3, pattern3_2, pattern4, patternX]:
-        match = re.search(pattern, filename)
-        if match: 
-            if pattern in [pattern1, pattern2, pattern4]:
-                return match.group(2) 
-            else:
-                return match.group(1)
-    return None
-
-def extract_season_number(filename):
-    for pattern in [pattern1, pattern4]:
-        match = re.search(pattern, filename)
-        if match: 
-            return match.group(1)
-    return None
-
-def extract_volume_chapter(filename):
-    match = re.search(pattern11, filename)
-    if match:
-        return match.group(1), match.group(2)
-    return None, None
-
 async def forward_to_dump_channel(client, path, media_type, ph_path, file_name, renamed_file_name, user_info):
     if not Config.DUMP_CHANNEL: 
         return
@@ -517,10 +403,13 @@ async def process_rename(client: Client, message: Message):
 
     # Use caption text if mode is set to caption and caption exists
     text_source = file_name
+    is_caption_mode = False
+    
     if rename_mode == "caption" and message.caption:
         text_source = message.caption
-        # Log that we're using caption mode
-        logger.info(f"User {user_id} using caption mode. Source: {text_source[:100]}...")
+        is_caption_mode = True
+        # Log that we're using caption mode with more detail
+        logger.info(f"User {user_id} using caption mode. Source: {text_source}")
     
     # Check for duplicate operations
     if file_id in renaming_operations:
@@ -535,11 +424,11 @@ async def process_rename(client: Client, message: Message):
     
     # ===== Extract and process information from text_source =====
     # Use enhanced parsing functions (they now handle both modes automatically)
-    episode_number = extract_episode_number(text_source)
-    season_number = extract_season_number(text_source)
+    episode_number = extract_episode_number(text_source, is_caption_mode)
+    season_number = extract_season_number(text_source, is_caption_mode)
     
     # DEBUG: Log what was extracted
-    logger.info(f"Extracted episode: {episode_number}, season: {season_number}")
+    logger.info(f"Extracted season: {season_number}, episode: {episode_number}")
     
     if episode_number:
         format_template = format_template.replace("[EP.NUM]", str(episode_number)).replace("{episode}", str(episode_number))
@@ -553,7 +442,7 @@ async def process_rename(client: Client, message: Message):
         format_template = format_template.replace("[SE.NUM]", "").replace("{season}", "")
 
     # Extract volume and chapter
-    volume_number, chapter_number = extract_volume_chapter(text_source)
+    volume_number, chapter_number = extract_volume_chapter(text_source, is_caption_mode)
     if volume_number and chapter_number:
         format_template = format_template.replace("[Vol{volume}]", f"Vol{volume_number}").replace("[Ch{chapter}]", f"Ch{chapter_number}")
     else:
@@ -561,7 +450,7 @@ async def process_rename(client: Client, message: Message):
 
     # Extract quality (not for PDFs)
     if not is_pdf:
-        extracted_quality = extract_quality(text_source)
+        extracted_quality = extract_quality(text_source, is_caption_mode)
         if extracted_quality != "Unknown":
             format_template = format_template.replace("[QUALITY]", extracted_quality).replace("{quality}", extracted_quality)
         else:
@@ -726,7 +615,7 @@ async def process_rename(client: Client, message: Message):
         c_caption = await codeflixbots.get_caption(message.chat.id)
         
         # Get quality from filename for thumbnail selection
-        extracted_quality = extract_quality(file_name)
+        extracted_quality = extract_quality(file_name, is_caption_mode)
         standard_quality = standardize_quality_name(extracted_quality) if extracted_quality != "Unknown" else None
         
         # Try to get quality-specific thumbnail first
@@ -890,8 +779,3 @@ async def auto_rename_files(client, message):
         }
     
     await user_queues[user_id]["queue"].put(message)
-
-
-    
-    
-    
