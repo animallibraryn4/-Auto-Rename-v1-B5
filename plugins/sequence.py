@@ -21,25 +21,53 @@ user_seq_mode = {}  # Store user sequence mode (per_ep or group)
 # =====================================================
 # SEQUENCE PARSING ENGINE
 # =====================================================
+# In sequence.py, update the parse_file_info function:
 
-def parse_file_info(text):
+def parse_file_info(text, is_caption_mode=False):
     """Parse file information from text (either filename or caption)"""
     if not text:
         return {"season": 1, "episode": 0, "quality": 0}
     
+    # Use the enhanced extraction functions from file_rename.py
+    # We'll import them or copy the logic
+    if is_caption_mode:
+        # Enhanced patterns for caption mode
+        episode_match = None
+        season_match = None
+        
+        # Try caption patterns first
+        for pattern in caption_episode_patterns:  # You'll need to define these in sequence.py too
+            episode_match = re.search(pattern, text)
+            if episode_match:
+                break
+        
+        for pattern in caption_season_patterns:  # You'll need to define these in sequence.py too
+            season_match = re.search(pattern, text)
+            if season_match:
+                break
+        
+        episode = int(episode_match.group(1)) if episode_match else 0
+        season = int(season_match.group(1)) if season_match else 1
+        
+    else:
+        # Original logic for file mode
+        quality_match = re.search(r'(\d{3,4})[pP]', text)
+        quality = int(quality_match.group(1)) if quality_match else 0
+        clean_name = re.sub(r'\d{3,4}[pP]', '', text)
+
+        season_match = re.search(r'[sS](?:eason)?\s*(\d+)', clean_name)
+        season = int(season_match.group(1)) if season_match else 1
+        
+        ep_match = re.search(r'[eE](?:p(?:isode)?)?\s*(\d+)', clean_name)
+        if ep_match:
+            episode = int(ep_match.group(1))
+        else:
+            nums = re.findall(r'\d+', clean_name)
+            episode = int(nums[-1]) if nums else 0
+    
+    # Extract quality (for both modes)
     quality_match = re.search(r'(\d{3,4})[pP]', text)
     quality = int(quality_match.group(1)) if quality_match else 0
-    clean_name = re.sub(r'\d{3,4}[pP]', '', text)
-
-    season_match = re.search(r'[sS](?:eason)?\s*(\d+)', clean_name)
-    season = int(season_match.group(1)) if season_match else 1
-    
-    ep_match = re.search(r'[eE](?:p(?:isode)?)?\s*(\d+)', clean_name)
-    if ep_match:
-        episode = int(ep_match.group(1))
-    else:
-        nums = re.findall(r'\d+', clean_name)
-        episode = int(nums[-1]) if nums else 0
 
     return {"season": season, "episode": episode, "quality": quality}
 
