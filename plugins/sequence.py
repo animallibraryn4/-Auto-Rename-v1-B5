@@ -385,12 +385,12 @@ async def send_sequence_files(client, message, user_id):
     )
 
 # =====================================================
-# /sf COMMAND - Switch between File and Caption Mode
+# /mode COMMAND - Switch between File and Caption Mode
 # =====================================================
 
-@Client.on_message(filters.private & filters.command("sf"))
+@Client.on_message(filters.private & filters.command("mode"))
 async def switch_mode_cmd(client, message):
-    """Handle /sf command to switch between File mode and Caption mode"""
+    """Handle /mode command to switch between File mode and Caption mode"""
     user_id = message.from_user.id
     current_mode = user_mode.get(user_id, "file")
     
@@ -409,10 +409,12 @@ async def switch_mode_cmd(client, message):
         ])
     
     text = (
-        f"<b>🔄 Sequence Mode Settings</b>\n\n"
+        f"<b>🔄Mode Settings</b>\n\n"
         f"<blockquote><b>Current Mode:</b> {'File Mode' if current_mode == 'file' else 'Caption Mode'}\n\n"
-        f"<b>📝 File Mode:</b> Sequence files using filename\n"
-        f"<b>🏷️ Caption Mode:</b> Sequence files using file caption\n\n"
+        f"<b>This mode controls where the bot reads information from.\n\n"
+        f"<b>📝 File Mode→</b> Uses file names\n"
+        f"<b>🏷️ Caption Mode→</b> Uses file captions\n\n"
+        f"<b>Note:</b> This setting is applied to both Auto File Rename and File Sequencing.\n\n"
         f"<i>ℹ️ If no caption is found in Caption Mode, those files will be skipped.</i></blockquote>"
     )
     
