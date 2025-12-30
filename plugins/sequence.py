@@ -929,6 +929,57 @@ async def cleanup_user_data(user_id):
         if task and not task.done():
             task.cancel()
 
+@Client.on_message(filters.private & filters.command("checkmode"))
+async def check_mode_command(client, message):
+    """Check current mode status"""
+    user_id = message.from_user.id
+    
+    # Get mode from database
+    db_mode = await codeflixbots.get_rename_mode(user_id)
+    
+    # Get mode from memory
+    memory_mode = user_mode.get(user_id, "file")
+    
+    # Get from sequence memory
+    seq_mode = user_seq_mode.get(user_id, "per_ep")
+    
+    text = (
+        f"<b>🔍 Mode Status Check</b>\n\n"
+        f"<blockquote>"
+        f"<b>Database Mode:</b> {db_mode}\n"
+        f"<b>Memory Mode:</b> {memory_mode}\n"
+        f"<b>Sequence Mode:</b> {seq_mode}\n\n"
+    )
+    
+    if db_mode == memory_mode:
+        text += "✅ <b>Mode is synchronized!</b>"
+    else:
+        text += "⚠️ <b>Mode mismatch detected!</b>\n"
+        text += "Use /syncmode to fix this."
+    
+    text += "</blockquote>"
+    
+    await message.reply_text(text)
+
+@Client.on_message(filters.private & filters.command("syncmode"))
+async def sync_mode_command(client, message):
+    """Sync mode between all systems"""
+    user_id = message.from_user.id
+    
+    # Get current mode from database
+    db_mode = await codeflixbots.get_rename_mode(user_id)
+    
+    # Update memory mode
+    user_mode[user_id] = db_mode
+    
+    await message.reply_text(
+        f"<b>✅ Mode Synced!</b>\n\n"
+        f"<blockquote><b>Current Mode:</b> {'File Mode' if db_mode == 'file' else 'Caption Mode'}</blockquote>\n\n"
+        f"Mode is now synchronized between Auto File Rename and Sequence."
+    )
+
+
+
 # =====================================================
 # SEQUENCE HELP TEXT
 # =====================================================
