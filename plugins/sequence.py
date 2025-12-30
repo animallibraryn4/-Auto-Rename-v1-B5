@@ -396,12 +396,19 @@ async def send_sequence_files(client, message, user_id):
 # =====================================================
 # /mode COMMAND - Switch between File and Caption Mode
 # =====================================================
-
 @Client.on_message(filters.private & filters.command("mode"))
 async def switch_mode_cmd(client, message):
     """Handle /mode command to switch between File mode and Caption mode"""
     user_id = message.from_user.id
-    current_mode = user_mode.get(user_id, "file")
+    
+    # Get current mode from combined source
+    current_mode = await get_user_mode(user_id)
+    
+    # Update both in-memory and database
+    user_mode[user_id] = current_mode
+    from helper.database import codeflixbots
+    await codeflixbots.set_rename_mode(user_id, current_mode)
+
     
     # Create buttons based on current mode
     if current_mode == "file":
