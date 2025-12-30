@@ -596,7 +596,6 @@ async def handle_ls_links(client, message):
 # =====================================================
 # CALLBACK QUERY HANDLERS
 # =====================================================
-
 @Client.on_callback_query(filters.regex(r'^mode_(file|caption)$|^close_mode$'))
 async def mode_callback_handler(client, query):
     """Handle mode switching callbacks"""
@@ -605,6 +604,10 @@ async def mode_callback_handler(client, query):
     
     if data == "mode_file":
         user_mode[user_id] = "file"
+        # SYNC WITH DATABASE FOR AUTO RENAME
+        from helper.database import codeflixbots
+        await codeflixbots.set_rename_mode(user_id, "file")
+        
         buttons = InlineKeyboardMarkup([
             [InlineKeyboardButton("✅ File Mode", callback_data="mode_file")],
             [InlineKeyboardButton("Caption Mode", callback_data="mode_caption")],
@@ -623,6 +626,10 @@ async def mode_callback_handler(client, query):
         
     elif data == "mode_caption":
         user_mode[user_id] = "caption"
+        # SYNC WITH DATABASE FOR AUTO RENAME
+        from helper.database import codeflixbots
+        await codeflixbots.set_rename_mode(user_id, "caption")
+        
         buttons = InlineKeyboardMarkup([
             [InlineKeyboardButton("File Mode", callback_data="mode_file")],
             [InlineKeyboardButton("✅ Caption Mode", callback_data="mode_caption")],
@@ -643,6 +650,7 @@ async def mode_callback_handler(client, query):
     elif data == "close_mode":
         await query.message.delete()
         await query.answer("Closed mode settings", show_alert=False)
+
 
 @Client.on_callback_query(filters.regex(r'^set_mode_(group|per_ep)$'))
 async def set_mode_callback(client, query):
