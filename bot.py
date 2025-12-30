@@ -66,7 +66,7 @@ class Bot(Client):
             except Exception as e:
                 print(e)
 
+
 if __name__ == "__main__":
-    bot = Bot()
-    bot.run()
+    Bot().run()
 
