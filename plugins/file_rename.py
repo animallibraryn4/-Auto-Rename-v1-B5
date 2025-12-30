@@ -215,6 +215,8 @@ async def forward_to_dump_channel(client, path, media_type, ph_path, file_name, 
     except Exception as e:
         logger.error(f"[DUMP ERROR] {e}")
 
+# Update the process_rename function in file_rename.py
+
 async def process_rename(client: Client, message: Message):
     ph_path = None
     
@@ -228,6 +230,9 @@ async def process_rename(client: Client, message: Message):
     if not format_template:
         return await message.reply_text("Please Set An Auto Rename Format First Using /autorename")
 
+    # Get user's rename mode
+    rename_mode = await codeflixbots.get_rename_mode(user_id)
+    
     # Determine file type and get basic info
     if message.document:
         file_id = message.document.file_id
@@ -250,9 +255,13 @@ async def process_rename(client: Client, message: Message):
     else:
         return await message.reply_text("Unsupported File Type")
 
-    if await check_anti_nsfw(file_name, message):
-        return await message.reply_text("NSFW content detected. File upload rejected.")
-
+    # Use caption text if mode is set to caption and caption exists
+    text_source = file_name
+    if rename_mode == "caption" and message.caption:
+        text_source = message.caption
+        # Log that we're using caption mode
+        logger.info(f"User {user_id} using caption mode. Source: {text_source[:100]}...")
+    
     # Check for duplicate operations
     if file_id in renaming_operations:
         elapsed_time = (datetime.now() - renaming_operations[file_id]).seconds
@@ -261,23 +270,23 @@ async def process_rename(client: Client, message: Message):
 
     renaming_operations[file_id] = datetime.now()
 
-    # ===== RESTORED FROM OLD FILE: Extract and process filename components =====
-    # Extract episode number
-    episode_number = extract_episode_number(file_name)
+    # ===== Extract and process information from text_source =====
+    # Extract episode number from text_source (either filename or caption)
+    episode_number = extract_episode_number(text_source)
     if episode_number:
         format_template = format_template.replace("[EP.NUM]", str(episode_number)).replace("{episode}", str(episode_number))
     else:
         format_template = format_template.replace("[EP.NUM]", "").replace("{episode}", "")
 
     # Extract season number
-    season_number = extract_season_number(file_name)
+    season_number = extract_season_number(text_source)
     if season_number:
         format_template = format_template.replace("[SE.NUM]", str(season_number)).replace("{season}", str(season_number))
     else:
         format_template = format_template.replace("[SE.NUM]", "").replace("{season}", "")
 
     # Extract volume and chapter
-    volume_number, chapter_number = extract_volume_chapter(file_name)
+    volume_number, chapter_number = extract_volume_chapter(text_source)
     if volume_number and chapter_number:
         format_template = format_template.replace("[Vol{volume}]", f"Vol{volume_number}").replace("[Ch{chapter}]", f"Ch{chapter_number}")
     else:
@@ -285,7 +294,7 @@ async def process_rename(client: Client, message: Message):
 
     # Extract quality (not for PDFs)
     if not is_pdf:
-        extracted_quality = extract_quality(file_name)
+        extracted_quality = extract_quality(text_source)
         if extracted_quality != "Unknown":
             format_template = format_template.replace("[QUALITY]", extracted_quality).replace("{quality}", extracted_quality)
         else:
