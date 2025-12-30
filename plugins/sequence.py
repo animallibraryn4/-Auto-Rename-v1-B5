@@ -19,6 +19,26 @@ user_mode = {}  # Store user mode (file or caption)
 user_seq_mode = {}  # Store user sequence mode (per_ep or group)
 
 # =====================================================
+# INITIALIZE USER MODES FROM DATABASE
+# =====================================================
+
+async def initialize_user_modes():
+    """Initialize user modes from database on bot startup"""
+    try:
+        print("Initializing user modes from database...")
+        
+        # Get all users from database
+        all_users = await codeflixbots.get_all_users()
+        if all_users:
+            async for user in all_users:
+                user_id = user["_id"]
+                db_mode = user.get("rename_mode", "file")
+                user_mode[user_id] = db_mode
+            print(f"Initialized modes for users from database")
+    except Exception as e:
+        print(f"Error initializing user modes: {e}")
+
+# =====================================================
 # SEQUENCE PARSING ENGINE
 # =====================================================
 
@@ -215,7 +235,6 @@ async def sequence_messages(client, messages, mode="per_ep", user_id=None):
 # =====================================================
 # SEQUENCE COMMANDS
 # =====================================================
-
 @Client.on_message(filters.private & filters.command("sequence"))
 async def start_sequence(client, message):
     """Start a new sequence session"""
@@ -227,11 +246,15 @@ async def start_sequence(client, message):
         await send_verification(client, message)
         return
     
+    # SYNC: Get current mode from database
+    db_mode = await codeflixbots.get_rename_mode(user_id)
+    user_mode[user_id] = db_mode
+    
     user_sequences[user_id] = []
     if user_id in user_notification_msg:
         del user_notification_msg[user_id]
     
-    # Get current mode
+    # Get current mode (now synced with database)
     current_mode = user_mode.get(user_id, "file")
     mode_text = "File mode (using filename)" if current_mode == "file" else "Caption mode (using file caption)"
     seq_mode = user_seq_mode.get(user_id, "per_ep")
@@ -251,6 +274,10 @@ async def store_file(client, message):
     
     # Check if we are currently in a sequence session
     if user_id in user_sequences:
+        # SYNC: Get current mode from database first
+        db_mode = await codeflixbots.get_rename_mode(user_id)
+        user_mode[user_id] = db_mode
+        
         file_obj = message.document or message.video or message.audio
         current_mode = user_mode.get(user_id, "file")
         
@@ -420,7 +447,7 @@ async def switch_mode_cmd(client, message):
     text = (
         f"<b>🔄 Mode Settings</b>\n\n"
         f"<blockquote><b>Current Mode:</b> {'File Mode' if current_mode == 'file' else 'Caption Mode'}</blockquote>\n\n"
-        f"<b>This mode controls where the bot reads information from.\n\n"
+        f"This mode controls where the bot reads information from.\n\n"
         f"<b>📝 File Mode→</b> Uses file names\n"
         f"<b>🏷️ Caption Mode→</b> Uses file captions\n\n"
         f"<b>Note:</b> This setting is applied to both Auto File Rename and File Sequencing.\n\n"
@@ -464,13 +491,15 @@ async def quality_mode_cmd(client, message):
 # =====================================================
 # /ls COMMAND - Link Sequence from Channel
 # =====================================================
-
 @Client.on_message(filters.private & filters.command("ls"))
 async def ls_command(client, message):
     """Handle /ls command for channel file sequencing"""
     user_id = message.from_user.id
     
-    # Get user's current mode
+    # SYNC: Get current mode from database
+    db_mode = await codeflixbots.get_rename_mode(user_id)
+    user_mode[user_id] = db_mode
+    
     current_mode = user_mode.get(user_id, "file")
     mode_text = "File Mode" if current_mode == "file" else "Caption Mode"
     seq_mode = user_seq_mode.get(user_id, "per_ep")
@@ -493,6 +522,7 @@ async def ls_command(client, message):
         f"<blockquote>Please send the first file link from the channel/group.\n\n"
         f"ℹ️ Note: For private channels, the bot must be an admin.</blockquote>"
     )
+
 
 @Client.on_message(filters.private & filters.text & filters.regex(r'https?://t\.me/'))
 async def handle_ls_links(client, message):
