@@ -363,8 +363,14 @@ async def forward_to_dump_channel(client, path, media_type, ph_path, file_name, 
     except Exception as e:
         logger.error(f"[DUMP ERROR] {e}")
 
-async def process_rename(client: Client, message: Message):
+
+  async def process_rename(client: Client, message: Message):
+    # Initialize all variables at the beginning
     ph_path = None
+    path = None
+    download_path = None
+    metadata_path = None
+    renamed_file_name = None  # Initialize here
     
     user_id = message.from_user.id
     if not await is_user_verified(user_id): 
@@ -413,8 +419,6 @@ async def process_rename(client: Client, message: Message):
     else:
         # File Mode: Use filename only, ignore caption
         logger.info(f"User {user_id} using file mode. Filename: {file_name}")
-        # Ensure caption is not used in any way
-        pass
     
     # Check for duplicate operations
     if file_id in renaming_operations:
@@ -435,7 +439,47 @@ async def process_rename(client: Client, message: Message):
     
     # DEBUG: Log what was extracted
     logger.info(f"Extracted season: {season_number}, episode: {episode_number}")
-    # ===== CONTINUE WITH THE REST OF THE FUNCTION =====
+    
+    if episode_number:
+        format_template = format_template.replace("[EP.NUM]", str(episode_number)).replace("{episode}", str(episode_number))
+    else:
+        format_template = format_template.replace("[EP.NUM]", "").replace("{episode}", "")
+
+    # Extract season number
+    if season_number:
+        format_template = format_template.replace("[SE.NUM]", str(season_number)).replace("{season}", str(season_number))
+    else:
+        format_template = format_template.replace("[SE.NUM]", "").replace("{season}", "")
+
+    # Extract volume and chapter
+    volume_number, chapter_number = extract_volume_chapter(text_source, is_caption_mode)
+    if volume_number and chapter_number:
+        format_template = format_template.replace("[Vol{volume}]", f"Vol{volume_number}").replace("[Ch{chapter}]", f"Ch{chapter_number}")
+    else:
+        format_template = format_template.replace("[Vol{volume}]", "").replace("[Ch{chapter}]", "")
+
+    # Extract quality (not for PDFs)
+    if not is_pdf:
+        extracted_quality = extract_quality(text_source, is_caption_mode)
+        if extracted_quality != "Unknown":
+            format_template = format_template.replace("[QUALITY]", extracted_quality).replace("{quality}", extracted_quality)
+        else:
+            format_template = format_template.replace("[QUALITY]", "").replace("{quality}", "")
+
+    # Clean up the format template
+    format_template = re.sub(r'\s+', ' ', format_template).strip()
+    format_template = format_template.replace("_", " ")
+    format_template = re.sub(r'\[\s*\]', '', format_template)
+
+    # DEBUG: Log the final format template
+    logger.info(f"Final format template: {format_template}")
+    
+    # Create renamed file name
+    _, file_extension = os.path.splitext(file_name)
+    renamed_file_name = f"{format_template}{file_extension}"  # Now this variable is definitely set
+    
+    # DEBUG: Log the renamed filename
+    logger.info(f"Renamed filename: {renamed_file_name}")
     
     # Create paths
     download_path = f"downloads/{message.id}_{renamed_file_name}"
@@ -688,29 +732,42 @@ async def process_rename(client: Client, message: Message):
         logger.error(f"Process Error: {e}")
         await download_msg.edit(f"Error: {e}")
     finally:
-        # Clean up files
-        for file_path in [download_path, metadata_path, path, ph_path]:
-            if file_path and os.path.exists(file_path):
-                try:
-                    os.remove(file_path)
-                except Exception as e:
-                    logger.warning(f"Error removing file {file_path}: {e}")
+        # Clean up files - check if variables exist before using them
+        files_to_clean = []
+        
+        # Add all possible file paths to the cleanup list
+        if download_path and os.path.exists(download_path):
+            files_to_clean.append(download_path)
+        if metadata_path and os.path.exists(metadata_path):
+            files_to_clean.append(metadata_path)
+        if path and os.path.exists(path):
+            files_to_clean.append(path)
+        if ph_path and os.path.exists(ph_path):
+            files_to_clean.append(ph_path)
         
         # Clean up temporary files from subtitle conversion
-        temp_files = [f"{download_path}.temp.mkv", 
-                     f"{metadata_path}.temp.mp4", 
-                     f"{metadata_path}.final.mp4"]
+        temp_files = []
+        if download_path:
+            temp_files.append(f"{download_path}.temp.mkv")
+        if metadata_path:
+            temp_files.extend([f"{metadata_path}.temp.mp4", f"{metadata_path}.final.mp4"])
+        
         for temp_file in temp_files:
-            if os.path.exists(temp_file):
-                try:
-                    os.remove(temp_file)
-                except:
-                    pass
+            if temp_file and os.path.exists(temp_file):
+                files_to_clean.append(temp_file)
+        
+        # Remove all files
+        for file_path in files_to_clean:
+            try:
+                os.remove(file_path)
+            except Exception as e:
+                logger.warning(f"Error removing file {file_path}: {e}")
         
         # Remove from operations tracking
-        if file_id in renaming_operations:
-            del renaming_operations[file_id]
-
+        if 'file_id' in locals() and file_id in renaming_operations:
+            del renaming_operations[file_id]      
+        
+            
 @Client.on_message(filters.private & (filters.document | filters.video | filters.audio), group=0)
 async def auto_rename_files(client, message):
     user_id = message.from_user.id
