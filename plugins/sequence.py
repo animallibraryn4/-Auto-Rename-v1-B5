@@ -874,6 +874,20 @@ async def ls_callback_handlers(client, query):
         if target_user_id in user_ls_state:
             del user_ls_state[target_user_id]
 
+async def get_user_mode(user_id):
+    """Get user mode with priority: sequence mode > database rename mode"""
+    # First check if user has sequence mode set
+    if user_id in user_mode:
+        return user_mode[user_id]
+    
+    # Fall back to database rename mode
+    try:
+        from helper.database import codeflixbots
+        db_mode = await codeflixbots.get_rename_mode(user_id)
+        return db_mode
+    except:
+        return "file"  # Default
+
 # =====================================================
 # CLEANUP FUNCTION
 # =====================================================
