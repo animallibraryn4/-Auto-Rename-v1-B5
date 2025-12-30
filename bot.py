@@ -15,22 +15,23 @@ pyrogram.utils.MIN_CHANNEL_ID = -1001896877147
 
 SUPPORT_CHAT = int(os.environ.get("SUPPORT_CHAT", "-1001896877147"))
 
-
+# bot.py - Update the Bot class __init__ method
 class Bot(Client):
-
+    
     def __init__(self):
         super().__init__(
             name="codeflixbots",
             api_id=Config.API_ID,
             api_hash=Config.API_HASH,
             bot_token=Config.BOT_TOKEN,
-
-            # 🔥 FINAL FIX (NO SQLITE, NO SESSION FILE)
             in_memory=True,
-
             workers=50,
             plugins={"root": "plugins"},
             sleep_threshold=60,
+            # ADD THESE PARAMETERS:
+            max_concurrent_transmissions=3,  # Reduced concurrent uploads
+            request_timeout=60,  # Increased timeout to 60 seconds
+            connection_retry_delay=5,  # Retry delay
         )
 
         self.start_time = time.time()
