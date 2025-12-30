@@ -591,17 +591,21 @@ async def process_rename(client: Client, message: Message):
                 metadata_path
             ]
 
+        # Replace lines 380-400 in new file_rename.py
         process = await asyncio.create_subprocess_exec(
             *metadata_command,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE
         )
-        stdout, stderr = await process.communicate()
 
-        if process.returncode != 0:
-            error_message = stderr.decode()
-            await download_msg.edit(f"**Metadata Error:**\n{error_message}")
-            return
+        # Add timeout to communicate
+        try:
+            stdout, stderr = await asyncio.wait_for(process.communicate(), timeout=120)  # 2 minutes timeout
+        except asyncio.TimeoutError:
+            process.kill()
+            await process.wait()
+            await download_msg.edit("❌ Metadata processing timeout (took too long)")
+            return 
 
         if is_mp4_with_ass:
             os.replace(final_output, metadata_path)
