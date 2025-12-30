@@ -8,6 +8,7 @@ from pyrogram.errors import UserNotParticipant, FloodWait, ChatAdminRequired, Ch
 from config import Config, Txt
 from helper.database import codeflixbots
 
+
 # Global dictionaries for sequence management
 user_sequences = {}  # user_id -> list of file data
 user_notification_msg = {}  # user_id -> notification message info
@@ -389,34 +390,122 @@ async def send_sequence_files(client, message, user_id):
 # =====================================================
 
 @Client.on_message(filters.private & filters.command("sf"))
-async def switch_mode_cmd(client, message):
-    """Handle /sf command to switch between File mode and Caption mode"""
+async def switch_rename_mode(client, message: Message):
     user_id = message.from_user.id
-    current_mode = user_mode.get(user_id, "file")
     
-    # Create buttons based on current mode
-    if current_mode == "file":
-        buttons = InlineKeyboardMarkup([
-            [InlineKeyboardButton("✅ File Mode", callback_data="mode_file")],
-            [InlineKeyboardButton("Caption Mode", callback_data="mode_caption")],
-            [InlineKeyboardButton("❌ Close", callback_data="close_mode")]
-        ])
+    # Toggle between file and caption mode
+    new_mode = await codeflixbots.toggle_rename_mode(user_id)
+    
+    if new_mode == "file":
+        mode_text = "📄 **File Mode**"
+        description = "The bot will now extract information from **file names** for auto renaming."
+        icon = "📄"
     else:
-        buttons = InlineKeyboardMarkup([
-            [InlineKeyboardButton("File Mode", callback_data="mode_file")],
-            [InlineKeyboardButton("✅ Caption Mode", callback_data="mode_caption")],
-            [InlineKeyboardButton("❌ Close", callback_data="close_mode")]
-        ])
+        mode_text = "📝 **Caption Mode**"
+        description = "The bot will now extract information from **file captions** for auto renaming."
+        icon = "📝"
     
-    text = (
-        f"<b>🔄 Sequence Mode Settings</b>\n\n"
-        f"<blockquote><b>Current Mode:</b> {'File Mode' if current_mode == 'file' else 'Caption Mode'}\n\n"
-        f"<b>📝 File Mode:</b> Sequence files using filename\n"
-        f"<b>🏷️ Caption Mode:</b> Sequence files using file caption\n\n"
-        f"<i>ℹ️ If no caption is found in Caption Mode, those files will be skipped.</i></blockquote>"
-    )
+    # Create response message
+    response = f"""
+{icon} **Rename Mode Changed**
+
+**Current Mode:** {mode_text}
+
+{description}
+
+**How it works:**
+- **File Mode:** Extracts episode, season, and quality info from file names
+- **Caption Mode:** Extracts the same info from file captions
+
+**Tip:** Make sure your captions contain the same pattern information as your file names.
+"""
     
-    await message.reply_text(text, reply_markup=buttons)
+    # Create buttons for quick switching
+    buttons = InlineKeyboardMarkup([
+        [
+            InlineKeyboardButton("🔄 Switch Again", callback_data="toggle_rename_mode"),
+            InlineKeyboardButton("❌ Close", callback_data="close_message")
+        ]
+    ])
+    
+    await message.reply_text(response, reply_markup=buttons)
+
+@Client.on_callback_query(filters.regex("^toggle_rename_mode$"))
+async def toggle_mode_callback(client, callback_query):
+    user_id = callback_query.from_user.id
+    
+    # Toggle the mode
+    new_mode = await codeflixbots.toggle_rename_mode(user_id)
+    
+    if new_mode == "file":
+        mode_text = "📄 **File Mode**"
+        description = "The bot will now extract information from **file names** for auto renaming."
+        icon = "📄"
+    else:
+        mode_text = "📝 **Caption Mode**"
+        description = "The bot will now extract information from **file captions** for auto renaming."
+        icon = "📝"
+    
+    # Update the message
+    response = f"""
+{icon} **Rename Mode Changed**
+
+**Current Mode:** {mode_text}
+
+{description}
+
+**How it works:**
+- **File Mode:** Extracts episode, season, and quality info from file names
+- **Caption Mode:** Extracts the same info from file captions
+
+**Tip:** Make sure your captions contain the same pattern information as your file names.
+"""
+    
+    buttons = InlineKeyboardMarkup([
+        [
+            InlineKeyboardButton("🔄 Switch Again", callback_data="toggle_rename_mode"),
+            InlineKeyboardButton("❌ Close", callback_data="close_message")
+        ]
+    ])
+    
+    await callback_query.message.edit_text(response, reply_markup=buttons)
+
+@Client.on_message(filters.private & filters.command("mode"))
+async def check_mode_command(client, message: Message):
+    """Command to check current rename mode"""
+    user_id = message.from_user.id
+    current_mode = await codeflixbots.get_rename_mode(user_id)
+    
+    if current_mode == "file":
+        mode_text = "📄 **File Mode**"
+        description = "Currently extracting information from **file names**."
+        icon = "📄"
+    else:
+        mode_text = "📝 **Caption Mode**"
+        description = "Currently extracting information from **file captions**."
+        icon = "📝"
+    
+    response = f"""
+{icon} **Current Rename Mode**
+
+**Mode:** {mode_text}
+
+{description}
+
+**To switch mode:** Use /sf command
+**To check mode:** Use /mode command
+
+**Note:** Make sure your source (filename or caption) contains episode numbers, season numbers, and quality information in a recognizable format.
+"""
+    
+    buttons = InlineKeyboardMarkup([
+        [
+            InlineKeyboardButton("🔄 Switch Mode", callback_data="toggle_rename_mode"),
+            InlineKeyboardButton("❌ Close", callback_data="close_message")
+        ]
+    ])
+    
+    await message.reply_text(response, reply_markup=buttons)
 
 # =====================================================
 # /fileseq COMMAND - Choose Sequence Flow
