@@ -246,10 +246,15 @@ async def user_worker(user_id, client):
             break
         except Exception as e:
             logger.error(f"Error in user_worker for user {user_id}: {e}")
+            # Don't crash on message editing errors
+            if "MESSAGE_ID_INVALID" not in str(e) and "message to edit not found" not in str(e).lower():
+                logger.error(f"Serious error in user_worker for user {user_id}: {e}")
             if user_id in user_queues:
-                try: queue.task_done()
-                except: pass
-
+                try: 
+                    queue.task_done()
+                except: 
+                    pass
+                    
 def standardize_quality_name(quality):
     """Restored and Improved: Standardize quality names for consistent storage"""
     if not quality or quality == "Unknown":
