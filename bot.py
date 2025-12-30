@@ -15,7 +15,6 @@ pyrogram.utils.MIN_CHANNEL_ID = -1001896877147
 
 SUPPORT_CHAT = int(os.environ.get("SUPPORT_CHAT", "-1001896877147"))
 
-# bot.py - Update the Bot class __init__ method
 class Bot(Client):
     
     def __init__(self):
@@ -28,10 +27,8 @@ class Bot(Client):
             workers=50,
             plugins={"root": "plugins"},
             sleep_threshold=60,
-            # ADD THESE PARAMETERS:
-            max_concurrent_transmissions=3,  # Reduced concurrent uploads
-            request_timeout=60,  # Increased timeout to 60 seconds
-            connection_retry_delay=5,  # Retry delay
+            # REMOVED: max_concurrent_transmissions (Not supported in v2)
+            # REMOVED: connection_retry_delay (Not supported in v2)
         )
 
         self.start_time = time.time()
